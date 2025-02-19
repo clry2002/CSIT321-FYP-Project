@@ -1,1 +1,2 @@
-# CSIT321-FYP-Project
+CSIT321 FYP Project
+Group - FYP-25-S1-34
