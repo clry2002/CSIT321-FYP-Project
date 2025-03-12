@@ -26,6 +26,7 @@
     "eslint-config-next": "15.2.0",
     "tailwindcss": "^4",
     "typescript": "^5"
+<<<<<<< HEAD
 =======
   "name": "csit321-fyp-project",
   "version": "1.0.0",
@@ -36,5 +37,7 @@
   "scripts": {
     "start": "node firebase-config.js"
 >>>>>>> 254eed570e262546e29a0d8208e0f426cd9075b0
+=======
+>>>>>>> fbdb6d5 (webpage v1.1)
   }
 }

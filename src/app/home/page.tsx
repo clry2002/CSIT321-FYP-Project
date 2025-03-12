@@ -10,11 +10,19 @@ import Header from '../components/Header';
 import { useBooks } from '../../hooks/useBooks';
 import { useVideos } from '../../hooks/useVideos';
 import { useCalendar } from '../../hooks/useCalendar';
+<<<<<<< HEAD
+=======
+import { useSession } from '@/contexts/SessionContext';
+>>>>>>> fbdb6d5 (webpage v1.1)
 
 export default function Home() {
   const { popularBooks } = useBooks();
   const { videos } = useVideos();
   const { calendarDays, currentMonth } = useCalendar();
+<<<<<<< HEAD
+=======
+  const { userProfile, loading } = useSession();
+>>>>>>> fbdb6d5 (webpage v1.1)
 
   return (
     <div className="flex h-screen bg-white overflow-hidden">
@@ -51,8 +59,21 @@ export default function Home() {
             <div className="space-y-5">
               {/* Happy Reading Section */}
               <div>
+<<<<<<< HEAD
                 <h1 className="text-2xl font-serif mb-1.5 text-black">Happy reading,<br />Harvey</h1>
                 <p className="text-gray-800 mb-2 text-xs">Wow! you've delved deep into the wizarding world's secrets. Have Harry's parents died yet? Oops, looks like you're not there yet. Get reading now!</p>
+=======
+                <h1 className="text-2xl font-serif mb-1.5 text-black">
+                  Happy reading,<br />
+                  {loading ? '...' : userProfile?.full_name.split(' ')[0]}
+                </h1>
+                <p className="text-gray-800 mb-2 text-xs">
+                  {userProfile?.favorite_genres?.length ? 
+                    `Time to dive into some ${userProfile.favorite_genres.join(', ')}! Ready to discover your next favorite book?` :
+                    'Ready to discover your next favorite book?'
+                  }
+                </p>
+>>>>>>> fbdb6d5 (webpage v1.1)
                 <button className="bg-gray-900 text-white px-4 py-1.5 rounded-lg inline-flex items-center text-xs">
                   Start reading
                   <span className="ml-1.5">↗</span>
