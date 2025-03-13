@@ -68,52 +68,65 @@ export default function ProfilePage() {
       console.error('Error checking username:', error);
     }
   };
+  
+  const [usernameEdited, setUsernameEdited] = useState(false);
 
   const handleUsernameChange = (value: string) => {
+    setUsernameEdited(true);  // Mark username as manually edited
     const sanitizedUsername = value.toLowerCase().replace(/[^a-z0-9_]/g, '');
     setUsername(sanitizedUsername);
-    checkUsername(sanitizedUsername);
+  
+    // Only check username if the user has actually edited it
+    if (sanitizedUsername !== currentUsername) {
+      checkUsername(sanitizedUsername);
+    } else {
+      setUsernameAvailable(true);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+  
     if (selectedGenres.length === 0) {
       setError('Please select at least one favorite genre');
       return;
     }
-    if (!usernameAvailable) {
+  
+    if (usernameEdited && !usernameAvailable) { 
       setError('Please choose a different username');
       return;
     }
+  
     setError(null);
     setLoading(true);
-
+  
     try {
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) throw new Error('No user found');
-
+  
       const { error } = await supabase
         .from('user_profiles')
         .update({
-          username,
+          username: usernameEdited ? username : currentUsername,
           full_name: name,
           age: parseInt(age),
           favorite_genres: selectedGenres
         })
         .eq('user_id', user.id);
-
+  
       if (error) throw error;
-
+  
       await refreshProfile();
       setError('Profile updated successfully');
+      setUsernameEdited(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred while updating your profile');
     } finally {
       setLoading(false);
     }
   };
-
+  
   return (
     <div className="flex h-screen bg-white overflow-hidden">
       {/* Sidebar */}
@@ -236,8 +249,8 @@ export default function ProfilePage() {
 
               <div className="flex justify-end space-x-3">
                 <Link
-                  href="/home"
-                  className="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50"
+                  href="/settings"
+                  className="px-4 py-2 bg-gray-200 text-gray-700 border border-gray-300 rounded-lg text-sm hover:bg-gray-300"
                 >
                   Cancel
                 </Link>
