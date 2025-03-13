@@ -1,11 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-<<<<<<< HEAD
-import { Home as HomeIcon, BookOpen, Settings, PlayCircle, Search } from 'lucide-react';
-=======
 import { Home as HomeIcon, BookOpen, Settings, PlayCircle, Search, User } from 'lucide-react';
->>>>>>> fbdb6d5 (webpage v1.1)
 import Header from '../components/Header';
 
 export default function SettingsPage() {
@@ -39,21 +35,6 @@ export default function SettingsPage() {
         
         <div className="px-6">
           <h2 className="text-2xl font-serif mb-6 text-black">Settings</h2>
-<<<<<<< HEAD
-          <div className="max-w-2xl space-y-6">
-            <div className="p-4 border rounded-lg">
-              <h3 className="font-medium mb-2">Profile Settings</h3>
-              <p className="text-sm text-gray-600">Manage your profile information and preferences</p>
-            </div>
-            <div className="p-4 border rounded-lg">
-              <h3 className="font-medium mb-2">Account Settings</h3>
-              <p className="text-sm text-gray-600">Update your account settings and security preferences</p>
-            </div>
-            <div className="p-4 border rounded-lg">
-              <h3 className="font-medium mb-2">Notification Settings</h3>
-              <p className="text-sm text-gray-600">Configure your notification preferences</p>
-            </div>
-=======
           <div className="max-w-2xl">
             <Link href="/profile" className="block">
               <div className="p-4 border rounded-lg hover:border-rose-200 hover:bg-rose-50 transition-colors">
@@ -64,7 +45,6 @@ export default function SettingsPage() {
                 <p className="text-sm text-gray-600 ml-7">Manage your profile information and preferences</p>
               </div>
             </Link>
->>>>>>> fbdb6d5 (webpage v1.1)
           </div>
         </div>
       </div>
