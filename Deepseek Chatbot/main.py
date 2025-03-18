@@ -65,18 +65,17 @@ def clean_response(response):
     cleaned_response = re.sub(r"<think>", "", cleaned_response)
     cleaned_response = re.sub(r"</think>", "", cleaned_response)
 
-    # Replace **text** and *text* with <b>text</b>
+    # Replace **text** with bold formatting
     cleaned_response = re.sub(r"\*\*(.*?)\*\*", r"<b>\1</b>", cleaned_response)
+
     # Replace ### headings with <h3> tags
     cleaned_response = re.sub(r"###\s?(.*)", r"<h3>\1</h3>", cleaned_response)
 
-    # Add HTML <ul> and <li> for list formatting for numbered lists
-    list_items = re.findall(r"(\d+\.\s.*?)(?=\d+\.|$)", cleaned_response, flags=re.DOTALL)
-    if list_items:
-        list_html = ''.join([f"<li>{item[3:].strip()}</li>" for item in list_items])
-        cleaned_response += f"<ul>{list_html}</ul>"
+    # Replace numbered lists with <br> for better formatting
+    cleaned_response = cleaned_response.replace("\n", "<br>")
 
     return cleaned_response.strip()
+
 
 # Flask API endpoint for chat
 @app.route('/api/chat', methods=['POST'])

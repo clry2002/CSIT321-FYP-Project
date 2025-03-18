@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import Image from 'next/image';
 import { useChatbot } from '@/hooks/useChatbot';
 import { Send } from 'lucide-react';
 
@@ -19,47 +18,49 @@ export default function ChatBot() {
   };
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between p-4 border-b">
-        <h2 className="text-lg font-medium text-black">Book Recommendation Bot</h2>
+    <div className="flex flex-col h-full border rounded-lg shadow-md bg-white">
+      {/* Header */}
+      <div className="flex items-center justify-between p-4 border-b bg-gray-100">
+        <h2 className="text-lg font-semibold text-gray-900">Book Recommendation Bot</h2>
       </div>
-      
+
+      {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((message, index) => (
-          <div
-            key={index}
-            className={`flex ${
-              message.role === 'user' ? 'justify-end' : 'justify-start'
-            }`}
-          >
+          <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
             <div
-              className={`max-w-[80%] rounded-lg p-3 ${
+              className={`max-w-[80%] rounded-lg p-3 transition-transform duration-300 ease-in-out ${
                 message.role === 'user'
-                  ? 'bg-rose-500 text-white'
-                  : 'bg-gray-100 text-gray-900'
+                  ? 'bg-rose-500 text-black self-end hover:scale-105 shadow-lg' // User message pops out on hover
+                  : 'bg-gray-100 text-gray-900 hover:scale-105 shadow-md' // Assistant message pops out on hover
               }`}
             >
-              {message.content}
+              {message.role === 'assistant' ? (
+                <div dangerouslySetInnerHTML={{ __html: message.content }} />
+              ) : (
+                message.content
+              )}
             </div>
           </div>
         ))}
+
+        {/* Show "Thinking..." when waiting for a response */}
         {isLoading && (
           <div className="flex justify-start">
-            <div className="bg-gray-100 text-gray-900 rounded-lg p-3">
-              Thinking...
-            </div>
+            <div className="bg-gray-200 text-gray-900 rounded-lg p-3">Thinking...</div>
           </div>
         )}
       </div>
 
-      <form onSubmit={handleSubmit} className="p-4 border-t">
+      {/* Input Form */}
+      <form onSubmit={handleSubmit} className="p-4 border-t bg-gray-100">
         <div className="flex space-x-2">
           <input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Ask for book recommendations..."
-            className="flex-1 p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-200"
+            className="flex-1 p-2 text-black border rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-300"
           />
           <button
             type="submit"
@@ -72,4 +73,4 @@ export default function ChatBot() {
       </form>
     </div>
   );
-} 
+}
