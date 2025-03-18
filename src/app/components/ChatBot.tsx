@@ -1,20 +1,30 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useChatbot } from '@/hooks/useChatbot';
 import { Send } from 'lucide-react';
+import './styles.css'; // Import your existing styles for additional customization
 
-export default function ChatBot() {
+const ChatBot: React.FC = () => {
   const { messages, isLoading, sendMessage } = useChatbot();
   const [input, setInput] = useState('');
+  const chatContainerRef = useRef<HTMLDivElement | null>(null);
 
+  // Automatically scroll to the latest message when the messages array updates
+  useEffect(() => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
+  }, [messages]);
+
+  // Handle message submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
 
     const userMessage = input.trim();
-    setInput('');
-    await sendMessage(userMessage);
+    setInput(''); // Clear input field
+    await sendMessage(userMessage); // Send message through the custom hook
   };
 
   return (
@@ -25,14 +35,14 @@ export default function ChatBot() {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div ref={chatContainerRef} className="chat-container flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((message, index) => (
           <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
             <div
               className={`max-w-[80%] rounded-lg p-3 transition-transform duration-300 ease-in-out ${
                 message.role === 'user'
-                  ? 'bg-rose-500 text-black self-end hover:scale-105 shadow-lg' // User message pops out on hover
-                  : 'bg-gray-100 text-gray-900 hover:scale-105 shadow-md' // Assistant message pops out on hover
+                  ? 'bg-rose-500 text-black self-end hover:scale-105 shadow-lg'
+                  : 'bg-gray-100 text-gray-900 hover:scale-105 shadow-md'
               }`}
             >
               {message.role === 'assistant' ? (
@@ -73,4 +83,6 @@ export default function ChatBot() {
       </form>
     </div>
   );
-}
+};
+
+export default ChatBot;

@@ -1,9 +1,8 @@
-'use client';
-
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import axios from 'axios';
 
-interface Message {
+// Define the Message interface
+export interface Message {
   content: string;
   role: 'user' | 'assistant';
 }
@@ -12,22 +11,23 @@ export const useChatbot = () => {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
-      content: 'Hello! I can help you find books based on your interests. What kind of books are you looking for?'
+      content: 'Hello! I can help you find books and videos based on your interests. What are you looking for?'
     }
   ]);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Ref for auto-scrolling
+  const chatContainerRef = useRef<HTMLDivElement | null>(null);
 
   const sendMessage = useCallback(async (message: string) => {
     try {
       setIsLoading(true);
       setMessages((prev) => [...prev, { role: 'user', content: message }]);
 
-      // Axios-based API call
       const response = await axios.post<{ answer: string }>('http://127.0.0.1:5000/api/chat', {
-        question: message, // Send 'question' to match backend expectations
+        question: message, // Backend expects `question` field
       });
 
-      // Add assistant's response
       setMessages((prev) => [...prev, { role: 'assistant', content: response.data.answer }]);
     } catch (error) {
       console.error('Error calling API:', error);
@@ -35,7 +35,7 @@ export const useChatbot = () => {
         ...prev,
         {
           role: 'assistant',
-          content: 'Sorry, I encountered an error while searching for books. Please try again.'
+          content: 'Sorry, I have encountered an error. Please try again.'
         }
       ]);
     } finally {
@@ -43,9 +43,17 @@ export const useChatbot = () => {
     }
   }, []);
 
+  // Auto-scroll to the latest message whenever `messages` updates
+  useEffect(() => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
+  }, [messages]);
+
   return {
     messages,
     isLoading,
-    sendMessage
+    sendMessage,
+    chatContainerRef,
   };
 };

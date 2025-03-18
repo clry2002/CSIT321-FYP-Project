@@ -74,7 +74,9 @@ def clean_response(response):
     # Replace numbered lists with <br> for better formatting
     cleaned_response = cleaned_response.replace("\n", "<br>")
 
+    # Strip any leading or trailing whitespace (including newlines)
     return cleaned_response.strip()
+
 
 
 # Flask API endpoint for chat
