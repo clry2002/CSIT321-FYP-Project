@@ -57,7 +57,9 @@ const ChatBot: React.FC = () => {
         {/* Show "Thinking..." when waiting for a response */}
         {isLoading && (
           <div className="flex justify-start">
-            <div className="bg-gray-200 text-gray-900 rounded-lg p-3">Thinking...</div>
+            <div className="bg-gray-200 text-gray-900 rounded-lg p-3">
+              Thinking<span className="dots">...</span>
+            </div>
           </div>
         )}
       </div>
