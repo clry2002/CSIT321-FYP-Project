@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import axios from 'axios';
 
 interface Message {
   content: string;
@@ -19,27 +20,22 @@ export const useChatbot = () => {
   const sendMessage = useCallback(async (message: string) => {
     try {
       setIsLoading(true);
-      setMessages(prev => [...prev, { role: 'user', content: message }]);
+      setMessages((prev) => [...prev, { role: 'user', content: message }]);
 
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ message }),
-      });
+      // Axios-based API call
+      const response = await axios.post<{ response: string }>('http://127.0.0.1:5000/api/chat', { message });
 
-      if (!response.ok) {
-        throw new Error('Failed to get response');
-      }
-
-      const data = await response.json();
-      setMessages(prev => [...prev, { role: 'assistant', content: data.response }]);
+      // Add assistant's response
+      setMessages((prev) => [...prev, { role: 'assistant', content: response.data.response }]);
     } catch (error) {
-      setMessages(prev => [...prev, {
-        role: 'assistant',
-        content: 'Sorry, I encountered an error while searching for books. Please try again.'
-      }]);
+      console.error('Error calling API:', error);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: 'Sorry, I encountered an error while searching for books. Please try again.'
+        }
+      ]);
     } finally {
       setIsLoading(false);
     }
@@ -50,4 +46,4 @@ export const useChatbot = () => {
     isLoading,
     sendMessage
   };
-}; 
+};

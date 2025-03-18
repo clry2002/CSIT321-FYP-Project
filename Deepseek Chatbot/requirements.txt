@@ -3,3 +3,5 @@ langchain-groq
 python-dotenv
 langchain-community
 supabase
+flask
+flask_cors
