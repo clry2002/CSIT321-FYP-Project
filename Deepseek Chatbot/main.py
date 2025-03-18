@@ -18,7 +18,7 @@ import re
 # Load environment variables
 load_dotenv()
 
-# Flask app setup 
+# Flask app setup
 app = Flask(__name__)
 CORS(app)  # Enable CORS to allow communication with the React frontend
 
@@ -35,17 +35,9 @@ SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # Loading and Splitting data in chunks
-
-# Get the current working directory (where your script is running from)
-current_dir = os.getcwd()
-
-# Construct the relative path to the data.txt file
-file_path = os.path.join(current_dir, "data.txt")
-
-# Initialize the loader with the relative path
+current_dir = os.getcwd()  # Get the current working directory
+file_path = os.path.join(current_dir, "data.txt")  # Path to your data file
 loader = TextLoader(file_path, encoding='utf-8')
-
-# Load the data
 data = loader.load()
 
 # Get only the result from the model
@@ -66,7 +58,7 @@ Context:{context}
 Question:{question}
 """)
 
-# Cleaning of RAW Response Output, for easier readibility
+# Cleaning of RAW Response Output, for easier readability
 def clean_response(response):
     # Remove <think> tags
     cleaned_response = re.sub(r"<think>.*?</think>", "", response, flags=re.DOTALL)
@@ -75,28 +67,16 @@ def clean_response(response):
 
     # Replace **text** and *text* with <b>text</b>
     cleaned_response = re.sub(r"\*\*(.*?)\*\*", r"<b>\1</b>", cleaned_response)
-    # cleaned_response = re.sub(r"\*(.*?)\*", r"<b>\1</b>", cleaned_response)
-
     # Replace ### headings with <h3> tags
     cleaned_response = re.sub(r"###\s?(.*)", r"<h3>\1</h3>", cleaned_response)
 
-    # Replace *text* with <i>text</i> for italic formatting
-    cleaned_response = re.sub(r"\*(.*?)\*", r"<i>\1</i>", cleaned_response)
-
-    # Add HTML <ul> and <li> for list formatting
-    # Apply this ONLY to numbered lists (e.g., "1. Text")
+    # Add HTML <ul> and <li> for list formatting for numbered lists
     list_items = re.findall(r"(\d+\.\s.*?)(?=\d+\.|$)", cleaned_response, flags=re.DOTALL)
     if list_items:
-        # Wrap each item in <li> tags
         list_html = ''.join([f"<li>{item[3:].strip()}</li>" for item in list_items])
-        # Replace the list in the response with a properly formatted <ul> block
-        cleaned_response = re.sub(
-            r"(\d+\.\s.*?)(?=\d+\.|$)", "", cleaned_response, flags=re.DOTALL
-        )  # Remove original list from cleaned response
         cleaned_response += f"<ul>{list_html}</ul>"
 
     return cleaned_response.strip()
-
 
 # Flask API endpoint for chat
 @app.route('/api/chat', methods=['POST'])
@@ -110,7 +90,11 @@ def chat():
 
     # Generate a response using the DeepSeek AI logic
     formatted_template = template.format(context=data, question=question)
-    answer = deepseek_chain.invoke(formatted_template)
+    try:
+        answer = deepseek_chain.invoke(formatted_template)
+    except Exception as e:
+        print(f"DeepSeek error: {e}")
+        return jsonify({"error": "Failed to process the request"}), 500
 
     # Cleaning the response by removing <think> tags
     cleaned_answer = clean_response(answer)

@@ -23,10 +23,12 @@ export const useChatbot = () => {
       setMessages((prev) => [...prev, { role: 'user', content: message }]);
 
       // Axios-based API call
-      const response = await axios.post<{ response: string }>('http://127.0.0.1:5000/api/chat', { message });
+      const response = await axios.post<{ answer: string }>('http://127.0.0.1:5000/api/chat', {
+        question: message, // Send 'question' to match backend expectations
+      });
 
       // Add assistant's response
-      setMessages((prev) => [...prev, { role: 'assistant', content: response.data.response }]);
+      setMessages((prev) => [...prev, { role: 'assistant', content: response.data.answer }]);
     } catch (error) {
       console.error('Error calling API:', error);
       setMessages((prev) => [
