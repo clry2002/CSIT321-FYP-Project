@@ -1,12 +1,11 @@
 'use client';
 
 import Image from 'next/image';
-import Link from 'next/link';
-import { Search, Home as HomeIcon, BookOpen, Clock, Bookmark, Settings, Bell, PlayCircle } from 'lucide-react';
+import Navbar from '../components/Navbar';
+import Header from '../components/Header';
 import BookCard from '../components/BookCard';
 import Calendar from '../components/Calendar';
 import ChatBot from '../components/ChatBot';
-import Header from '../components/Header';
 import { useBooks } from '../../hooks/useBooks';
 import { useVideos } from '../../hooks/useVideos';
 import { useCalendar } from '../../hooks/useCalendar';
@@ -19,33 +18,11 @@ export default function Home() {
   const { userProfile, loading } = useSession();
 
   return (
-    <div className="flex h-screen bg-white overflow-hidden">
-      {/* Sidebar */}
-      <aside className="w-20 border-r border-gray-200 flex flex-col items-center py-4 space-y-4">
-        <div className="text-xl">✋</div>
-        <nav className="flex flex-col space-y-3">
-          <Link href="/home" className="p-2.5 rounded-lg bg-rose-100">
-            <HomeIcon className="w-5 h-5 text-rose-500" />
-          </Link>
-          <Link href="/search" className="p-2.5 rounded-lg hover:bg-gray-100">
-            <Search className="w-5 h-5 text-gray-800" />
-          </Link>
-          <Link href="/books" className="p-2.5 rounded-lg hover:bg-gray-100">
-            <BookOpen className="w-5 h-5 text-gray-800" />
-          </Link>
-          <Link href="/videos" className="p-2.5 rounded-lg hover:bg-gray-100">
-            <PlayCircle className="w-5 h-5 text-gray-800" />
-          </Link>
-          <Link href="/settings" className="p-2.5 rounded-lg hover:bg-gray-100">
-            <Settings className="w-5 h-5 text-gray-800" />
-          </Link>
-        </nav>
-      </aside>
-
+    <div className="flex flex-col h-screen bg-white overflow-hidden">
+      <Navbar/>
       {/* Main Content */}
       <div className="flex-1 overflow-y-auto">
         <Header />
-        
         <div className="px-6">
           {/* Main Grid */}
           <div className="grid grid-cols-2 gap-5">

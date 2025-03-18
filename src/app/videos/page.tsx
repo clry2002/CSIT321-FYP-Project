@@ -1,8 +1,8 @@
 'use client';
 
-import Link from 'next/link';
+
 import Image from 'next/image';
-import { Search, Home as HomeIcon, BookOpen, Settings, PlayCircle } from 'lucide-react';
+import Navbar from '../components/Navbar';
 import Header from '../components/Header';
 import { useVideos } from '@/hooks/useVideos';
 
@@ -15,30 +15,10 @@ export default function VideosPage() {
 
   return (
     <div className="flex h-screen bg-white overflow-hidden">
-      {/* Sidebar */}
-      <aside className="w-20 border-r border-gray-200 flex flex-col items-center py-4 space-y-4">
-        <div className="text-xl">✋</div>
-        <nav className="flex flex-col space-y-3">
-          <Link href="/home" className="p-2.5 rounded-lg hover:bg-gray-100">
-            <HomeIcon className="w-5 h-5 text-gray-800" />
-          </Link>
-          <Link href="/search" className="p-2.5 rounded-lg hover:bg-gray-100">
-            <Search className="w-5 h-5 text-gray-800" />
-          </Link>
-          <Link href="/books" className="p-2.5 rounded-lg hover:bg-gray-100">
-            <BookOpen className="w-5 h-5 text-gray-800" />
-          </Link>
-          <Link href="/videos" className="p-2.5 rounded-lg bg-rose-100">
-            <PlayCircle className="w-5 h-5 text-rose-500" />
-          </Link>
-          <Link href="/settings" className="p-2.5 rounded-lg hover:bg-gray-100">
-            <Settings className="w-5 h-5 text-gray-800" />
-          </Link>
-        </nav>
-      </aside>
+      <Navbar />
 
       {/* Main Content */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto pt-16 px-6">
         <Header 
           showSearch 
           searchPlaceholder="Search liked videos..."

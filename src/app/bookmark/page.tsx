@@ -1,11 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
-import { Search, Plus, Home as HomeIcon, BookOpen, Settings, PlayCircle } from 'lucide-react';
+import Navbar from '../components/Navbar';
+import Header from '../components/Header';
+import { Plus } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import type { Book } from '@/types/database.types';
-import Header from '../components/Header';
+
 
 export default function BooksPage() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -49,31 +50,10 @@ export default function BooksPage() {
   };
 
   return (
-    <div className="flex h-screen bg-white overflow-hidden">
-      {/* Sidebar */}
-      <aside className="w-20 border-r border-gray-200 flex flex-col items-center py-4 space-y-4">
-        <div className="text-xl">✋</div>
-        <nav className="flex flex-col space-y-3">
-          <Link href="/home" className="p-2.5 rounded-lg hover:bg-gray-100">
-            <HomeIcon className="w-5 h-5 text-gray-800" />
-          </Link>
-          <Link href="/search" className="p-2.5 rounded-lg hover:bg-gray-100">
-            <Search className="w-5 h-5 text-gray-800" />
-          </Link>
-          <Link href="/books" className="p-2.5 rounded-lg bg-rose-100">
-            <BookOpen className="w-5 h-5 text-rose-500" />
-          </Link>
-          <Link href="/videos" className="p-2.5 rounded-lg hover:bg-gray-100">
-            <PlayCircle className="w-5 h-5 text-gray-800" />
-          </Link>
-          <Link href="/settings" className="p-2.5 rounded-lg hover:bg-gray-100">
-            <Settings className="w-5 h-5 text-gray-800" />
-          </Link>
-        </nav>
-      </aside>
-
+    <div className="flex flex-col h-screen bg-white overflow-hidden">
+    <Navbar />
       {/* Main Content */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto pt-16 px-6">
         <Header 
           showSearch 
           searchPlaceholder="Search by book title..."
@@ -81,7 +61,7 @@ export default function BooksPage() {
         />
         
         <div className="px-6">
-          <h2 className="text-2xl font-serif mb-6 text-black">My Collection</h2>
+          <h2 className="text-2xl font-serif mb-6 text-black">My Bookmarks</h2>
 
           {/* Search Results */}
           {isSearching ? (
@@ -122,7 +102,7 @@ export default function BooksPage() {
           <div>
             {userBooks.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
-                Your collection is empty. Search for books to add them here!
+                Your collection is empty. Browse books and add them here!
               </div>
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -157,4 +137,4 @@ export default function BooksPage() {
       </div>
     </div>
   );
-} 
+}

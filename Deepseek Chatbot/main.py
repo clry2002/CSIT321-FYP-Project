@@ -27,8 +27,19 @@ deepseek_chain = deepseek | parser
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # Loading and Splitting data in chunks
-loader = TextLoader('data.txt', encoding='utf-8')
+
+# Get the current working directory (where your script is running from)
+current_dir = os.getcwd()
+
+# Construct the relative path to the data.txt file
+file_path = os.path.join(current_dir, "Deepseek Chatbot", "data.txt")
+
+# Initialize the loader with the relative path
+loader = TextLoader(file_path, encoding='utf-8')
+
+# Load the data
 data = loader.load()
+
 
 # Define the function of the chatbot
 template = ("""
