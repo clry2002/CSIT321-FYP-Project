@@ -11,16 +11,27 @@ const GENRES = [
   'Biography', 'Self-Help', 'Business', 'Poetry', 'Drama'
 ];
 
+const USER_TYPES = ['Parent', 'Publisher', 'Educator'];
+
 export default function SetupPage() {
   const router = useRouter();
   const { refreshProfile } = useSession();
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
   const [age, setAge] = useState('');
+  const [userType, setUserType] = useState('');
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
+  const [parentEmail, setParentEmail] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
+  const [children, setChildren] = useState<Array<{
+    user_id: string;
+    full_name: string;
+    username: string;
+    age: number;
+  }>>([]);
+  const [selectedChild, setSelectedChild] = useState<string>('');
 
   const handleGenreToggle = (genre: string) => {
     setSelectedGenres(prev => {
@@ -41,18 +52,17 @@ export default function SetupPage() {
 
     try {
       const { data, error } = await supabase
-        .from('user_profiles')
+        .from('user_account')
         .select('username')
-        .eq('username', username)
-        .single();
+        .eq('username', username);
 
-      if (error && error.code === 'PGRST116') {
-        // No results found, username is available
-        setUsernameAvailable(true);
-      } else {
-        // Username exists
-        setUsernameAvailable(false);
+      if (error) {
+        console.error('Error checking username:', error);
+        return;
       }
+
+      // If no data or empty array returned, username is available
+      setUsernameAvailable(!data || data.length === 0);
     } catch (error) {
       console.error('Error checking username:', error);
     }
@@ -64,10 +74,61 @@ export default function SetupPage() {
     checkUsername(sanitizedUsername);
   };
 
+  const fetchChildrenForParent = async (email: string) => {
+    try {
+      // First get child profiles that match the parent email
+      const { data: childProfiles, error: childProfileError } = await supabase
+        .from('child_profile')
+        .select('child_id, parent_email')
+        .eq('parent_email', email);
+
+      if (childProfileError) throw childProfileError;
+      if (!childProfiles?.length) return;
+
+      // Get the user details for each child
+      const { data: childUsers, error: childUsersError } = await supabase
+        .from('user_account')
+        .select('user_id, full_name, username, age')
+        .in('user_id', childProfiles.map(profile => profile.child_id));
+
+      if (childUsersError) throw childUsersError;
+      if (childUsers) {
+        setChildren(childUsers);
+      }
+    } catch (error) {
+      console.error('Error fetching children:', error);
+    }
+  };
+
+  const handleUserTypeChange = async (value: string) => {
+    setUserType(value);
+    if (value === 'Parent') {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.email) {
+        await fetchChildrenForParent(user.email);
+      }
+    } else {
+      setChildren([]);
+      setSelectedChild('');
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (selectedGenres.length === 0) {
+    if (parseInt(age) < 18 && selectedGenres.length === 0) {
       setError('Please select at least one favorite genre');
+      return;
+    }
+    if (parseInt(age) < 18 && !parentEmail) {
+      setError('Please provide parent email');
+      return;
+    }
+    if (parseInt(age) >= 18 && !userType) {
+      setError('Please select your role');
+      return;
+    }
+    if (userType === 'Parent' && children.length > 0 && !selectedChild) {
+      setError('Please select your child');
       return;
     }
     if (!usernameAvailable) {
@@ -78,26 +139,195 @@ export default function SetupPage() {
     setLoading(true);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
       
+      if (userError) {
+        console.error('Auth error:', userError);
+        throw userError;
+      }
       if (!user) throw new Error('No user found');
 
-      const { error } = await supabase
-        .from('user_profiles')
-        .insert({
-          user_id: user.id,
-          username,
-          full_name: name,
-          age: parseInt(age),
-          favorite_genres: selectedGenres
-        });
+      // Determine profile type based on age and selected role
+      const profile_type = parseInt(age) < 18 ? 'Child' : userType;
 
-      if (error) throw error;
+      const userData = {
+        user_id: user.id,
+        username,
+        full_name: name,
+        age: parseInt(age),
+        profile_type,
+        updated_at: new Date().toISOString()
+      };
+
+      console.log('Saving user data:', userData);
+
+      // First, check if user already exists
+      const { data: existingUser, error: checkError } = await supabase
+        .from('user_account')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (checkError && checkError.code !== 'PGRST116') {
+        console.error('Error checking existing user:', checkError);
+        throw checkError;
+      }
+
+      let error;
+      if (existingUser) {
+        // If user exists, update their profile
+        const { error: updateError } = await supabase
+          .from('user_account')
+          .update(userData)
+          .eq('user_id', user.id);
+        error = updateError;
+      } else {
+        // If user doesn't exist, create new profile
+        const { error: insertError } = await supabase
+          .from('user_account')
+          .insert({
+            ...userData,
+            created_at: new Date().toISOString()
+          });
+        error = insertError;
+      }
+
+      if (error) {
+        console.error('Database operation error:', error);
+        throw error;
+      }
+
+      // Handle profile creation based on user type
+      if (profile_type === 'Child') {
+        // Check if child profile exists
+        const { data: existingChildProfile, error: childCheckError } = await supabase
+          .from('child_profile')
+          .select('*')
+          .eq('child_id', user.id)
+          .single();
+
+        if (childCheckError && childCheckError.code !== 'PGRST116') {
+          console.error('Error checking existing child profile:', childCheckError);
+          throw childCheckError;
+        }
+
+        if (existingChildProfile) {
+          // Update existing child profile
+          const { error: childUpdateError } = await supabase
+            .from('child_profile')
+            .update({
+              favorite_genres: selectedGenres,
+              parent_email: parentEmail
+            })
+            .eq('child_id', user.id);
+          
+          if (childUpdateError) {
+            console.error('Error updating child profile:', childUpdateError);
+            throw childUpdateError;
+          }
+        } else {
+          // Create new child profile
+          const { error: childInsertError } = await supabase
+            .from('child_profile')
+            .insert({
+              child_id: user.id,
+              favorite_genres: selectedGenres,
+              parent_email: parentEmail
+            });
+          
+          if (childInsertError) {
+            console.error('Error creating child profile:', childInsertError);
+            throw childInsertError;
+          }
+        }
+      } else if (profile_type === 'Publisher') {
+        // Check if publisher profile exists
+        const { data: existingProfile, error: checkError } = await supabase
+          .from('publisher_profile')
+          .select('*')
+          .eq('publisher_id', user.id)
+          .single();
+
+        if (checkError && checkError.code !== 'PGRST116') {
+          console.error('Error checking existing publisher profile:', checkError);
+          throw checkError;
+        }
+
+        if (!existingProfile) {
+          // Create new publisher profile only if it doesn't exist
+          const { error: insertError } = await supabase
+            .from('publisher_profile')
+            .insert({ publisher_id: user.id });
+          
+          if (insertError) {
+            console.error('Error creating publisher profile:', insertError);
+            throw insertError;
+          }
+        }
+      } else if (profile_type === 'Parent') {
+        // Check if parent profile exists
+        const { data: existingProfile, error: checkError } = await supabase
+          .from('parent_profile')
+          .select('*')
+          .eq('parent_id', user.id)
+          .single();
+
+        if (checkError && checkError.code !== 'PGRST116') {
+          console.error('Error checking existing parent profile:', checkError);
+          throw checkError;
+        }
+
+        if (!existingProfile) {
+          // Create new parent profile only if it doesn't exist
+          const { error: insertError } = await supabase
+            .from('parent_profile')
+            .insert({ 
+              parent_id: user.id,
+              child_id: selectedChild || null
+            });
+          
+          if (insertError) {
+            console.error('Error creating parent profile:', insertError);
+            throw insertError;
+          }
+        }
+      } else if (profile_type === 'Educator') {
+        // Check if educator profile exists
+        const { data: existingProfile, error: checkError } = await supabase
+          .from('educator_profile')
+          .select('*')
+          .eq('educator_id', user.id)
+          .single();
+
+        if (checkError && checkError.code !== 'PGRST116') {
+          console.error('Error checking existing educator profile:', checkError);
+          throw checkError;
+        }
+
+        if (!existingProfile) {
+          // Create new educator profile only if it doesn't exist
+          const { error: insertError } = await supabase
+            .from('educator_profile')
+            .insert({ educator_id: user.id });
+          
+          if (insertError) {
+            console.error('Error creating educator profile:', insertError);
+            throw insertError;
+          }
+        }
+      }
 
       await refreshProfile();
       router.push('/home');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred while saving your preferences');
+      console.error('Submission error:', err);
+      if (err instanceof Error) {
+        setError(err.message);
+      } else if (typeof err === 'object' && err !== null && 'message' in err) {
+        setError(err.message as string);
+      } else {
+        setError('An error occurred while saving your preferences');
+      }
     } finally {
       setLoading(false);
     }
@@ -180,27 +410,86 @@ export default function SetupPage() {
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Select up to 3 favorite genres
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                {GENRES.map((genre) => (
-                  <button
-                    key={genre}
-                    type="button"
-                    onClick={() => handleGenreToggle(genre)}
-                    className={`p-2 text-sm rounded-lg border ${
-                      selectedGenres.includes(genre)
-                        ? 'bg-rose-500 text-white border-rose-500'
-                        : 'border-gray-300 text-gray-700 hover:border-rose-500'
-                    }`}
-                  >
-                    {genre}
-                  </button>
-                ))}
+            {age && parseInt(age) >= 18 && (
+              <div>
+                <label htmlFor="userType" className="block text-sm font-medium text-gray-700">
+                  I am a:
+                </label>
+                <select
+                  id="userType"
+                  value={userType}
+                  onChange={(e) => handleUserTypeChange(e.target.value)}
+                  required
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent !text-black"
+                >
+                  <option value="">Select your role</option>
+                  {USER_TYPES.map((type) => (
+                    <option key={type} value={type}>{type}</option>
+                  ))}
+                </select>
+
+                {userType === 'Parent' && children.length > 0 && (
+                  <div className="mt-4">
+                    <label htmlFor="childSelect" className="block text-sm font-medium text-gray-700">
+                      Select your child:
+                    </label>
+                    <select
+                      id="childSelect"
+                      value={selectedChild}
+                      onChange={(e) => setSelectedChild(e.target.value)}
+                      required
+                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent !text-black"
+                    >
+                      <option value="">Select a child</option>
+                      {children.map((child) => (
+                        <option key={child.user_id} value={child.user_id}>
+                          {child.full_name} ({child.username}) - {child.age} years old
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
-            </div>
+            )}
+
+            {age && parseInt(age) < 18 && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select up to 3 favorite genres
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {GENRES.map((genre) => (
+                    <button
+                      key={genre}
+                      type="button"
+                      onClick={() => handleGenreToggle(genre)}
+                      className={`p-2 text-sm rounded-lg border ${
+                        selectedGenres.includes(genre)
+                          ? 'bg-rose-500 text-white border-rose-500'
+                          : 'border-gray-300 text-gray-700 hover:border-rose-500'
+                      }`}
+                    >
+                      {genre}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="mt-4">
+                  <label htmlFor="parentEmail" className="block text-sm font-medium text-gray-700">
+                    Parent Email
+                  </label>
+                  <input
+                    id="parentEmail"
+                    type="email"
+                    required
+                    value={parentEmail}
+                    onChange={(e) => setParentEmail(e.target.value)}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent !text-black"
+                    placeholder="parent@example.com"
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           <button

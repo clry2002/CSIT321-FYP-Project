@@ -60,25 +60,47 @@ export default function Home() {
               <div>
                 <h2 className="text-lg font-serif mb-3 text-black">Videos for You</h2>
                 <div className="grid grid-cols-4 gap-2">
-                  {videos.map((video, index) => (
-                    <div key={index} className="space-y-1">
-                      <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-gray-100">
-                        <Image
-                          src={video.thumbnail}
-                          alt={video.title}
-                          fill
-                          className="object-cover"
-                        />
-                        <div className="absolute inset-0 bg-black bg-opacity-20 flex items-center justify-center">
-                          <div className="w-8 h-8 rounded-full bg-white bg-opacity-80 flex items-center justify-center">
-                            <div className="w-0 h-0 border-t-4 border-b-4 border-l-8 border-transparent border-l-gray-800 ml-1" />
+                  {loading ? (
+                    // Loading skeleton
+                    Array.from({ length: 4 }).map((_, index) => (
+                      <div key={index} className="space-y-1">
+                        <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-gray-200 animate-pulse" />
+                        <div className="h-3 bg-gray-200 rounded animate-pulse w-3/4" />
+                        <div className="h-3 bg-gray-200 rounded animate-pulse w-1/2" />
+                      </div>
+                    ))
+                  ) : videos.length > 0 ? (
+                    videos.map((video) => {
+                      const videoId = video.link.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/)?.[1];
+                      
+                      return (
+                        <div key={video.title} className="border rounded-lg overflow-hidden">
+                          <div className="aspect-video relative">
+                            {videoId ? (
+                              <iframe
+                                src={`https://www.youtube.com/embed/${videoId}`}
+                                title={video.title}
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                allowFullScreen
+                                className="absolute inset-0 w-full h-full"
+                              />
+                            ) : (
+                              <div className="absolute inset-0 bg-gray-100 flex items-center justify-center">
+                                <p className="text-gray-500">Invalid video link</p>
+                              </div>
+                            )}
+                          </div>
+                          <div className="p-2">
+                            <h3 className="font-medium text-xs text-black leading-tight">{video.title}</h3>
                           </div>
                         </div>
-                      </div>
-                      <h3 className="font-medium text-xs text-black leading-tight">{video.title}</h3>
-                      <p className="text-xs text-gray-800">{video.views} views • {video.timeAgo}</p>
+                      );
+                    })
+                  ) : (
+                    <div className="col-span-4 text-center text-gray-500 py-4">
+                      No videos available at the moment
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
             </div>

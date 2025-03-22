@@ -1,39 +1,39 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
 
 interface Book {
   title: string;
   author: string;
-  coverImage: string;
-  volume?: string;
+  cover_image: string;
 }
 
 export const useBooks = () => {
-  const [popularBooks] = useState<Book[]>([
-    {
-      title: 'The World of Ice and Fire',
-      author: 'George R. R. Martin',
-      coverImage: '/book1.jpg'
-    },
-    {
-      title: 'Fantastic Beasts',
-      author: 'J.K. Rowling',
-      coverImage: '/book2.jpg',
-      volume: 'II'
-    },
-    {
-      title: 'Game of Thrones',
-      author: 'George R. R. Martin',
-      coverImage: '/book3.jpg',
-      volume: 'III'
-    },
-    {
-      title: "The Wise Man's Fear",
-      author: 'Patrick Rothfuss',
-      coverImage: '/book4.jpg'
-    }
-  ]);
+  const [popularBooks, setPopularBooks] = useState<Book[]>([]);
+
+  useEffect(() => {
+    const fetchBooks = async () => {
+      const { data, error } = await supabase
+        .from('books')
+        .select('title, author, cover_image')
+        .in('title', [
+          'Big Fish Little Fish',
+          'Counting Cabbages – Early grade maths',
+          'Through My Eyes',
+          'The Little Red Hen'
+        ]);
+
+      if (error) {
+        console.error('Error fetching books:', error);
+        return;
+      }
+
+      setPopularBooks(data || []);
+    };
+
+    fetchBooks();
+  }, []);
 
   return {
     popularBooks

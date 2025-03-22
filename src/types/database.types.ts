@@ -1,18 +1,11 @@
 export interface Book {
-    id: number;
+    book_id: string;
     title: string;
-    series?: string | null;
-    author?: string | null;
-    min_age?: number | null;
-    max_age?: number | null;
-    rating?: string | null;
-    ratings?: string | null;
-    price?: number | null;
-    cover_type?: string | null;
+    author: string;
+    genre: string[];
+    cover_image?: string | null;
     publication_date?: string | null;
-    best_seller?: string | null;
-    link?: string | null;
-    genres?: string[] | null;
+    pdf_link?: string | null;
 }
 
 export interface Database {

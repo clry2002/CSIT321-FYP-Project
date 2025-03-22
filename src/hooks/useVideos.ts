@@ -1,43 +1,45 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
 
 interface Video {
   title: string;
-  thumbnail: string;
-  views: string;
-  timeAgo: string;
+  embeddedLink: string;
+  link: string;
 }
 
 export const useVideos = () => {
-  const [videos] = useState<Video[]>([
-    {
-      title: 'Why Read Fantasy Books?',
-      thumbnail: '/video1.jpg',
-      views: '4.2K',
-      timeAgo: '2 days ago'
-    },
-    {
-      title: 'Book Review: The Name of the Wind',
-      thumbnail: '/video2.jpg',
-      views: '8.5K',
-      timeAgo: '5 days ago'
-    },
-    {
-      title: 'Top 10 Must-Read Books of 2024',
-      thumbnail: '/video3.jpg',
-      views: '12K',
-      timeAgo: '1 week ago'
-    },
-    {
-      title: 'Reading Vlog: A Day in the Life',
-      thumbnail: '/video4.jpg',
-      views: '6.8K',
-      timeAgo: '3 days ago'
-    }
-  ]);
+  const [videos, setVideos] = useState<Video[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchVideos = async () => {
+      try {
+        // Fetch all videos and randomly select 4
+        const { data, error } = await supabase
+          .from('videos')
+          .select('title, embeddedLink, link');
+
+        if (error) throw error;
+
+        // Randomly select 4 videos
+        const shuffled = data.sort(() => 0.5 - Math.random());
+        const selectedVideos = shuffled.slice(0, 4);
+
+        setVideos(selectedVideos);
+      } catch (error) {
+        console.error('Error fetching videos:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchVideos();
+  }, []);
 
   return {
-    videos
+    videos,
+    loading
   };
 }; 

@@ -37,7 +37,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       }
 
       const { data: profile, error } = await supabase
-        .from('user_profiles')
+        .from('user_account')
         .select('*')
         .eq('user_id', user.id)
         .single();
