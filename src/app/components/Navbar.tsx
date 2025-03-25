@@ -30,28 +30,6 @@ export default function Navbar() {
     </Link>
 
     </nav>
-    // <nav className="fixed bottom-0 w-full bg-white border-t border-gray-200 flex justify-around py-3">
-    //   <Link href="/home" className="flex flex-col items-center text-gray-800 hover:text-rose-500">
-    //     <HomeIcon className="w-5 h-5" />
-    //     <span className="text-xs">Home</span>
-    //   </Link>
-    //   <Link href="/search" className="flex flex-col items-center text-gray-800 hover:text-rose-500">
-    //     <Search className="w-5 h-5" />
-    //     <span className="text-xs">Search</span>
-    //   </Link>
-    //   <Link href="/books" className="flex flex-col items-center text-rose-500">
-    //     <BookOpen className="w-5 h-5" />
-    //     <span className="text-xs">Books</span>
-    //   </Link>
-    //   <Link href="/videos" className="flex flex-col items-center text-gray-800 hover:text-rose-500">
-    //     <PlayCircle className="w-5 h-5" />
-    //     <span className="text-xs">Videos</span>
-    //   </Link>
-    //   <Link href="/settings" className="flex flex-col items-center text-gray-800 hover:text-rose-500">
-    //     <Settings className="w-5 h-5" />
-    //     <span className="text-xs">Settings</span>
-    //   </Link>
-    // </nav>
   );
 }
 

@@ -2,34 +2,22 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
-import Link from 'next/link';
-import { Search, Home as HomeIcon, BookOpen, Clock, Bookmark, Settings, Bell, PlayCircle } from 'lucide-react';
-import BookCard from './components/BookCard';
-import Calendar from './components/Calendar';
-import ChatBot from './components/ChatBot';
-import { useBooks } from '../hooks/useBooks';
-import { useVideos } from '../hooks/useVideos';
-import { useCalendar } from '../hooks/useCalendar';
 import { supabase } from '@/lib/supabase';
 
 export default function RootPage() {
   const router = useRouter();
-  const { popularBooks } = useBooks();
-  const { videos } = useVideos();
-  const { calendarDays, currentMonth } = useCalendar();
 
   useEffect(() => {
     const checkAuth = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
-        
+
         if (!user) {
-          router.push('/auth/login');
+          router.push('/landing'); // Redirect unauthenticated users to the landing page
           return;
         }
 
-        // Check if user has a profile
+        // Optional: If you want to check for a profile before sending to home/setup
         const { data: profile } = await supabase
           .from('user_profiles')
           .select('*')
@@ -37,18 +25,18 @@ export default function RootPage() {
           .single();
 
         if (profile) {
-          router.push('/home');
+          router.push('/home'); // Send users with profiles to home
         } else {
-          router.push('/setup');
+          router.push('/landing'); // all users default landing page
         }
       } catch (error) {
         console.error('Error checking auth state:', error);
-        router.push('/auth/login');
+        router.push('/landing');
       }
     };
 
     checkAuth();
   }, [router]);
 
-  return null;
+  return null; // No UI needed here, just redirects
 }
