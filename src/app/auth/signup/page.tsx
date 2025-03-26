@@ -40,7 +40,12 @@ export default function SignUpPage() {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col">
+      <div
+        className="min-h-screen flex flex-col"
+        style={{
+          background: 'linear-gradient(135deg, #f3a4d7, #8b5cf6)', // Custom gradient background
+        }}
+      >
         {/* Header */}
         <header className="p-4 border-b bg-white shadow-md">
           <div className="flex justify-between items-center">
@@ -90,11 +95,16 @@ export default function SignUpPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div
+      className="min-h-screen flex flex-col"
+      style={{
+        background: 'linear-gradient(135deg, #f3a4d7, #8b5cf6)', // Custom gradient background
+      }}
+    >
       {/* Header */}
       <header className="p-4 border-b bg-white shadow-md">
         <div className="flex justify-between items-center">
-          {/* Logo and CoReadability */}
+          {/* Added Logo and CoReadability */}
           <div
             className="flex items-center cursor-pointer"
             onClick={() => router.push('/')} // Navigate to homepage
