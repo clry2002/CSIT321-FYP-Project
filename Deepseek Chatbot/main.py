@@ -71,8 +71,10 @@ def clean_response(response):
     # Replace ### headings with <h3> tags
     cleaned_response = re.sub(r"###\s?(.*)", r"<h3>\1</h3>", cleaned_response)
 
-    # Replace numbered lists with <br> for better formatting
-    cleaned_response = cleaned_response.replace("\n", "<br>")
+    # Replace numbered lists and newlines with <br> for better formatting
+    cleaned_response = re.sub("\n+", "<br>", cleaned_response)  # Replace multiple newlines with a single <br>
+    cleaned_response = re.sub(r"^\s*<br>", "", cleaned_response)  # Remove leading <br> tags
+
 
     # Strip any leading or trailing whitespace (including newlines)
     return cleaned_response.strip()

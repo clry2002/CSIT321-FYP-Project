@@ -13,6 +13,7 @@
     flex-direction: column;
     position: relative; /* For toggle button positioning */
     transition: all 0.3s ease; /* Smooth transition for minimization */
+    
   }
   
   /* Minimized chat container */
@@ -44,6 +45,7 @@
     opacity: 0;           /* Start as invisible */
     animation: fadeIn 0.5s ease forwards; /* Apply fade-in animation */
   }
+  
   
   /* Animation keyframes for fade-in effect */
   @keyframes fadeIn {
