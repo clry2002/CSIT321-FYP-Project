@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image'; // Import the Image component
 
 export default function AboutPage() {
   return (
@@ -25,6 +26,13 @@ export default function AboutPage() {
       {/* Main Content */}
       <main className="flex flex-col items-center justify-center flex-1 text-center p-6">
         <h2 className="text-5xl font-extrabold text-gray-800 mb-6">About Us</h2>
+        <Image
+          src="/logo2.png"
+          alt="CoReadability Logo"
+          width={400}  // Logo Size Adjustments
+          height={400}
+          className="mt-6"
+        />
         <p className="text-lg text-gray-700 mb-4 max-w-xl">
           Welcome to <span className="font-semibold text-gray-800">CoReadability</span>, where learning meets fun! Our mission is to provide kids with personalized book and video recommendations that sparks curiosity and creativity.
         </p>
@@ -35,7 +43,7 @@ export default function AboutPage() {
           Thank you for trusting us to inspire the next generation of readers, thinkers, and dreamers. Let's make learning an unforgettable journey!
         </p>
         <Link href="/auth/signup">
-          <button className="px-6 py-3 bg-purple-500 text-white font-semibold rounded-lg hover:bg-purple-600 transition">
+          <button className="px-6 py-3 bg-purple-500 text-white font-semibold rounded-lg hover:bg-purple-600 transition mt-6">
             Explore Now
           </button>
         </Link>

@@ -1,13 +1,24 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image'; // Import Image component, for Logo Use
 
 export default function LandingPage() {
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-100 to-green-100">
       {/* Header */}
       <header className="flex justify-between items-center p-4 bg-white shadow-md">
-        <h1 className="text-2xl font-bold text-gray-800">CoReadability</h1>
+        <div className="flex items-center">
+          {/* Logo */}
+          <Image
+            src="/logo2.png" // Logo Path
+            alt="CoReadability Logo"
+            width={40} // Logo Size Adjustments
+            height={40} 
+            className="mr-2"
+          />
+          <h1 className="text-2xl font-bold text-gray-800">CoReadability</h1>
+        </div>
         <div className="space-x-4">
           <Link href="/auth/login">
             <button className="px-4 py-2 bg-blue-500 text-white font-semibold rounded-lg hover:bg-blue-600 transition">
@@ -40,7 +51,6 @@ export default function LandingPage() {
             </button>
           </Link>
         </div>
-
       </main>
 
       {/* Footer */}
