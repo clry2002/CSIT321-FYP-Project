@@ -8,7 +8,11 @@ export default function AboutPage() {
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-indigo-100 to-indigo-200">
       {/* Header */}
       <header className="flex justify-between items-center p-4 bg-white shadow-md">
-        <h1 className="text-2xl font-bold text-gray-800">CoReadability</h1>
+        <Link href="/"> 
+          <h1 className="text-2xl font-bold text-gray-800 cursor-pointer">
+            CoReadability
+          </h1>
+        </Link>
         <div className="space-x-4">
           <Link href="/">
             <button className="px-4 py-2 bg-blue-500 text-white font-semibold rounded-lg hover:bg-blue-600 transition">
