@@ -38,9 +38,9 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 
 ## Running the Python Chatbot
 
-Run the environment
-Pip install the required files. pip install -r requirements.txt on the environment
-Run python main.py for server
+Run this "pip install -r requirements.txt on the environment"
+Run "python main.py" for server
+
 =======
 CSIT321 FYP Project
 Group - FYP-25-S1-34
