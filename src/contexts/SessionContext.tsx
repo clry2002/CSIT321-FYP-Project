@@ -28,39 +28,61 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Function to fetch user profile
   const fetchUserProfile = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      console.log('Fetching authenticated user...');
+      setLoading(true); // Start loading
+
+      // Retrieve authenticated user from Supabase
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError) {
+        console.error(`Error fetching user: ${userError.message}`);
+        setUserProfile(null); // Reset the user profile on error
+        return;
+      }
       if (!user) {
-        setUserProfile(null);
+        console.warn('No user found!');
+        setUserProfile(null); // No user logged in
         return;
       }
 
-      const { data: profile, error } = await supabase
+      // Fetch user profile data from Supabase database
+      console.log('Fetching user profile from user_account table...');
+      const { data: profile, error: profileError } = await supabase
         .from('user_account')
         .select('*')
         .eq('user_id', user.id)
         .single();
+      if (profileError) {
+        console.error(`Error fetching profile: ${profileError.message}`);
+        setUserProfile(null);
+        return;
+      }
 
-      if (error) throw error;
+      console.log('Profile successfully fetched:', profile);
       setUserProfile(profile);
     } catch (error) {
-      console.error('Error fetching user profile:', error);
-      setUserProfile(null);
+      console.error('Unexpected error fetching user profile:', error);
+      setUserProfile(null); // Handle unexpected errors gracefully
     } finally {
-      setLoading(false);
+      setLoading(false); // End loading
     }
   };
 
   useEffect(() => {
-    fetchUserProfile();
+    fetchUserProfile(); // Fetch user profile on mount
 
-    // Listen for auth state changes
+    // Listen for auth state changes (e.g., login/logout)
+    console.log('Subscribing to auth state changes...');
     const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
+      console.log('Auth state changed, refreshing user profile...');
       fetchUserProfile();
     });
 
+    // Cleanup subscription on unmount
     return () => {
+      console.log('Unsubscribing from auth state changes...');
       subscription.unsubscribe();
     };
   }, []);
@@ -72,4 +94,4 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   );
 }
 
-export const useSession = () => useContext(SessionContext); 
+export const useSession = () => useContext(SessionContext);
