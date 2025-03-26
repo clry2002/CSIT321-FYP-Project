@@ -2,27 +2,28 @@
 
 import Link from 'next/link';
 import Navbar from '../components/Navbar';
-import Header from '../components/Header';
+// import Header from '../components/Header'; // Do we need the header? Removed Temporarily
 import { User } from 'lucide-react';
 
 export default function SettingsPage() {
   return (
-    <div className="flex h-screen bg-white overflow-hidden">
+    <div className="flex h-screen bg-gray-100 overflow-hidden">
       <Navbar />
       {/* Main Content */}
-      <div className="flex-1 overflow-y-auto pt-16 px-6">
-        <Header />
+      <div className="flex-1 overflow-y-auto pt-21 px-6 bg-white">
+        {/* Increased `pt-16` to `pt-21` for better spacing */}
+        {/* <Header /> */}
         
         <div className="px-6">
-          <h2 className="text-2xl font-serif mb-6 text-black">Settings</h2>
-          <div className="max-w-2xl">
-            <Link href="/profile" className="block">
-              <div className="p-4 border rounded-lg hover:border-rose-200 hover:bg-rose-50 transition-colors">
-                <div className="flex items-center space-x-2 mb-2">
-                  <User className="w-5 h-5 text-gray-800" />
-                  <h3 className="font-medium text-black">Profile Settings</h3>
+          <h2 className="text-3xl font-serif mb-6 text-gray-900">Settings</h2>
+          <div className="max-w-2xl space-y-4">
+            <Link href="/profile">
+              <div className="p-6 border rounded-lg shadow hover:border-rose-300 hover:bg-rose-50 transition">
+                <div className="flex items-center space-x-3">
+                  <User className="w-6 h-6 text-gray-900" />
+                  <h3 className="text-lg font-semibold text-gray-900">Profile Settings</h3>
                 </div>
-                <p className="text-sm text-gray-600 ml-7">Manage your profile information and preferences</p>
+                <p className="text-sm text-gray-700 ml-9 mt-2">Manage your profile information and preferences</p>
               </div>
             </Link>
           </div>
@@ -30,4 +31,4 @@ export default function SettingsPage() {
       </div>
     </div>
   );
-} 
+}
