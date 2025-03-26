@@ -27,15 +27,42 @@ const ChatBot: React.FC = () => {
     await sendMessage(userMessage); // Send message through the custom hook
   };
 
+  // Handle predefined question click
+  const handleQuestionClick = async (question: string) => {
+    await sendMessage(question); // Send the clicked question
+  };
+
   return (
     <div className="flex flex-col h-full border rounded-lg shadow-md bg-white">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b bg-gray-100">
-        <h2 className="text-lg font-semibold text-gray-900">Book Recommendation Bot</h2>
+        <h2 className="text-lg font-semibold text-gray-900">CoReadability Bot</h2>
       </div>
 
       {/* Messages */}
       <div ref={chatContainerRef} className="chat-container flex-1 overflow-y-auto p-4 space-y-4">
+        {/* Predefined Options for ease of use */}
+        <div className="flex justify-start">
+          <div className="bg-gray-200 text-gray-900 rounded-lg p-3 space-y-2">
+            <h3 className="font-semibold">Try asking:</h3>
+            <div className="flex flex-wrap space-x-2">
+              {[
+                "Can you recommend the latest books?",
+                "Can you recommend the latest videos?"
+              ].map((question, index) => (
+                <button
+                  key={index}
+                  onClick={() => handleQuestionClick(question)}
+                  className="px-3 py-2 text-white bg-rose-500 rounded-lg hover:bg-rose-600 shadow-md transition-colors"
+                >
+                  {question}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Map over messages */}
         {messages.map((message, index) => (
           <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
             <div

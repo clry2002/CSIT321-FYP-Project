@@ -115,7 +115,7 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Book Recommendation ChatBot */}
+              {/* Book Recommendation ChatBot, Changes to be made from Chatbot.tsx component */}
               <div>
                 <ChatBot />
               </div>
