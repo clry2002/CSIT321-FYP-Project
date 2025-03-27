@@ -10,8 +10,8 @@ export default function SettingsPage() {
     <div className="flex h-screen bg-gray-100 overflow-hidden">
       <Navbar />
       {/* Main Content */}
-      <div className="flex-1 overflow-y-auto pt-21 px-6 bg-white">
-        {/* Increased `pt-16` to `pt-21` for better spacing */}
+      <div className="flex-1 overflow-y-auto pt-25 px-6 bg-white">
+        {/* Increased `pt-16` to `pt-25` for better spacing */}
         {/* <Header /> */}
         
         <div className="px-6">
