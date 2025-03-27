@@ -128,7 +128,7 @@ export default function ProfilePage() {
       const { error: childProfileError } = await supabase
         .from('child_profile')
         .upsert({
-          user_id: user.id,
+          child_id  : user.id,
           favorite_genres: selectedGenres, // Ensure selectedGenres is passed correctly
         })
         .eq('user_id', user.id);
