@@ -48,22 +48,22 @@ const ChatBot: React.FC = () => {
           <div className="predefined-questions">
             <h3>Try asking:</h3>
             {["Can you recommend the latest books?", "Can you recommend the latest videos?"].map((question, index) => (
-              <button key={index} onClick={() => handleQuestionClick(question)} className="question-button">
+              <button key={`question-${index}`} onClick={() => handleQuestionClick(question)} className="question-button">
                 {question}
               </button>
             ))}
           </div>
 
           {messages.map((message, index) => (
-            <div className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} mb-4`}>
-            <div className={message.role === 'user' ? 'user-message' : 'bot-message'}>
-              {message.role === 'assistant' ? (
-                <div dangerouslySetInnerHTML={{ __html: message.content }} />
-              ) : (
-                message.content
-              )}
+            <div key={`message-${index}`} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} mb-4`}>
+              <div className={message.role === 'user' ? 'user-message' : 'bot-message'}>
+                {message.role === 'assistant' ? (
+                  <div dangerouslySetInnerHTML={{ __html: message.content }} />
+                ) : (
+                  message.content
+                )}
+              </div>
             </div>
-          </div>
           ))}
 
           {isLoading && <div className="bot-message dots">Thinking</div>}
