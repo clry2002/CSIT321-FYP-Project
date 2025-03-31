@@ -2,76 +2,61 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { useChatbot } from '@/hooks/useChatbot';
-import { Send } from 'lucide-react';
-import './styles.css'; // Import your existing styles for additional customization
+import { Send, MessageCircle } from 'lucide-react';
+import './styles.css';
 
 const ChatBot: React.FC = () => {
   const { messages, isLoading, sendMessage } = useChatbot();
   const [input, setInput] = useState('');
+  const [isOpen, setIsOpen] = useState(false);
   const chatContainerRef = useRef<HTMLDivElement | null>(null);
 
-  // Automatically scroll to the latest message when the messages array updates
   useEffect(() => {
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
   }, [messages]);
 
-  // Handle message submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
 
     const userMessage = input.trim();
-    setInput(''); // Clear input field
-    await sendMessage(userMessage); // Send message through the custom hook
+    setInput('');
+    await sendMessage(userMessage);
   };
 
-  // Handle predefined question click
   const handleQuestionClick = async (question: string) => {
-    await sendMessage(question); // Send the clicked question
+    await sendMessage(question);
   };
 
   return (
-    <div className="flex flex-col h-full border rounded-lg shadow-md bg-white">
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b bg-gray-100">
-        <h2 className="text-lg font-semibold text-gray-900">CoReadability Bot</h2>
-      </div>
+    <div className="chatbot-wrapper">
+      {/* Floating Button to Open Chatbot */}
+      <button onClick={() => setIsOpen(!isOpen)} className="chatbot-button">
+        <MessageCircle size={28} />
+      </button>
 
-      {/* Messages */}
-      <div ref={chatContainerRef} className="chat-container flex-1 overflow-y-auto p-4 space-y-4">
-        {/* Predefined Options for ease of use */}
-        <div className="flex justify-start">
-          <div className="bg-gray-200 text-gray-900 rounded-lg p-3 space-y-2">
-            <h3 className="font-semibold">Try asking:</h3>
-            <div className="flex flex-wrap space-x-2">
-              {[
-                "Can you recommend the latest books?",
-                "Can you recommend the latest videos?"
-              ].map((question, index) => (
-                <button
-                  key={index}
-                  onClick={() => handleQuestionClick(question)}
-                  className="px-3 py-2 text-white bg-rose-500 rounded-lg hover:bg-rose-600 shadow-md transition-colors"
-                >
-                  {question}
-                </button>
-              ))}
-            </div>
-          </div>
+      {/* Chatbot Panel */}
+      <div className={`chatbot-container ${isOpen ? 'visible' : 'hidden'}`}>
+        <div className="chatbot-header">
+          <h2 className="text-lg font-semibold">CoReadability Bot</h2>
+          <button onClick={() => setIsOpen(false)} className="close-button">✖</button>
         </div>
 
-        {/* Map over messages */}
-        {messages.map((message, index) => (
-          <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div
-              className={`max-w-[80%] rounded-lg p-3 transition-transform duration-300 ease-in-out ${
-                message.role === 'user'
-                  ? 'bg-rose-500 text-black self-end hover:scale-105 shadow-lg'
-                  : 'bg-gray-100 text-gray-900 hover:scale-105 shadow-md'
-              }`}
-            >
+        <div ref={chatContainerRef} className="chat-container">
+          <div className="predefined-questions">
+            <h3>Try asking:</h3>
+            {["Can you recommend the latest books?", "Can you recommend the latest videos?"].map((question, index) => (
+              <button key={index} onClick={() => handleQuestionClick(question)} className="question-button">
+                {question}
+              </button>
+            ))}
+          </div>
+
+          {messages.map((message, index) => (
+            <div className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} mb-4`}>
+            <div className={message.role === 'user' ? 'user-message' : 'bot-message'}>
               {message.role === 'assistant' ? (
                 <div dangerouslySetInnerHTML={{ __html: message.content }} />
               ) : (
@@ -79,37 +64,24 @@ const ChatBot: React.FC = () => {
               )}
             </div>
           </div>
-        ))}
+          ))}
 
-        {/* Show "Thinking..." when waiting for a response */}
-        {isLoading && (
-          <div className="flex justify-start">
-            <div className="bg-gray-200 text-gray-900 rounded-lg p-3">
-              Thinking<span className="dots">...</span>
-            </div>
-          </div>
-        )}
-      </div>
+          {isLoading && <div className="bot-message">Thinking...</div>}
+        </div>
 
-      {/* Input Form */}
-      <form onSubmit={handleSubmit} className="p-4 border-t bg-gray-100">
-        <div className="flex space-x-2">
+        <form onSubmit={handleSubmit} className="chat-input">
           <input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Ask for book recommendations..."
-            className="flex-1 p-2 text-black border rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-300"
+            className="input-field"
           />
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="p-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 disabled:opacity-50"
-          >
-            <Send className="w-5 h-5" />
+          <button type="submit" disabled={isLoading} className="send-button">
+            <Send size={20} />
           </button>
-        </div>
-      </form>
+        </form>
+      </div>
     </div>
   );
 };

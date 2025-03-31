@@ -5,6 +5,7 @@ import Image from 'next/image';
 import Navbar from '../components/Navbar';
 import Header from '../components/Header';
 import { useVideos } from '@/hooks/useVideos';
+import ChatBot from "../components/ChatBot";
 
 export default function VideosPage() {
   const { videos } = useVideos();
@@ -55,6 +56,7 @@ export default function VideosPage() {
             </div>
           )}
         </div>
+        <ChatBot />
       </div>
     </div>
   );

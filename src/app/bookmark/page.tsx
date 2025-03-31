@@ -6,6 +6,7 @@ import Header from '../components/Header';
 import { Plus } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import type { Book } from '@/types/database.types';
+import ChatBot from "../components/ChatBot";
 
 
 export default function BooksPage() {
@@ -134,6 +135,7 @@ export default function BooksPage() {
             )}
           </div>
         </div>
+        <ChatBot />
       </div>
     </div>
   );

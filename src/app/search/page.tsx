@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Navbar from '../components/Navbar';
 import { useRouter } from 'next/navigation';
+import ChatBot from "../components/ChatBot";
 
 export default function SearchPage() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -53,6 +54,7 @@ export default function SearchPage() {
             </div>
           </div>
         </div>
+        <ChatBot />
       </div>
     </div>
   );

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import Navbar from '../components/Navbar';
 // import Header from '../components/Header'; // Do we need the header? Removed Temporarily
 import { User, MessageSquare } from 'lucide-react';
+import ChatBot from "../components/ChatBot";
 
 export default function SettingsPage() {
   return (
@@ -39,6 +40,8 @@ export default function SettingsPage() {
             </Link>
           </div>
         </div>
+
+        <ChatBot />
       </div>
     </div>
   );
