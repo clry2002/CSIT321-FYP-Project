@@ -240,6 +240,21 @@
   .bot-message:hover {
     transform: scale(1.03);
   }
+
+  /* Animated dots for "Thinking..." */
+.dots::after {
+  content: '...';  /* Three dots */
+  display: inline-block;
+  animation: dots 1.5s infinite steps(3);
+}
+
+@keyframes dots {
+  0% { content: ''; }
+  33% { content: '.'; }
+  66% { content: '..'; }
+  100% { content: '...'; }
+}
+
   /* Chat Input */
   .chat-input {
     display: flex;

@@ -66,7 +66,7 @@ const ChatBot: React.FC = () => {
           </div>
           ))}
 
-          {isLoading && <div className="bot-message">Thinking...</div>}
+          {isLoading && <div className="bot-message dots">Thinking</div>}
         </div>
 
         <form onSubmit={handleSubmit} className="chat-input">
