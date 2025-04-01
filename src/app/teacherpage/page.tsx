@@ -29,7 +29,7 @@ export default function TeacherHome() {
             </p>
             <button
               className="bg-blue-500 text-white px-4 py-2 rounded-lg w-full"
-              onClick={() => router.push('/view-classroom')} // Navigate to View Classroom page
+              onClick={() => router.push('/teacher/view-classroom')} // Navigate to View Classroom page
             >
               Go to Classroom
             </button>
@@ -43,7 +43,7 @@ export default function TeacherHome() {
             </p>
             <button
               className="bg-green-500 text-white px-4 py-2 rounded-lg w-full"
-              onClick={() => router.push('/manage-classroom')} // Navigate to Manage Classroom page
+              onClick={() => router.push('/teacher/manage-classroom')} // Navigate to Manage Classroom page
             >
               Manage Classroom
             </button>
@@ -57,7 +57,7 @@ export default function TeacherHome() {
             </p>
             <button
               className="bg-yellow-500 text-white px-4 py-2 rounded-lg w-full"
-              onClick={() => router.push('/create-classroom')} // Navigate to Create Classroom page
+              onClick={() => router.push('/teacher/create-classroom')} // Navigate to Create Classroom page
             >
               Create Classroom
             </button>
