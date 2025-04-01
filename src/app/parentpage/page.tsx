@@ -10,8 +10,11 @@ export default function ParentHome() {
     { id: 2, name: 'Child 2', age: 9, history: ['Requested book recommendations', 'Asked for documentaries'] },
   ]);
 
-  // Function to add a new child
-  
+  // Function to delete a child profile
+  const deleteChild = (id: number) => {
+    setChildren(children.filter((child) => child.id !== id));
+  };
+
   return (
     <div className="flex flex-col h-screen bg-gray-100 overflow-hidden">
 
@@ -46,17 +49,24 @@ export default function ParentHome() {
                   <h3 className="font-medium text-black text-sm">{child.name}</h3>
                   <p className="text-gray-500 text-xs">Age: {child.age || 'Unknown'}</p>
                 </div>
-                <button
-                  className="text-blue-500 text-xs underline"
-                  onClick={() => console.log(`Manage Profile for ${child.name}`)}
-                >
-                  Manage Profile
-                </button>
+                <div className="flex space-x-2">
+                  <button
+                    className="text-blue-500 text-xs underline"
+                    onClick={() => console.log(`Manage Profile for ${child.name}`)}
+                  >
+                    Manage Profile
+                  </button>
+                  <button
+                    className="text-red-500 text-xs underline"
+                    onClick={() => deleteChild(child.id)}
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
             ))}
             <button
               className="bg-green-500 text-white px-4 py-2 rounded-lg w-full"
-              /* Need to add Functionality to create Kids User Profile */
               onClick={() => router.push('/profile')}
             >
               + Add Child
