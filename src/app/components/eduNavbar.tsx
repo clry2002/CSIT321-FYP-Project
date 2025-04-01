@@ -17,7 +17,7 @@ export default function eduNavbar() {
       </Link>
 
       {/* Announcement Board */}
-      <Link href="/announcement-board" className="flex flex-col items-center p-2.5 rounded-lg hover:bg-gray-200">
+      <Link href="/teacher/announcement-board" className="flex flex-col items-center p-2.5 rounded-lg hover:bg-gray-200">
         <ClipboardList className="w-5 h-5 text-gray-800" />
         <b><span className="text-xs text-gray-800 mt-1">Announcement Board</span></b>
       </Link>
