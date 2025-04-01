@@ -2,31 +2,21 @@
 
 import React from 'react';
 import { useRouter } from 'next/navigation'; // Use Next.js router for navigation
+import EduNavbar from '../components/eduNavbar'; // Import the EduNavbar component
 
 export default function TeacherHome() {
   const router = useRouter(); // Initialize Next.js router
 
   return (
     <div className="flex flex-col h-screen bg-gray-100 overflow-hidden">
+      {/* Navbar */}
+      <EduNavbar /> {/* Render the EduNavbar component */}
+
       {/* Main Content */}
-      <div className="flex-1 overflow-y-auto px-6 py-5">
+      <div className="flex-1 overflow-y-auto px-6 py-30">
         {/* Header Section */}
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-serif text-black">Welcome back, Teacher!</h1>
-          <div className="flex space-x-3">
-            <button
-              className="bg-gray-900 text-white px-4 py-2 rounded-lg"
-              onClick={() => console.log('Open Settings')}
-            >
-              Settings
-            </button>
-            <button
-              className="bg-red-600 text-white px-4 py-2 rounded-lg"
-              onClick={() => router.push('/logout')} // Navigate to the logout page
-            >
-              Logout
-            </button>
-          </div>
         </div>
 
         {/* Sections */}
