@@ -23,11 +23,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ response: "I couldn't find a genre in your request. Can you specify one?" });
     }
 
-    // Get genre ID (Case-insensitive search)
+    // Get genre ID
     const { data: genreData, error: genreError } = await supabase
       .from('temp_genre')
       .select('gid')
-      .ilike('genrename', genre) // ✅ Case-insensitive matching
+      .ilike('genrename', genre)
       .single();
 
     if (genreError || !genreData) {

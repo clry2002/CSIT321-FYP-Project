@@ -85,7 +85,7 @@ def get_content_by_genre(genre):
         response = (
             supabase
             .from_("temp_contentgenres")
-            .select("cid, temp_genre!inner(genrename), temp_content(title, description, minimumage, contenturl, status)")
+            .select("cid, temp_genre!inner(genrename), temp_content(title, description, minimumage, contenturl, status, coverimage)")
             .ilike("temp_genre.genrename", f"%{genre}%")
             .execute()
         )
