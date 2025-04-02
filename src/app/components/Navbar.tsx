@@ -19,7 +19,7 @@ export default function Navbar() {
         <b><span className="text-xs text-gray-800 mt-1">Bookmark</span></b>
       </Link>
 
-      <Link href="/videos" className="flex flex-col items-center p-2.5 rounded-lg hover:bg-gray-200">
+      <Link href="/classroom" className="flex flex-col items-center p-2.5 rounded-lg hover:bg-gray-200">
         <PlayCircle className="w-5 h-5 text-gray-800" />
         <b><span className="text-xs text-gray-800 mt-1">My Classroom</span></b>
       </Link>

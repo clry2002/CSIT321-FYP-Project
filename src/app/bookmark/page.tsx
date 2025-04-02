@@ -55,7 +55,7 @@ export default function BooksPage() {
     <div className="flex flex-col h-screen bg-white overflow-hidden">
     <Navbar />
       {/* Main Content */}
-      <div className="flex-1 overflow-y-auto pt-16 px-6">
+      <div className="flex-1 overflow-y-auto pt-25 px-6">
         
         <div className="px-6">
           <h2 className="text-2xl font-serif mb-6 text-black">My Bookmarks</h2>

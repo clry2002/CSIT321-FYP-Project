@@ -1,6 +1,4 @@
-'use client';
-
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useChatbot } from '@/hooks/useChatbot';
 import { Send, MessageCircle } from 'lucide-react';
 import './styles.css';
@@ -9,6 +7,7 @@ const ChatBot: React.FC = () => {
   const { messages, isLoading, sendMessage } = useChatbot();
   const [input, setInput] = useState('');
   const [isOpen, setIsOpen] = useState(false);
+  const [enlargedImage, setEnlargedImage] = useState<string | null>(null); // State to track the enlarged image
   const chatContainerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -28,6 +27,16 @@ const ChatBot: React.FC = () => {
 
   const handleQuestionClick = async (question: string) => {
     await sendMessage(question);
+  };
+
+  // Function to handle clicking on a book cover image
+  const handleImageClick = (imageUrl: string) => {
+    setEnlargedImage(imageUrl); // Set the clicked image URL to be displayed in the modal
+  };
+
+  // Function to close the enlarged image modal
+  const closeModal = () => {
+    setEnlargedImage(null); // Close the modal by setting it to null
   };
 
   return (
@@ -57,10 +66,30 @@ const ChatBot: React.FC = () => {
           {messages.map((message, index) => (
             <div key={`message-${index}`} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} mb-4`}>
               <div className={message.role === 'user' ? 'user-message' : 'bot-message'}>
-                {message.role === 'assistant' ? (
-                  <div dangerouslySetInnerHTML={{ __html: message.content }} />
+                {message.role === 'assistant' && Array.isArray(message.content) ? (
+                  <ul>
+                    {message.content.map((book, idx) => (
+                      <li key={idx} className="book-item">
+                        <strong>{book.title}</strong> - {book.description}
+                        <br />
+                        {/* Render the book cover image */}
+                        {book.coverimage && (
+                          <img
+                            src={book.coverimage}
+                            alt={`Cover of ${book.title}`}
+                            width="100"
+                            style={{ borderRadius: '8px', marginTop: '5px', cursor: 'pointer' }}
+                            onClick={() => handleImageClick(book.coverimage)} // Trigger image click
+                          />
+                        )}
+                        <a href={book.contenturl} target="_blank" rel="noopener noreferrer" className="view-book-link">
+                          View Book
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
                 ) : (
-                  message.content
+                  <div dangerouslySetInnerHTML={{ __html: typeof message.content === "string" ? message.content : "" }} />
                 )}
               </div>
             </div>
@@ -82,6 +111,20 @@ const ChatBot: React.FC = () => {
           </button>
         </form>
       </div>
+
+      {/* Modal for enlarging the image */}
+      {enlargedImage && (
+        <div className="modal-overlay" onClick={closeModal}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <img
+              src={enlargedImage}
+              alt="Enlarged"
+              className="enlarged-image"
+            />
+            <button className="close-modal" onClick={closeModal}>✖</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

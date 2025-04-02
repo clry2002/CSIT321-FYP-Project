@@ -1,9 +1,17 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import axios from 'axios';
 
+// Define the Book interface
+export interface Book {
+  title: string;
+  description: string;
+  contenturl: string;
+  coverimage: string; // Add coverimage field
+}
+
 // Define the Message interface
 export interface Message {
-  content: string;
+  content: string | Book[]; // The content can either be a string or an array of Book objects
   role: 'user' | 'assistant';
 }
 
@@ -24,11 +32,25 @@ export const useChatbot = () => {
       setIsLoading(true);
       setMessages((prev) => [...prev, { role: 'user', content: message }]);
 
-      const response = await axios.post<{ answer: string }>('http://127.0.0.1:5000/api/chat', {
+      const response = await axios.post('http://127.0.0.1:5000/api/chat', {
         question: message, // Backend expects `question` field
       });
 
-      setMessages((prev) => [...prev, { role: 'assistant', content: response.data.answer }]);
+      console.log("API Response:", response.data); // Debug API response
+
+      if (response.data.books) {
+        // If API returns a list of books, ensure each book contains coverimage
+        const books = response.data.books.map((book: any) => ({
+          ...book,
+          coverimage: book.coverimage || '', // Ensure coverimage is always present
+        }));
+
+        // Set the books with cover images to the messages
+        setMessages((prev) => [...prev, { role: 'assistant', content: books }]);
+      } else {
+        // If API returns a text response, add it normally
+        setMessages((prev) => [...prev, { role: 'assistant', content: response.data.answer }]);
+      }
     } catch (error) {
       console.error('Error calling API:', error);
       setMessages((prev) => [
