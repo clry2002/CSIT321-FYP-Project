@@ -25,7 +25,7 @@ export default function RootPage() {
           .single();
 
         if (profile) {
-          router.push('/home'); // Send users with profiles to home
+          router.push('/childpage'); // Send users with profiles to childpage
         } else {
           router.push('/landing'); // all users default landing page
         }

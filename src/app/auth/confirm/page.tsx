@@ -47,7 +47,7 @@ export default function ConfirmPage() {
         if (!profile) {
           router.push('/setup');
         } else {
-          router.push('/home');
+          router.push('/childpage');
         }
       } catch (err) {
         console.error('Error verifying email:', err);
