@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import Navbar from '../components/Navbar';
 
-// import Header from '../components/Header'; // TO REMOVE THIS LINE AND THE HEADER SECTION IF DONT NEED
 
 import { Plus } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
@@ -57,12 +56,6 @@ export default function BooksPage() {
     <Navbar />
       {/* Main Content */}
       <div className="flex-1 overflow-y-auto pt-16 px-6">
-
-        {/* <Header 
-          showSearch 
-          searchPlaceholder="Search by book title..."
-          onSearch={handleSearch}
-        /> */}
         
         <div className="px-6">
           <h2 className="text-2xl font-serif mb-6 text-black">My Bookmarks</h2>
