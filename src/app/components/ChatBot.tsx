@@ -54,13 +54,22 @@ const ChatBot: React.FC = () => {
             ))}
           </div>
 
+
           {messages.map((message, index) => (
             <div key={`message-${index}`} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} mb-4`}>
               <div className={message.role === 'user' ? 'user-message' : 'bot-message'}>
-                {message.role === 'assistant' ? (
-                  <div dangerouslySetInnerHTML={{ __html: message.content }} />
+                {message.role === 'assistant' && Array.isArray(message.content) ? (
+                  <ul>
+                    {message.content.map((book, idx) => (
+                      <li key={idx} className="book-item">
+                        <strong>{book.title}</strong> - {book.description}
+                        <br />
+                        <img src={book.contenturl} alt={book.title} width="100" />
+                      </li>
+                    ))}
+                  </ul>
                 ) : (
-                  message.content
+                  <div dangerouslySetInnerHTML={{ __html: typeof message.content === "string" ? message.content : "" }} />
                 )}
               </div>
             </div>

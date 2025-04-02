@@ -3,7 +3,7 @@ import axios from 'axios';
 
 // Define the Message interface
 export interface Message {
-  content: string;
+  content: string | { title: string; description: string; contenturl: string }[];
   role: 'user' | 'assistant';
 }
 
@@ -24,11 +24,19 @@ export const useChatbot = () => {
       setIsLoading(true);
       setMessages((prev) => [...prev, { role: 'user', content: message }]);
 
-      const response = await axios.post<{ answer: string }>('http://127.0.0.1:5000/api/chat', {
+      const response = await axios.post('http://127.0.0.1:5000/api/chat', {
         question: message, // Backend expects `question` field
       });
 
-      setMessages((prev) => [...prev, { role: 'assistant', content: response.data.answer }]);
+      console.log("API Response:", response.data); // Debug API response
+
+      if (response.data.books) {
+        // If API returns a list of books, add them in a structured format
+        setMessages((prev) => [...prev, { role: 'assistant', content: response.data.books }]);
+      } else {
+        // If API returns a text response, add it normally
+        setMessages((prev) => [...prev, { role: 'assistant', content: response.data.answer }]);
+      }
     } catch (error) {
       console.error('Error calling API:', error);
       setMessages((prev) => [
