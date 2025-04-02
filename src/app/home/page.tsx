@@ -2,9 +2,6 @@
 
 import Image from 'next/image';
 import Navbar from '../components/Navbar';
-
-// import Header from '../components/Header'; // TO REMOVE THIS LINE AND THE HEADER SECTION IF DONT NEED
-
 import BookCard from '../components/BookCard';
 import Calendar from '../components/Calendar';
 import ChatBot from '../components/ChatBot';
@@ -24,9 +21,6 @@ export default function Home() {
       <Navbar/>
       {/* Main Content */}
       <div className="flex-1 overflow-y-auto">
-
-        {/* <Header />  REMOVE THIS LINE IF DONT NEED!*/} 
-
 
         <div className="px-6">
           {/* Main Grid */}

@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import Navbar from '../components/Navbar';
-// import Header from '../components/Header'; // Do we need the header? Removed Temporarily
 import { User, MessageSquare } from 'lucide-react';
 import ChatBot from "../components/ChatBot";
 
@@ -12,8 +11,6 @@ export default function SettingsPage() {
       <Navbar />
       {/* Main Content */}
       <div className="flex-1 overflow-y-auto pt-25 px-6 bg-white">
-        {/* Increased `pt-16` to `pt-25` for better spacing */}
-        {/* <Header /> */}
         
         <div className="px-6">
           <h2 className="text-3xl font-serif mb-6 text-gray-900">Settings</h2>

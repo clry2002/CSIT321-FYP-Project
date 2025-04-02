@@ -73,7 +73,7 @@ export default function PublisherPage() {
           </p>
           <button
             className="bg-blue-500 text-white px-4 py-2 rounded-lg w-full"
-            onClick={() => router.push('/books-analytics')} // Navigate to Books Analytics page
+            onClick={() => router.push('/publisher/book-analytics')} // Navigate to Books Analytics page
           >
             View Books Analytics
           </button>
@@ -87,7 +87,7 @@ export default function PublisherPage() {
           </p>
           <button
             className="bg-blue-500 text-white px-4 py-2 rounded-lg w-full"
-            onClick={() => router.push('/videos-analytics')} // Navigate to Videos Analytics page
+            onClick={() => router.push('/publisher/video-analytics')} // Navigate to Videos Analytics page
           >
             View Videos Analytics
           </button>
@@ -118,7 +118,7 @@ export default function PublisherPage() {
           </table>
           <button
             className="bg-green-500 text-white px-4 py-2 rounded-lg w-full"
-            onClick={() => console.log('+ Add Book')}
+            onClick={() => router.push('/publisher/addbook')}
           >
             + Add Book
           </button>
@@ -149,7 +149,7 @@ export default function PublisherPage() {
           </table>
           <button
             className="bg-yellow-500 text-white px-4 py-2 rounded-lg w-full"
-            onClick={() => console.log('+ Add Video')}
+            onClick={() => router.push('/publisher/addvideo')}
           >
             + Add Video
           </button>

@@ -52,7 +52,7 @@ export default function ParentHome() {
                 <div className="flex space-x-2">
                   <button
                     className="text-blue-500 text-xs underline"
-                    onClick={() => console.log(`Manage Profile for ${child.name}`)}
+                    onClick={() => router.push('/parent/editchild')}
                   >
                     Manage Profile
                   </button>
@@ -67,7 +67,7 @@ export default function ParentHome() {
             ))}
             <button
               className="bg-green-500 text-white px-4 py-2 rounded-lg w-full"
-              onClick={() => router.push('/profile')}
+              onClick={() => router.push('/parent/createchild')}
             >
               + Add Child
             </button>
@@ -91,7 +91,7 @@ export default function ParentHome() {
                   </div>
                   <button
                     className="text-blue-500 text-xs underline ml-4"
-                    onClick={() => console.log(`View History for ${child.name}`)}
+                    onClick={() => router.push('/parent/chathistory')}
                   >
                     View History
                   </button>
@@ -107,7 +107,7 @@ export default function ParentHome() {
               <button
                 key={child.id}
                 className="bg-blue-500 text-white px-4 py-2 rounded-lg w-full mb-2"
-                onClick={() => console.log(`Settings for ${child.name}`)}
+                onClick={() => router.push('/parent/parentalcontrol')}
               >
                 Manage {child.name}'s Profile
               </button>
