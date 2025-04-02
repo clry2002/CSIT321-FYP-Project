@@ -27,7 +27,30 @@ export default function LoginPage() {
       if (error) throw error;
 
       if (data.user) {
-        router.push('/home');
+        // Get user's upid from user_account table
+        const { data: userData, error: userError } = await supabase
+          .from('user_account')
+          .select('upid')
+          .eq('user_id', data.user.id)
+          .single();
+
+        if (userError) {
+          console.error('Error fetching user type:', userError);
+          throw new Error('Failed to fetch user profile');
+        }
+
+        // Route based on upid
+        if (userData?.upid === 4) {
+          router.push('/parentpage');
+        } else if (userData?.upid === 5) {
+          router.push('/childpage');
+        } else if (userData?.upid === 3) {
+          router.push('/publisherpage');
+        } else if (userData?.upid === 2) {
+          router.push('/teacherpage');
+        } else {
+          throw new Error('Invalid user type');
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred during login');

@@ -27,7 +27,7 @@ export default function SetupPage() {
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
   const [children, setChildren] = useState<Array<{
     user_id: string;
-    full_name: string;
+    fullname: string;
     username: string;
     age: number;
   }>>([]);
@@ -88,7 +88,7 @@ export default function SetupPage() {
       // Get the user details for each child
       const { data: childUsers, error: childUsersError } = await supabase
         .from('user_account')
-        .select('user_id, full_name, username, age')
+        .select('user_id, fullname, username, age')
         .in('user_id', childProfiles.map(profile => profile.child_id));
 
       if (childUsersError) throw childUsersError;
@@ -115,15 +115,7 @@ export default function SetupPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (parseInt(age) < 18 && selectedGenres.length === 0) {
-      setError('Please select at least one favorite genre');
-      return;
-    }
-    if (parseInt(age) < 18 && !parentEmail) {
-      setError('Please provide parent email');
-      return;
-    }
-    if (parseInt(age) >= 18 && !userType) {
+    if (!userType) {
       setError('Please select your role');
       return;
     }
@@ -147,15 +139,21 @@ export default function SetupPage() {
       }
       if (!user) throw new Error('No user found');
 
-      // Determine profile type based on age and selected role
-      const profile_type = parseInt(age) < 18 ? 'Child' : userType;
+      // Determine upid based on selected role
+      const upid = userType === 'Parent' ? 4 :
+        userType === 'Publisher' ? 3 :
+        userType === 'Educator' ? 2 : null;
+
+      if (!upid) {
+        throw new Error('Invalid user type');
+      }
 
       const userData = {
         user_id: user.id,
         username,
-        full_name: name,
+        fullname: name,
         age: parseInt(age),
-        profile_type,
+        upid,
         updated_at: new Date().toISOString()
       };
 
@@ -198,49 +196,7 @@ export default function SetupPage() {
       }
 
       // Handle profile creation based on user type
-      if (profile_type === 'Child') {
-        // Check if child profile exists
-        const { data: existingChildProfile, error: childCheckError } = await supabase
-          .from('child_profile')
-          .select('*')
-          .eq('child_id', user.id)
-          .single();
-
-        if (childCheckError && childCheckError.code !== 'PGRST116') {
-          console.error('Error checking existing child profile:', childCheckError);
-          throw childCheckError;
-        }
-
-        if (existingChildProfile) {
-          // Update existing child profile
-          const { error: childUpdateError } = await supabase
-            .from('child_profile')
-            .update({
-              favorite_genres: selectedGenres,
-              parent_email: parentEmail
-            })
-            .eq('child_id', user.id);
-          
-          if (childUpdateError) {
-            console.error('Error updating child profile:', childUpdateError);
-            throw childUpdateError;
-          }
-        } else {
-          // Create new child profile
-          const { error: childInsertError } = await supabase
-            .from('child_profile')
-            .insert({
-              child_id: user.id,
-              favorite_genres: selectedGenres,
-              parent_email: parentEmail
-            });
-          
-          if (childInsertError) {
-            console.error('Error creating child profile:', childInsertError);
-            throw childInsertError;
-          }
-        }
-      } else if (profile_type === 'Publisher') {
+      if (upid === 3) { // Publisher
         // Check if publisher profile exists
         const { data: existingProfile, error: checkError } = await supabase
           .from('publisher_profile')
@@ -257,14 +213,16 @@ export default function SetupPage() {
           // Create new publisher profile only if it doesn't exist
           const { error: insertError } = await supabase
             .from('publisher_profile')
-            .insert({ publisher_id: user.id });
+            .insert({ 
+              publisher_id: user.id  // This is the foreign key relation to user_account.user_id
+            });
           
           if (insertError) {
             console.error('Error creating publisher profile:', insertError);
             throw insertError;
           }
         }
-      } else if (profile_type === 'Parent') {
+      } else if (upid === 4) { // Parent
         // Check if parent profile exists
         const { data: existingProfile, error: checkError } = await supabase
           .from('parent_profile')
@@ -291,7 +249,7 @@ export default function SetupPage() {
             throw insertError;
           }
         }
-      } else if (profile_type === 'Educator') {
+      } else if (upid === 2) { // Educator
         // Check if educator profile exists
         const { data: existingProfile, error: checkError } = await supabase
           .from('educator_profile')
@@ -318,7 +276,15 @@ export default function SetupPage() {
       }
 
       await refreshProfile();
-      router.push('/home');
+      
+      // Redirect based on user type
+      if (upid === 4) { // Parent
+        router.push('/parentpage');
+      } else if (upid === 3) { // Publisher
+        router.push('/publisherpage');
+      } else if (upid === 2) { // Educator
+        router.push('/teacherpage');
+      }
     } catch (err) {
       console.error('Submission error:', err);
       if (err instanceof Error) {
@@ -410,86 +376,45 @@ export default function SetupPage() {
               />
             </div>
 
-            {age && parseInt(age) >= 18 && (
-              <div>
-                <label htmlFor="userType" className="block text-sm font-medium text-gray-700">
-                  I am a:
-                </label>
-                <select
-                  id="userType"
-                  value={userType}
-                  onChange={(e) => handleUserTypeChange(e.target.value)}
-                  required
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent !text-black"
-                >
-                  <option value="">Select your role</option>
-                  {USER_TYPES.map((type) => (
-                    <option key={type} value={type}>{type}</option>
-                  ))}
-                </select>
+            <div>
+              <label htmlFor="userType" className="block text-sm font-medium text-gray-700">
+                I am a:
+              </label>
+              <select
+                id="userType"
+                value={userType}
+                onChange={(e) => handleUserTypeChange(e.target.value)}
+                required
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent !text-black"
+              >
+                <option value="">Select your role</option>
+                {USER_TYPES.map((type) => (
+                  <option key={type} value={type}>{type}</option>
+                ))}
+              </select>
 
-                {userType === 'Parent' && children.length > 0 && (
-                  <div className="mt-4">
-                    <label htmlFor="childSelect" className="block text-sm font-medium text-gray-700">
-                      Select your child:
-                    </label>
-                    <select
-                      id="childSelect"
-                      value={selectedChild}
-                      onChange={(e) => setSelectedChild(e.target.value)}
-                      required
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent !text-black"
-                    >
-                      <option value="">Select a child</option>
-                      {children.map((child) => (
-                        <option key={child.user_id} value={child.user_id}>
-                          {child.full_name} ({child.username}) - {child.age} years old
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {age && parseInt(age) < 18 && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Select up to 3 favorite genres
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  {GENRES.map((genre) => (
-                    <button
-                      key={genre}
-                      type="button"
-                      onClick={() => handleGenreToggle(genre)}
-                      className={`p-2 text-sm rounded-lg border ${
-                        selectedGenres.includes(genre)
-                          ? 'bg-rose-500 text-white border-rose-500'
-                          : 'border-gray-300 text-gray-700 hover:border-rose-500'
-                      }`}
-                    >
-                      {genre}
-                    </button>
-                  ))}
-                </div>
-
+              {userType === 'Parent' && children.length > 0 && (
                 <div className="mt-4">
-                  <label htmlFor="parentEmail" className="block text-sm font-medium text-gray-700">
-                    Parent Email
+                  <label htmlFor="childSelect" className="block text-sm font-medium text-gray-700">
+                    Select your child:
                   </label>
-                  <input
-                    id="parentEmail"
-                    type="email"
+                  <select
+                    id="childSelect"
+                    value={selectedChild}
+                    onChange={(e) => setSelectedChild(e.target.value)}
                     required
-                    value={parentEmail}
-                    onChange={(e) => setParentEmail(e.target.value)}
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent !text-black"
-                    placeholder="parent@example.com"
-                  />
+                  >
+                    <option value="">Select a child</option>
+                    {children.map((child) => (
+                      <option key={child.user_id} value={child.user_id}>
+                        {child.fullname} ({child.username}) - {child.age} years old
+                      </option>
+                    ))}
+                  </select>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
 
           <button
