@@ -28,27 +28,35 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Function to fetch user profile
+  // Updated function to fetch user profile
   const fetchUserProfile = async () => {
     try {
       console.log('Fetching authenticated user...');
       setLoading(true); // Start loading
 
-      // Retrieve authenticated user from Supabase
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError) {
-        console.error(`Error fetching user: ${userError.message}`);
+      // Get current session using the updated method
+      const { data: session, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) {
+        console.error(`Error fetching session: ${sessionError.message}`);
         setUserProfile(null); // Reset the user profile on error
         return;
       }
-      if (!user) {
-        console.warn('No user found!');
-        setUserProfile(null); // No user logged in
+
+      if (!session) {
+        console.warn('No active session found!');
+        setUserProfile(null); // No session, no user
         return;
       }
 
-      // Fetch user profile data from Supabase database
-      console.log('Fetching user profile from user_account table...');
+      const user = session.user;  // Get the user from session
+      if (!user) {
+        console.warn('No user found in session!');
+        setUserProfile(null); // No user in session
+        return;
+      }
+
+      console.log('User fetched:', user);
+      // Continue with the user profile fetching logic
       const { data: profile, error: profileError } = await supabase
         .from('user_account')
         .select('*')
@@ -75,9 +83,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
     // Listen for auth state changes (e.g., login/logout)
     console.log('Subscribing to auth state changes...');
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
-      console.log('Auth state changed, refreshing user profile...');
-      fetchUserProfile();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('Auth state changed:', event, session);
+      fetchUserProfile(); // Refresh user profile after auth state change
     });
 
     // Cleanup subscription on unmount

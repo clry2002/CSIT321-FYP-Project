@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Navbar from '../components/Navbar';
 import { supabase } from '@/lib/supabase';
+
 import type { Book } from '@/types/database.types';
 import Image from 'next/image';
 
@@ -48,7 +49,8 @@ export default function SearchBooksPage() {
   useEffect(() => {
     const fetchBookmarkedBooks = async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: sessionData } = await supabase.auth.getSession();
+        const user = sessionData?.session?.user;
         if (!user) return;
 
         const { data: profile, error } = await supabase
@@ -58,7 +60,7 @@ export default function SearchBooksPage() {
           .single();
 
         if (error) throw error;
-        
+
         if (profile?.books_bookmark) {
           setBookmarkedBooks(new Set(profile.books_bookmark));
         }
@@ -90,7 +92,7 @@ export default function SearchBooksPage() {
 
       const isCurrentlyBookmarked = bookmarkedBooks.has(book.title);
       const newBookmarkedBooks = new Set(bookmarkedBooks);
-      
+
       if (isCurrentlyBookmarked) {
         newBookmarkedBooks.delete(book.title);
         setNotification({ message: 'Book removed from bookmarks', show: true });
@@ -105,7 +107,7 @@ export default function SearchBooksPage() {
         .eq('user_id', user.id);
 
       if (error) throw error;
-      
+
       setBookmarkedBooks(newBookmarkedBooks);
       setTimeout(() => setNotification({ message: '', show: false }), 3000);
     } catch (err) {
@@ -113,12 +115,6 @@ export default function SearchBooksPage() {
       setNotification({ message: 'Failed to update bookmark', show: true });
       setTimeout(() => setNotification({ message: '', show: false }), 3000);
     }
-  };
-
-  // Function to clean image URL by removing @ prefix if present
-  const getCleanImageUrl = (url: string | null) => {
-    if (!url) return null;
-    return url.startsWith('@') ? url.substring(1) : url;
   };
 
   return (
@@ -131,7 +127,7 @@ export default function SearchBooksPage() {
             {notification.message}
           </div>
         )}
-        
+
         <div className="max-w-7xl mx-auto">
           {/* Search Interface */}
           <div className="mt-20 mb-8">
@@ -179,7 +175,7 @@ export default function SearchBooksPage() {
                   <div className="flex-shrink-0 w-24 h-36 relative">
                     {book.cover_image ? (
                       <Image
-                        src={getCleanImageUrl(book.cover_image) || ''}
+                        src={book.cover_image || ''}
                         alt={book.title}
                         fill
                         className="object-cover rounded-md shadow-sm"
@@ -241,4 +237,4 @@ export default function SearchBooksPage() {
       </div>
     </div>
   );
-} 
+}
