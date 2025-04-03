@@ -40,13 +40,13 @@ export default function LoginPage() {
         }
 
         // Route based on upid
-        if (userData?.upid === 4) {
+        if (userData?.upid === '68c6153c-6e36-4078-ad71-6ef653de7203') {
           router.push('/parentpage');
-        } else if (userData?.upid === 5) {
+        } else if (userData?.upid === 'f67e28df-a83e-4f0d-bfaf-9ab5bd36ca7f') {
           router.push('/childpage');
-        } else if (userData?.upid === 3) {
+        } else if (userData?.upid === 'f39c4c3a-b01e-4d90-a186-8caf45b36323') {
           router.push('/publisherpage');
-        } else if (userData?.upid === 2) {
+        } else if (userData?.upid === '325bdc77-6ac6-4ecc-a7a9-25bcb9d2b09f') {
           router.push('/teacherpage');
         } else {
           throw new Error('Invalid user type');
