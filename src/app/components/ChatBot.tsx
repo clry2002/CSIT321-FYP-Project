@@ -10,6 +10,7 @@ const ChatBot: React.FC = () => {
   const [enlargedImage, setEnlargedImage] = useState<string | null>(null); // State to track the enlarged image
   const chatContainerRef = useRef<HTMLDivElement | null>(null);
 
+
   useEffect(() => {
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
@@ -38,6 +39,36 @@ const ChatBot: React.FC = () => {
   const closeModal = () => {
     setEnlargedImage(null); // Close the modal by setting it to null
   };
+
+  // Function to check and render iframe if contenturl is an iframe or regular video URL
+  const renderVideoContent = (contenturl: string) => {
+    // Check if contenturl already contains iframe tag
+    if (contenturl.includes("<iframe")) {
+      return <div dangerouslySetInnerHTML={{ __html: contenturl }} />;
+    } 
+
+    // For YouTube (if it's a regular YouTube URL, convert it to embed)
+    const youtubeRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|\S+\/\S+\/|\S+\?v=|v\/|(?:watch\?v=))(\S+))|(?:youtu\.be\/(\S+))/;
+    const matchYouTube = contenturl.match(youtubeRegex);
+    if (matchYouTube) {
+      const videoId = matchYouTube[1] || matchYouTube[2];
+      return (
+        <iframe
+          width="100%"
+          height="315"
+          src={`https://www.youtube.com/embed/${videoId}`}
+          title="YouTube video player"
+          frameBorder="0"
+          allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+        ></iframe>
+      );
+    }
+
+    // If it's not an iframe or YouTube, return as a link or other handling
+    return <a href={contenturl} target="_blank" rel="noopener noreferrer">View Video</a>;
+  };
+  
 
   return (
     <div className="chatbot-wrapper">
@@ -68,23 +99,23 @@ const ChatBot: React.FC = () => {
               <div className={message.role === 'user' ? 'user-message' : 'bot-message'}>
                 {message.role === 'assistant' && Array.isArray(message.content) ? (
                   <ul>
-                    {message.content.map((book, idx) => (
+                    {message.content.map((item, idx) => (
                       <li key={idx} className="book-item">
-                        <strong>{book.title}</strong> - {book.description}
+                        <strong>{item.title}</strong> - {item.description}
                         <br />
-                        {/* Render the book cover image */}
-                        {book.coverimage && (
+                        {/* Render the cover image if available */}
+                        {item.coverimage && (
                           <img
-                            src={book.coverimage}
-                            alt={`Cover of ${book.title}`}
+                            src={item.coverimage}
+                            alt={`Cover of ${item.title}`}
                             width="100"
                             style={{ borderRadius: '8px', marginTop: '5px', cursor: 'pointer' }}
-                            onClick={() => handleImageClick(book.coverimage)} // Trigger image click
+                            onClick={() => handleImageClick(item.coverimage)} // Trigger image click
                           />
                         )}
-                        <a href={book.contenturl} target="_blank" rel="noopener noreferrer" className="view-book-link">
-                          View Book
-                        </a>
+
+                        {/* Render video content */}
+                        {renderVideoContent(item.contenturl)}
                       </li>
                     ))}
                   </ul>

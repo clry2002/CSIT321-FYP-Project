@@ -66,8 +66,8 @@ def clean_response(response):
     cleaned_response = re.sub(r"<think>", "", cleaned_response)
     cleaned_response = re.sub(r"</think>", "", cleaned_response)
 
-    # Replace **text** with bold formatting
-    cleaned_response = re.sub(r"\*\*(.*?)\*\*", r"<b>\1</b>", cleaned_response)
+    # Replace *text* with bold formatting
+    cleaned_response = re.sub(r"\\(.?)\\*", r"<b>\1</b>", cleaned_response)
 
     # Replace ### headings with <h3> tags
     cleaned_response = re.sub(r"###\s?(.*)", r"<h3>\1</h3>", cleaned_response)
