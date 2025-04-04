@@ -10,7 +10,7 @@ interface Video {
   title: string;
   description: string;
   embeddedLink: string;
-  link: string;
+  contenturl: string; // Using contenturl from DB
   thumbnail: string;
   views: number;
   timeAgo: string;
@@ -63,10 +63,10 @@ export default function SearchVideosPage() {
     }
   };
 
-  // Function to extract video ID from link
-  const getVideoId = (link: string) => {
+  // Function to extract video ID from contenturl (link) in DB
+  const getVideoId = (contenturl: string) => {
     try {
-      const url = new URL(link);
+      const url = new URL(contenturl);
       if (url.hostname === 'www.youtube.com' || url.hostname === 'youtube.com') {
         return url.searchParams.get('v');
       } else if (url.hostname === 'youtu.be') {
@@ -126,7 +126,7 @@ export default function SearchVideosPage() {
           ) : query && videos.length > 0 ? (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               {videos.map((video) => {
-                const videoId = getVideoId(video.link);
+                const videoId = getVideoId(video.contenturl); // Use contenturl here
                 return (
                   <div key={`video-${video.id}`} className="border rounded-lg overflow-hidden">
                     <div className="aspect-video relative">
