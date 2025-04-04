@@ -97,13 +97,14 @@ const ChatBot: React.FC = () => {
                       <li key={idx} className="book-item">
                         <strong>{item.title}</strong> - {item.description}
                         <br />
-                        {item.coverimage && (
+                        {/* Render the cover image if available for books */}
+                        {item.coverimage && item.cfid !== 1 && (
                           <img
                             src={item.coverimage}
                             alt={`Cover of ${item.title}`}
                             width="100"
                             style={{ borderRadius: '8px', marginTop: '5px', cursor: 'pointer' }}
-                            onClick={() => handleImageClick(item.coverimage)}
+                            onClick={() => handleImageClick(item.coverimage)} // Trigger image click
                           />
                         )}
                         <div style={{ marginTop: '8px' }}>
