@@ -50,14 +50,17 @@ export default function SearchBooksPage() {
         setIsLoading(false);
         return;
       }
-
+  
       try {
-        const { data, error } = await supabase
-          .from('books')
-          .select('*')
-          .ilike('title', `%${searchQuery}%`);
-
-        if (error) throw error;
+        console.log("Searching with query:", searchQuery); // Log the searchQuery to ensure it's correct
+        const { data, error } = await supabase.rpc('search_books', { searchquery: searchQuery });
+  
+        if (error) {
+          console.error('Error from search_books function:', error);
+          setError(`Error: ${error.message}`);
+          return;
+        }
+  
         setBooks(data || []);
       } catch (err) {
         console.error('Error searching books:', err);
@@ -66,9 +69,10 @@ export default function SearchBooksPage() {
         setIsLoading(false);
       }
     };
-
+  
     searchBooks();
   }, [searchQuery]);
+  
 
   const handleBookmark = async (book: Book) => {
     try {
