@@ -46,21 +46,18 @@ export default function SearchBooksPage() {
 
   useEffect(() => {
     const searchBooks = async () => {
-      if (!searchQuery) {
+      if (!query) {
         setIsLoading(false);
         return;
       }
-  
+
       try {
-        console.log("Searching with query:", searchQuery); // Log search query for debugging
-        const { data, error } = await supabase.rpc('search_books', { searchquery: searchQuery });
-  
+        const { data, error } = await supabase.rpc('search_books', { searchquery: query });
         if (error) {
           console.error('Error from search_books function:', error);
           setError(`Error: ${error.message}`);
           return;
         }
-  
         setBooks(data || []);
       } catch (err) {
         console.error('Error searching books:', err);
@@ -69,9 +66,9 @@ export default function SearchBooksPage() {
         setIsLoading(false);
       }
     };
-  
+
     searchBooks();
-  }, [searchQuery]);
+  }, [query]);
 
   const handleBookmark = async (book: Book) => {
     try {
@@ -110,45 +107,61 @@ export default function SearchBooksPage() {
     }
   };
 
+  const handleSearch = (type: 'books' | 'videos') => {
+    if (!searchQuery.trim()) return;
+    if (type === 'books') {
+      router.push(`/searchbooks?q=${encodeURIComponent(searchQuery.trim())}`);
+    } else {
+      router.push(`/searchvideos?q=${encodeURIComponent(searchQuery.trim())}`);
+    }
+  };
+
   return (
     <div className="flex h-screen bg-white overflow-hidden">
       <Navbar />
       <div className="flex-1 overflow-y-auto pt-16 px-6">
-        {/* Back Button */}
-        <div className="mt-8 mb-4 flex justify-end">
-          <button
-            onClick={() => router.back()}
-            className="px-6 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2"
-          >
-            Back
-          </button>
-        </div>
-
-        {/* Search Input */}
-        <div className="max-w-2xl mx-auto mt-4">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-4">Search Books</h1>
-            <div className="relative">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Enter your search query..."
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent text-black"
-              />
+        <div className="max-w-7xl mx-auto">
+          {/* Search Interface */}
+          <div className="mt-20 mb-8">
+            <div className="max-w-2xl mx-auto">
+              <div className="relative mb-4">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search books and videos..."
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent text-black"
+                />
+              </div>
+              <div className="flex justify-center space-x-4">
+                <button
+                  onClick={() => handleSearch('books')}
+                  className="px-6 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2"
+                >
+                  Search Books
+                </button>
+                <button
+                  onClick={() => handleSearch('videos')}
+                  className="px-6 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2"
+                >
+                  Search Videos
+                </button>
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Notification Toast */}
-        {notification.show && (
-          <div className="fixed top-4 right-4 z-50 bg-rose-500 text-white px-6 py-3 rounded-lg shadow-lg transform transition-all duration-300 ease-in-out">
-            {notification.message}
-          </div>
-        )}
+          {query && (
+            <h1 className="text-2xl font-bold text-gray-900 mb-6">
+              Search Results for "{query}"
+            </h1>
+          )}
 
-        {/* Results or Loading State */}
-        <div className="max-w-7xl mx-auto">
+          {notification.show && (
+            <div className="fixed top-4 right-4 z-50 bg-rose-500 text-white px-6 py-3 rounded-lg shadow-lg">
+              {notification.message}
+            </div>
+          )}
+
           {isLoading ? (
             <div className="text-center py-8">Loading...</div>
           ) : error ? (
@@ -160,12 +173,14 @@ export default function SearchBooksPage() {
                   <div className="flex-shrink-0 w-24 h-36 relative">
                     {book.coverimage && book.coverimage.trim() !== "" ? (
                       <Image
-                        src={book.coverimage.includes("http") 
-                          ? book.coverimage 
-                          : `https://bexeexbozsosdtatunld.supabase.co/storage/v1/object/public/book-covers/${book.cover_image}`}
+                        src={
+                          book.coverimage.includes('http')
+                            ? book.coverimage
+                            : `https://bexeexbozsosdtatunld.supabase.co/storage/v1/object/public/book-covers/${book.cover_image}`
+                        }
                         alt={book.title}
-                        width={96} // Fixed width
-                        height={144} // Fixed height
+                        width={96}
+                        height={144}
                         className="object-cover rounded-md shadow-sm"
                       />
                     ) : (
