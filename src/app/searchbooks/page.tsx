@@ -52,7 +52,7 @@ export default function SearchBooksPage() {
       }
   
       try {
-        console.log("Searching with query:", searchQuery); // Log the searchQuery to ensure it's correct
+        console.log("Searching with query:", searchQuery); // Log search query for debugging
         const { data, error } = await supabase.rpc('search_books', { searchquery: searchQuery });
   
         if (error) {
@@ -72,7 +72,6 @@ export default function SearchBooksPage() {
   
     searchBooks();
   }, [searchQuery]);
-  
 
   const handleBookmark = async (book: Book) => {
     try {
@@ -115,7 +114,7 @@ export default function SearchBooksPage() {
     <div className="flex h-screen bg-white overflow-hidden">
       <Navbar />
       <div className="flex-1 overflow-y-auto pt-16 px-6">
-       {/* Back Button placed above the Search Input */}
+        {/* Back Button */}
         <div className="mt-8 mb-4 flex justify-end">
           <button
             onClick={() => router.back()}
@@ -157,13 +156,16 @@ export default function SearchBooksPage() {
           ) : books.length > 0 ? (
             <div className="space-y-4">
               {books.map((book) => (
-                <div key={book.book_id} className="flex items-start space-x-4 p-4 bg-white rounded-lg hover:bg-gray-50 transition-colors">
+                <div key={book.cid} className="flex items-start space-x-4 p-4 bg-white rounded-lg hover:bg-gray-50 transition-colors">
                   <div className="flex-shrink-0 w-24 h-36 relative">
-                    {book.cover_image ? (
+                    {book.coverimage && book.coverimage.trim() !== "" ? (
                       <Image
-                        src={book.cover_image}
+                        src={book.coverimage.includes("http") 
+                          ? book.coverimage 
+                          : `https://bexeexbozsosdtatunld.supabase.co/storage/v1/object/public/book-covers/${book.cover_image}`}
                         alt={book.title}
-                        fill
+                        width={96} // Fixed width
+                        height={144} // Fixed height
                         className="object-cover rounded-md shadow-sm"
                       />
                     ) : (
@@ -172,13 +174,14 @@ export default function SearchBooksPage() {
                       </div>
                     )}
                   </div>
+
                   <div className="flex-grow">
                     <h3 className="text-lg font-semibold text-gray-900">
-                      <a href={`/bookdetail/${book.book_id}`} className="hover:text-rose-500 transition-colors">
+                      <a href={`/bookdetail/${book.cid}`} className="hover:text-rose-500 transition-colors">
                         {book.title}
                       </a>
                     </h3>
-                    <p className="text-sm text-gray-600">{book.author}</p>
+                    <p className="text-sm text-gray-600">{book.credit}</p>
                   </div>
                   <button
                     className={`flex-shrink-0 ml-4 p-2 rounded-full hover:bg-gray-100 transition-colors ${
