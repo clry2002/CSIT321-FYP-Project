@@ -18,7 +18,7 @@ export interface Database {
         Tables: {
             temp_content: {
                 Row: Book;
-                Insert: Omit<Book, 'cid'>;  // cid should be auto-generated
+                Insert: Omit<Book, 'cid'>; 
                 Update: Partial<Omit<Book, 'cid'>>;
             };
             temp_genre: {
