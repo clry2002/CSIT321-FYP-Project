@@ -61,7 +61,16 @@ export default function SearchBooksPage() {
           return;
         }
   
-        setBooks(data || []);
+        // Use a Map to remove duplicates based on book.book_id
+        const uniqueBooksMap = new Map();
+        data?.forEach((book: Book) => {
+          if (!uniqueBooksMap.has(book.book_id)) {
+            uniqueBooksMap.set(book.book_id, book);
+          }
+        });
+  
+        // Convert the Map values back to an array
+        setBooks(Array.from(uniqueBooksMap.values()));
       } catch (err) {
         console.error('Error searching books:', err);
         setError('Failed to search books');

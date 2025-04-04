@@ -7,7 +7,7 @@ import type { Book } from '@/types/database.types';
 export default function BooksList() {
   const { books, loading, error, addBook, updateBook, deleteBook } = useSupabaseBooks();
   const [newBook, setNewBook] = useState<Omit<Book, 'id'>>({
-    title: '',
+    title: '',+
     author: '',
   });
 
