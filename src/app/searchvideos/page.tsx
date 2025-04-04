@@ -33,25 +33,16 @@ export default function SearchVideosPage() {
       }
 
       try {
-        // First, try to get the user profile without throwing an error
-        const { data: { user }, error: userError } = await supabase.auth.getUser();
-        
-        // Log user error but don't let it affect video search
-        if (userError) {
-          console.warn('User profile fetch warning:', userError);
-        }
-
-        // Perform video search
-        const { data: videoData, error: videoError } = await supabase
-          .from('videos')
-          .select('*')
-          .ilike('title', `%${query}%`);
+        // Perform video search via Supabase RPC function
+        const { data, error: videoError } = await supabase.rpc('search_videos', { searchquery: query });
 
         if (videoError) {
-          throw videoError;
+          console.error('Error from search_videos function:', videoError);
+          setError(`Error: ${videoError.message}`);
+          return;
         }
 
-        setVideos(videoData || []);
+        setVideos(data || []);
       } catch (err) {
         console.error('Error searching videos:', err);
         setError('Failed to search videos');
@@ -175,4 +166,4 @@ export default function SearchVideosPage() {
       </div>
     </div>
   );
-} 
+}
