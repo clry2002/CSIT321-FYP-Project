@@ -3,19 +3,10 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image'; // Import the Image component
+import Image from 'next/image';
 import { supabase } from '@/lib/supabase';
 
-interface UserProfile {
-  upid: number;
-}
-
-interface UserData {
-  upid: number;
-  userprofile: UserProfile;
-}
-
-export default function LoginPage() {
+export default function AdminLoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -28,42 +19,13 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) throw error;
-
-      if (data.user) {
-        // Get user's upid from user_account table joined with userprofile
-        const { data: userData, error: userError } = await supabase
-          .from('user_account')
-          .select(`
-            upid,
-            userprofile!inner (
-              upid
-            )
-          `)
-          .eq('user_id', data.user.id)
-          .single() as { data: UserData | null, error: any };
-
-        if (userError) {
-          console.error('Error fetching user type:', userError);
-          throw new Error('Failed to fetch user profile');
-        }
-
-        // Route based on upid from userprofile
-        if (userData?.userprofile?.upid === 1) {
-          router.push('/publisherpage');
-        } else if (userData?.userprofile?.upid === 2) {
-          router.push('/parentpage');
-        } else if (userData?.userprofile?.upid === 5) {
-          router.push('/teacherpage');
-        } else {
-          throw new Error('Invalid user type');
-        }
+      // Check hardcoded credentials
+      if (email !== "admin@mail.com" || password !== "claireloveskpop") {
+        throw new Error('Invalid admin credentials');
       }
+
+      // If credentials are correct, redirect to admin page
+      router.push('/adminpage');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred during login');
     } finally {
@@ -75,28 +37,27 @@ export default function LoginPage() {
     <div
       className="min-h-screen flex flex-col"
       style={{
-        background: 'linear-gradient(135deg, #f3a4d7, #8b5cf6)', // Custom gradient background
+        background: 'linear-gradient(135deg, #f3a4d7, #8b5cf6)',
       }}
     >
       {/* Header */}
       <header className="p-4 border-b bg-white shadow-md">
         <div className="flex justify-between items-center">
-          {/* Added Logo and CoReadability */}
           <div
             className="flex items-center cursor-pointer"
-            onClick={() => router.push('/')} // Navigate to homepage
+            onClick={() => router.push('/')}
           >
             <Image
-              src="/logo2.png" // Path to your logo
+              src="/logo2.png"
               alt="Logo"
-              width={40} // Adjust the width
-              height={40} // Adjust the height
+              width={40}
+              height={40}
               className="mr-2"
             />
             <h1 className="text-2xl font-bold text-black">CoReadability</h1>
           </div>
           <button
-            onClick={() => router.push('/')} // Redirects to homepage
+            onClick={() => router.push('/')}
             className="text-sm text-gray-600 hover:text-gray-800 font-medium"
           >
             ← Back to Home
@@ -108,11 +69,11 @@ export default function LoginPage() {
       <main className="flex flex-1 items-center justify-center">
         <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-xl shadow-lg">
           <div className="text-center">
-            <h2 className="text-3xl font-bold text-gray-900">Welcome back</h2>
+            <h2 className="text-3xl font-bold text-gray-900">Welcome back, Admin</h2>
             <p className="mt-2 text-sm text-gray-600">
-              Don't have an account?{' '}
-              <Link href="/auth/signup" className="text-rose-500 hover:text-rose-600 font-medium">
-                Sign up
+              Not an Admin?{' '}
+              <Link href="/auth/login" className="text-rose-500 hover:text-rose-600 font-medium">
+                User Login
               </Link>
             </p>
           </div>
@@ -161,18 +122,9 @@ export default function LoginPage() {
             >
               {loading ? 'Signing in...' : 'Sign in'}
             </button>
-
-            <div className="text-center">
-              <Link
-                href="/auth/adminlogin"
-                className="text-sm text-gray-600 hover:text-gray-800 font-medium"
-              >
-                Admin Login
-              </Link>
-            </div>
           </form>
         </div>
       </main>
     </div>
   );
-}
+} 

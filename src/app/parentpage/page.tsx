@@ -69,7 +69,7 @@ export default function ParentHome() {
         .from('user_account')
         .select('fullname, username')
         .eq('user_id', user.id)
-        .eq('upid', 4) // upid for parent
+        .eq('upid', 2) // upid for parent
         .single();
 
       if (parentError) {
@@ -117,7 +117,7 @@ export default function ParentHome() {
         .from('user_account')
         .select('user_id, username, fullname, age')
         .in('username', childUsernames)
-        .eq('upid', 5); // upid for child
+        .eq('upid', 3); // upid for child
 
       if (childrenError) {
         console.error('Error fetching children:', childrenError);
