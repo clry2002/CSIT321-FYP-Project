@@ -23,9 +23,9 @@ export default function BookDetailPage() {
 
       try {
         const { data, error } = await supabase
-          .from('books')
+          .from('temp_content')
           .select('*')
-          .eq('book_id', params.id)
+          .eq('cid', params.id)
           .single();
 
         if (error) throw error;
@@ -77,9 +77,9 @@ export default function BookDetailPage() {
             {/* Book Cover */}
             <div className="w-full md:w-1/3">
               <div className="relative w-full h-[400px]">
-                {book.cover_image ? (
+                {book.coverimage ? (
                   <Image
-                    src={getCleanImageUrl(book.cover_image) || ''}
+                    src={getCleanImageUrl(book.coverimage) || ''}
                     alt={book.title}
                     fill
                     className="object-cover rounded-lg shadow-lg"
@@ -91,9 +91,9 @@ export default function BookDetailPage() {
                 )}
               </div>
               <div className="mt-4">
-                {book.pdf_link && (
+                {book.contenturl && (
                   <a
-                    href={book.pdf_link}
+                    href={book.contenturl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="block w-full text-center bg-rose-500 text-white py-2 rounded-lg hover:bg-rose-600 transition-colors"
@@ -110,23 +110,19 @@ export default function BookDetailPage() {
               <div className="space-y-4">
                 <div>
                   <h2 className="text-gray-600">Author</h2>
-                  <p className="text-gray-900">{book.author}</p>
+                  <p className="text-gray-900">{book.credit}</p>
                 </div>
-                <div>
-                  <h2 className="text-gray-600">Genre</h2>
-                  <p className="text-gray-900">{book.genre.join(', ')}</p>
-                </div>
-                {book.publication_date && (
+                {book.createddate && (
                   <div>
                     <h2 className="text-gray-600">Date Published</h2>
                     <p className="text-gray-900">
-                      {new Date(book.publication_date).toLocaleDateString()}
+                      {new Date(book.createddate).toLocaleDateString()}
                     </p>
                   </div>
                 )}
                 <div>
                   <h2 className="text-gray-600">Summary</h2>
-                  <p className="text-gray-900">{book.summary}</p>
+                  <p className="text-gray-900">{book.description}</p>
                 </div>
               </div>
             </div>
@@ -135,4 +131,4 @@ export default function BookDetailPage() {
       </div>
     </div>
   );
-} 
+}
