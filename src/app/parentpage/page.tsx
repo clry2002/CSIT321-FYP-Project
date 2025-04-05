@@ -129,7 +129,7 @@ export default function ParentHome() {
 
       // Map the data to match the expected type
       const mappedChildren = (childrenData || []).map(child => ({
-        id: child.username,
+        id: child.user_id,
         name: child.fullname || 'Child',
         age: child.age || 0,
         history: [] // We'll fetch history separately if needed
@@ -177,16 +177,25 @@ export default function ParentHome() {
         .eq('user_id', id)
         .single();
 
-      if (childError) throw childError;
-      if (!childData) throw new Error('Child not found');
+      if (childError) {
+        console.error('Error fetching child data:', childError);
+        throw childError;
+      }
+      if (!childData) {
+        console.error('Child not found');
+        throw new Error('Child not found');
+      }
 
-      // Delete from isparentof
+      // Delete from isparentof first
       const { error: relationError } = await supabase
         .from('isparentof')
         .delete()
         .eq('child', childData.username);
 
-      if (relationError) throw relationError;
+      if (relationError) {
+        console.error('Error deleting from isparentof:', relationError);
+        throw relationError;
+      }
 
       // Delete from child_profile
       const { error: profileError } = await supabase
@@ -194,15 +203,21 @@ export default function ParentHome() {
         .delete()
         .eq('child_id', id);
 
-      if (profileError) throw profileError;
+      if (profileError) {
+        console.error('Error deleting from child_profile:', profileError);
+        throw profileError;
+      }
 
-      // Delete from user_account
+      // Finally delete from user_account
       const { error: accountError } = await supabase
         .from('user_account')
         .delete()
         .eq('user_id', id);
 
-      if (accountError) throw accountError;
+      if (accountError) {
+        console.error('Error deleting from user_account:', accountError);
+        throw accountError;
+      }
 
       // Refresh the children list
       await fetchParentData();
@@ -211,7 +226,7 @@ export default function ParentHome() {
       setTimeout(() => setShowNotification(false), 3000);
     } catch (err) {
       console.error('Error deleting child:', err);
-      setError('Error deleting child profile');
+      setError(err instanceof Error ? err.message : 'Error deleting child profile');
     } finally {
       setLoading(false);
     }
