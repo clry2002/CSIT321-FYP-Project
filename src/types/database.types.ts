@@ -13,8 +13,8 @@ export interface Database {
         Tables: {
             books: {
                 Row: Book;
-                Insert: Omit<Book, 'book_id'>;  // ✅ Correct key
-                Update: Partial<Omit<Book, 'book_id'>>;  // ✅ Correct key
+                Insert: Omit<Book, 'id'>;
+                Update: Partial<Omit<Book, 'id'>>;
             };
         };
     };

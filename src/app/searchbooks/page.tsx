@@ -47,18 +47,18 @@ export default function SearchBooksPage() {
   // Search books
   useEffect(() => {
     const searchBooks = async () => {
-      if (!searchQuery) {
+      if (!query) {
         setIsLoading(false);
         return;
       }
 
       try {
-        const { data, error } = await supabase
-          .from('books')
-          .select('*')
-          .ilike('title', `%${searchQuery}%`);
-
-        if (error) throw error;
+        const { data, error } = await supabase.rpc('search_books', { searchquery: query });
+        if (error) {
+          console.error('Error from search_books function:', error);
+          setError(`Error: ${error.message}`);
+          return;
+        }
         setBooks(data || []);
       } catch (err) {
         console.error('Error searching books:', err);
@@ -69,7 +69,7 @@ export default function SearchBooksPage() {
     };
 
     searchBooks();
-  }, [searchQuery]);
+  }, [query]);
 
   // Handle bookmarking
   const handleBookmark = async (book: Book) => {
@@ -134,11 +134,20 @@ export default function SearchBooksPage() {
     }
   };
 
+  const handleSearch = (type: 'books' | 'videos') => {
+    if (!searchQuery.trim()) return;
+    if (type === 'books') {
+      router.push(`/searchbooks?q=${encodeURIComponent(searchQuery.trim())}`);
+    } else {
+      router.push(`/searchvideos?q=${encodeURIComponent(searchQuery.trim())}`);
+    }
+  };
+
   return (
     <div className="flex h-screen bg-white overflow-hidden">
       <Navbar />
       <div className="flex-1 overflow-y-auto pt-16 px-6">
-        {/* Back Button */}
+       {/* Back Button placed above the Search Input */}
         <div className="mt-8 mb-4 flex justify-end">
           <button
             onClick={() => router.back()}
@@ -162,17 +171,19 @@ export default function SearchBooksPage() {
               />
             </div>
           </div>
-        </div>
 
-        {/* Notification Toast */}
-        {notification.show && (
-          <div className="fixed top-4 right-4 z-50 bg-rose-500 text-white px-6 py-3 rounded-lg shadow-lg transform transition-all duration-300 ease-in-out">
-            {notification.message}
-          </div>
-        )}
+          {query && (
+            <h1 className="text-2xl font-bold text-gray-900 mb-6">
+              Search Results for "{query}"
+            </h1>
+          )}
 
-        {/* Results or Loading State */}
-        <div className="max-w-7xl mx-auto">
+          {notification.show && (
+            <div className="fixed top-4 right-4 z-50 bg-rose-500 text-white px-6 py-3 rounded-lg shadow-lg">
+              {notification.message}
+            </div>
+          )}
+
           {isLoading ? (
             <div className="text-center py-8">Loading...</div>
           ) : error ? (
@@ -180,13 +191,18 @@ export default function SearchBooksPage() {
           ) : books.length > 0 ? (
             <div className="space-y-4">
               {books.map((book) => (
-                <div key={book.book_id} className="flex items-start space-x-4 p-4 bg-white rounded-lg hover:bg-gray-50 transition-colors">
+                <div key={book.cid} className="flex items-start space-x-4 p-4 bg-white rounded-lg hover:bg-gray-50 transition-colors">
                   <div className="flex-shrink-0 w-24 h-36 relative">
-                    {book.cover_image ? (
+                    {book.coverimage && book.coverimage.trim() !== "" ? (
                       <Image
-                        src={book.cover_image}
+                        src={
+                          book.coverimage.includes('http')
+                            ? book.coverimage
+                            : `https://bexeexbozsosdtatunld.supabase.co/storage/v1/object/public/book-covers/${book.coverimage}`
+                        }
                         alt={book.title}
-                        fill
+                        width={96}
+                        height={144}
                         className="object-cover rounded-md shadow-sm"
                       />
                     ) : (
@@ -195,13 +211,14 @@ export default function SearchBooksPage() {
                       </div>
                     )}
                   </div>
+
                   <div className="flex-grow">
                     <h3 className="text-lg font-semibold text-gray-900">
-                      <a href={`/bookdetail/${book.book_id}`} className="hover:text-rose-500 transition-colors">
+                      <a href={`/bookdetail/${book.cid}`} className="hover:text-rose-500 transition-colors">
                         {book.title}
                       </a>
                     </h3>
-                    <p className="text-sm text-gray-600">{book.author}</p>
+                    <p className="text-sm text-gray-600">{book.credit}</p>
                   </div>
                   <button
                     className={`flex-shrink-0 ml-4 p-2 rounded-full hover:bg-gray-100 transition-colors ${

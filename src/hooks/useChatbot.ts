@@ -1,17 +1,18 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import axios from 'axios';
 
-// Define the Book interface
-export interface Book {
+// Define the Content interface with cfid
+export interface Content {
   title: string;
   description: string;
   contenturl: string;
-  coverimage: string; // Add coverimage field
+  coverimage: string;
+  cfid: number; // 1 = video, 2 = book
 }
 
 // Define the Message interface
 export interface Message {
-  content: string | Book[]; // The content can either be a string or an array of Book objects
+  content: string | Content[]; // Text or array of content
   role: 'user' | 'assistant';
 }
 
@@ -33,22 +34,39 @@ export const useChatbot = () => {
       setMessages((prev) => [...prev, { role: 'user', content: message }]);
 
       const response = await axios.post('http://127.0.0.1:5000/api/chat', {
-        question: message, // Backend expects `question` field
+        question: message,
       });
 
-      console.log("API Response:", response.data); // Debug API response
+      console.log("API Response:", response.data);
 
-      if (response.data.books) {
-        // If API returns a list of books, ensure each book contains coverimage
-        const books = response.data.books.map((book: any) => ({
-          ...book,
-          coverimage: book.coverimage || '', // Ensure coverimage is always present
-        }));
+      if (response.data.books || response.data.videos) {
+        const content: Content[] = [];
 
-        // Set the books with cover images to the messages
-        setMessages((prev) => [...prev, { role: 'assistant', content: books }]);
+        if (Array.isArray(response.data.books)) {
+          content.push(
+            ...response.data.books.map((book: any) => ({
+              ...book,
+              coverimage: book.coverimage || '',
+              cfid: book.cfid || 2, // Default to book
+            }))
+          );
+        }
+
+        if (Array.isArray(response.data.videos)) {
+          content.push(
+            ...response.data.videos.map((video: any) => ({
+              ...video,
+              coverimage: video.coverimage || '',
+              cfid: video.cfid || 1, // Default to video
+            }))
+          );
+        }
+
+        console.log("Combined content:", content);
+
+        setMessages((prev) => [...prev, { role: 'assistant', content }]);
       } else {
-        // If API returns a text response, add it normally
+        // Fallback to text response (e.g. from AI)
         setMessages((prev) => [...prev, { role: 'assistant', content: response.data.answer }]);
       }
     } catch (error) {
@@ -65,7 +83,7 @@ export const useChatbot = () => {
     }
   }, []);
 
-  // Auto-scroll to the latest message whenever `messages` updates
+  // Auto-scroll to the bottom on new messages
   useEffect(() => {
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;

@@ -7,9 +7,10 @@ const ChatBot: React.FC = () => {
   const { messages, isLoading, sendMessage } = useChatbot();
   const [input, setInput] = useState('');
   const [isOpen, setIsOpen] = useState(false);
-  const [enlargedImage, setEnlargedImage] = useState<string | null>(null); // State to track the enlarged image
+  const [enlargedImage, setEnlargedImage] = useState<string | null>(null);
   const chatContainerRef = useRef<HTMLDivElement | null>(null);
 
+  // Scroll to bottom when messages update
   useEffect(() => {
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
@@ -29,24 +30,48 @@ const ChatBot: React.FC = () => {
     await sendMessage(question);
   };
 
-  // Function to handle clicking on a book cover image
   const handleImageClick = (imageUrl: string) => {
-    setEnlargedImage(imageUrl); // Set the clicked image URL to be displayed in the modal
+    setEnlargedImage(imageUrl);
   };
 
-  // Function to close the enlarged image modal
   const closeModal = () => {
-    setEnlargedImage(null); // Close the modal by setting it to null
+    setEnlargedImage(null);
+  };
+
+  // Render video content if it's a video; otherwise, render book link
+  const renderVideoContent = (contenturl: string) => {
+    if (contenturl.includes("<iframe")) {
+      return <div dangerouslySetInnerHTML={{ __html: contenturl }} />;
+    }
+
+    const youtubeRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|\S+\/\S+\/|\S+\?v=|v\/|(?:watch\?v=))(\S+))|(?:youtu\.be\/(\S+))/;
+    const matchYouTube = contenturl.match(youtubeRegex);
+    if (matchYouTube) {
+      const videoId = matchYouTube[1] || matchYouTube[2];
+      return (
+        <iframe
+          width="100%"
+          height="315"
+          src={`https://www.youtube.com/embed/${videoId}`}
+          title="YouTube video player"
+          frameBorder="0"
+          allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+        ></iframe>
+      );
+    }
+
+    return <a href={contenturl} target="_blank" rel="noopener noreferrer">View Video</a>;
   };
 
   return (
     <div className="chatbot-wrapper">
-      {/* Floating Button to Open Chatbot */}
+      {/* Floating button */}
       <button onClick={() => setIsOpen(!isOpen)} className="chatbot-button">
         <MessageCircle size={28} />
       </button>
 
-      {/* Chatbot Panel */}
+      {/* Chatbot panel */}
       <div className={`chatbot-container ${isOpen ? 'visible' : 'hidden'}`}>
         <div className="chatbot-header">
           <h2 className="text-lg font-semibold">CoReadability Bot</h2>
@@ -57,34 +82,40 @@ const ChatBot: React.FC = () => {
           <div className="predefined-questions">
             <h3>Try asking:</h3>
             {["Can you recommend the latest books?", "Can you recommend the latest videos?"].map((question, index) => (
-              <button key={`question-${index}`} onClick={() => handleQuestionClick(question)} className="question-button">
+              <button key={index} onClick={() => handleQuestionClick(question)} className="question-button">
                 {question}
               </button>
             ))}
           </div>
 
           {messages.map((message, index) => (
-            <div key={`message-${index}`} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} mb-4`}>
+            <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} mb-4`}>
               <div className={message.role === 'user' ? 'user-message' : 'bot-message'}>
                 {message.role === 'assistant' && Array.isArray(message.content) ? (
                   <ul>
-                    {message.content.map((book, idx) => (
+                    {message.content.map((item, idx) => (
                       <li key={idx} className="book-item">
-                        <strong>{book.title}</strong> - {book.description}
+                        <strong>{item.title}</strong> - {item.description}
                         <br />
-                        {/* Render the book cover image */}
-                        {book.coverimage && (
+                        {/* Render the cover image if available for books */}
+                        {item.coverimage && item.cfid !== 1 && (
                           <img
-                            src={book.coverimage}
-                            alt={`Cover of ${book.title}`}
+                            src={item.coverimage}
+                            alt={`Cover of ${item.title}`}
                             width="100"
                             style={{ borderRadius: '8px', marginTop: '5px', cursor: 'pointer' }}
-                            onClick={() => handleImageClick(book.coverimage)} // Trigger image click
+                            onClick={() => handleImageClick(item.coverimage)} // Trigger image click
                           />
                         )}
-                        <a href={book.contenturl} target="_blank" rel="noopener noreferrer" className="view-book-link">
-                          View Book
-                        </a>
+                        <div style={{ marginTop: '8px' }}>
+                          {item.cfid === 1
+                            ? renderVideoContent(item.contenturl)
+                            : (
+                              <a href={item.contenturl} target="_blank" rel="noopener noreferrer">
+                                View Book
+                              </a>
+                            )}
+                        </div>
                       </li>
                     ))}
                   </ul>
@@ -112,15 +143,11 @@ const ChatBot: React.FC = () => {
         </form>
       </div>
 
-      {/* Modal for enlarging the image */}
+      {/* Modal for enlarged image */}
       {enlargedImage && (
         <div className="modal-overlay" onClick={closeModal}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <img
-              src={enlargedImage}
-              alt="Enlarged"
-              className="enlarged-image"
-            />
+            <img src={enlargedImage} alt="Enlarged" className="enlarged-image" />
             <button className="close-modal" onClick={closeModal}>✖</button>
           </div>
         </div>

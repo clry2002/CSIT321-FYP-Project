@@ -45,27 +45,31 @@ export async function POST(request: Request) {
       .eq('gid', genreId);
 
     if (bookIdError || !bookIds || bookIds.length === 0) {
-      console.log(`No books found for genre: ${genre}`);
-      return NextResponse.json({ response: `I couldn't find books in the ${genre} genre.` });
+      console.log(`No content found for genre: ${genre}`);
+      return NextResponse.json({ response: `I couldn't find content in the ${genre} genre.` });
     }
 
     const bookCidList = bookIds.map(entry => entry.cid);
-    console.log("Book IDs found:", bookCidList);
+    console.log("Content IDs found:", bookCidList);
 
-    // Fetch book details using retrieved book IDs
-    const { data: books, error: booksError } = await supabase
+    // Fetch content details, including cfid to separate videos and stories
+    const { data: content, error: contentError } = await supabase
       .from('temp_content')
-      .select('title, description, minimumage, contenturl')
+      .select('title, description, minimumage, contenturl, coverimage, cfid')
       .in('cid', bookCidList);
 
-    if (booksError || !books || books.length === 0) {
-      console.log("Books not found:", booksError);
-      return NextResponse.json({ response: `I found the genre but no books are available.` });
+    if (contentError || !content || content.length === 0) {
+      console.log("Content not found:", contentError);
+      return NextResponse.json({ response: `I found the genre but no content is available.` });
     }
 
-    console.log("Books found:", books);
+    console.log("Content found:", content);
 
-    return NextResponse.json({ books });
+    // Separate content into videos and stories
+    const videos = content.filter(item => item.cfid === 1);
+    const stories = content.filter(item => item.cfid === 2);
+
+    return NextResponse.json({ videos, stories });
   } catch (error) {
     console.error("Error processing request:", error);
     return NextResponse.json({ error: 'Failed to process request' }, { status: 500 });
