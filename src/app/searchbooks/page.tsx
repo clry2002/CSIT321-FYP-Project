@@ -17,33 +17,34 @@ export default function SearchBooksPage() {
   const [error, setError] = useState<string | null>(null);
   const [bookmarkedBooks, setBookmarkedBooks] = useState<Set<string>>(new Set());
   const [notification, setNotification] = useState<{ message: string; show: boolean }>({ message: '', show: false });
+  const [childId, setChildId] = useState<string | null>(null);
 
+  // Fetch the first available child profile
   useEffect(() => {
-    const fetchBookmarkedBooks = async () => {
+    const fetchChildProfile = async () => {
       try {
-        const { data: sessionData } = await supabase.auth.getSession();
-        const user = sessionData?.session?.user;
-        if (!user) return;
-
-        const { data: profile, error } = await supabase
+        const { data: childProfiles, error } = await supabase
           .from('child_profile')
-          .select('books_bookmark')
-          .eq('user_id', user.id)
-          .single();
+          .select('child_id, books_bookmark')
+          .limit(1); // Fetch only one child profile
 
-        if (error) throw error;
-
-        if (profile?.books_bookmark) {
-          setBookmarkedBooks(new Set(profile.books_bookmark));
+        if (error || !childProfiles || childProfiles.length === 0) {
+          console.error('No child profile found', error);
+          return;
         }
+
+        const childProfile = childProfiles[0]; // Pick the first child profile
+        setChildId(childProfile.child_id);
+        setBookmarkedBooks(new Set(childProfile.books_bookmark || []));
       } catch (err) {
-        console.error('Error fetching bookmarked books:', err);
+        console.error('Error fetching child profile:', err);
       }
     };
 
-    fetchBookmarkedBooks();
+    fetchChildProfile();
   }, []);
 
+  // Search books
   useEffect(() => {
     const searchBooks = async () => {
       if (!searchQuery) {
@@ -70,12 +71,11 @@ export default function SearchBooksPage() {
     searchBooks();
   }, [searchQuery]);
 
+  // Handle bookmarking
   const handleBookmark = async (book: Book) => {
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const user = sessionData?.session?.user;
-      if (!user) {
-        setNotification({ message: 'Please log in to bookmark books', show: true });
+      if (!childId) {
+        setNotification({ message: 'No child profile found', show: true });
         setTimeout(() => setNotification({ message: '', show: false }), 3000);
         return;
       }
@@ -85,23 +85,50 @@ export default function SearchBooksPage() {
 
       if (isCurrentlyBookmarked) {
         newBookmarkedBooks.delete(book.title);
-        setNotification({ message: 'Book removed from bookmarks', show: true });
       } else {
         newBookmarkedBooks.add(book.title);
-        setNotification({ message: 'You saved this book', show: true });
       }
 
-      const { error } = await supabase
+      // Ensure all books in the bookmark list exist in the "books" table
+      const { data: validBooks, error } = await supabase
+        .from('books')
+        .select('title')
+        .in('title', Array.from(newBookmarkedBooks));
+
+      if (error) {
+        console.error('Error validating books:', error);
+        setNotification({ message: 'Failed to validate books for bookmarking', show: true });
+        return;
+      }
+
+      const validBookTitles = new Set(validBooks.map((book) => book.title));
+
+      // Filter out invalid books from the list
+      const filteredBookmarkedBooks = Array.from(newBookmarkedBooks).filter((bookTitle) =>
+        validBookTitles.has(bookTitle.trim()) // Trim any leading or trailing spaces
+      );
+
+      console.log('Filtered Bookmarked Books:', filteredBookmarkedBooks);  // Debugging the filtered list
+
+      // Attempt to update Supabase with the valid books_bookmark
+      const { updateError } = await supabase
         .from('child_profile')
-        .update({ books_bookmark: Array.from(newBookmarkedBooks) })
-        .eq('user_id', user.id);
+        .update({ books_bookmark: filteredBookmarkedBooks })
+        .eq('child_id', childId);
 
-      if (error) throw error;
+      if (updateError) {
+        console.error('Error updating bookmarks:', updateError);
+        setNotification({ message: 'Failed to update bookmark', show: true });
+        return;
+      }
 
-      setBookmarkedBooks(newBookmarkedBooks);
+      // Only update UI if Supabase update succeeds
+      setBookmarkedBooks(new Set(filteredBookmarkedBooks));
+      setNotification({ message: isCurrentlyBookmarked ? 'Book removed from bookmarks' : 'You saved this book', show: true });
+
       setTimeout(() => setNotification({ message: '', show: false }), 3000);
     } catch (err) {
-      console.error('Error updating bookmarks:', err);
+      console.error('Unexpected error updating bookmarks:', err);
       setNotification({ message: 'Failed to update bookmark', show: true });
       setTimeout(() => setNotification({ message: '', show: false }), 3000);
     }
@@ -111,7 +138,7 @@ export default function SearchBooksPage() {
     <div className="flex h-screen bg-white overflow-hidden">
       <Navbar />
       <div className="flex-1 overflow-y-auto pt-16 px-6">
-       {/* Back Button placed above the Search Input */}
+        {/* Back Button */}
         <div className="mt-8 mb-4 flex justify-end">
           <button
             onClick={() => router.back()}
