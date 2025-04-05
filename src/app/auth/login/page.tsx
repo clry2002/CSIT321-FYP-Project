@@ -58,6 +58,8 @@ export default function LoginPage() {
           router.push('/publisherpage');
         } else if (userData?.userprofile?.upid === 2) {
           router.push('/parentpage');
+        } else if (userData?.userprofile?.upid === 3) {
+          router.push('/childpage');
         } else if (userData?.userprofile?.upid === 5) {
           router.push('/teacherpage');
         } else {
