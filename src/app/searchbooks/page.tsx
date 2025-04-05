@@ -176,7 +176,7 @@ export default function SearchBooksPage() {
                         src={
                           book.coverimage.includes('http')
                             ? book.coverimage
-                            : `https://bexeexbozsosdtatunld.supabase.co/storage/v1/object/public/book-covers/${book.cover_image}`
+                            : `https://bexeexbozsosdtatunld.supabase.co/storage/v1/object/public/book-covers/${book.coverimage}`
                         }
                         alt={book.title}
                         width={96}
