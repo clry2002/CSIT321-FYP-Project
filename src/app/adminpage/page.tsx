@@ -87,12 +87,13 @@ export default function AdminPage() {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showDeleteParentModal, setShowDeleteParentModal] = useState(false);
   const [deleteParentError, setDeleteParentError] = useState<string | null>(null);
+  const [deleteUserError, setDeleteUserError] = useState<string | null>(null);
 
   const userTypes = [
-    { id: 3, label: 'Child' },
-    { id: 2, label: 'Parent' },
     { id: 1, label: 'Publisher' },
-    { id: 5, label: 'Educator' }
+    { id: 2, label: 'Parent' },
+    { id: 3, label: 'Child' },
+    { id: 5, label: 'Teacher' }
   ];
 
   useEffect(() => {
@@ -134,7 +135,7 @@ export default function AdminPage() {
       case 1: return 'Publisher';
       case 2: return 'Parent';
       case 3: return 'Child';
-      case 5: return 'Educator';
+      case 5: return 'Teacher';
       default: return 'Unknown';
     }
   };
@@ -294,6 +295,30 @@ export default function AdminPage() {
     if (selectedRows.length === 0) return;
 
     try {
+      setDeleteUserError(null);
+
+      // Check if any of the selected users are parents
+      const selectedUsers = userAccounts.filter(user => selectedRows.includes(user.username));
+      const parentsToDelete = selectedUsers.filter(user => user.upid === 2);
+
+      // If there are parents to delete, get their children
+      if (parentsToDelete.length > 0) {
+        for (const parent of parentsToDelete) {
+          const children = getChildrenForParent(parent.username);
+          
+          // Delete all children accounts
+          for (const child of children) {
+            const { error: childError } = await supabase
+              .from('user_account')
+              .delete()
+              .eq('username', child.username);
+            
+            if (childError) throw childError;
+          }
+        }
+      }
+
+      // Delete the selected users
       const { error } = await supabase
         .from('user_account')
         .delete()
@@ -305,7 +330,8 @@ export default function AdminPage() {
       setSelectedRows([]);
       setShowDeleteModal(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred while deleting users');
+      console.error('Error deleting users:', err);
+      setDeleteUserError(err instanceof Error ? err.message : 'An error occurred while deleting users');
     }
   };
 
@@ -846,11 +872,11 @@ export default function AdminPage() {
                               className="bg-gray-800 rounded px-2 py-1"
                               autoFocus
                             >
-                              <option value={1}>Admin</option>
-                              <option value={2}>Teacher</option>
-                              <option value={3}>Publisher</option>
-                              <option value={4}>Parent</option>
-                              <option value={5}>Child</option>
+                              {userTypes.map(type => (
+                                <option key={type.id} value={type.id}>
+                                  {type.label}
+                                </option>
+                              ))}
                             </select>
                             <button
                               onClick={() => handleUpdateUser(account.username, 'upid', editingCell.value)}
@@ -1083,10 +1109,11 @@ export default function AdminPage() {
                         onChange={(e) => setNewUser({...newUser, upid: parseInt(e.target.value)})}
                         className="flex-1 p-2 bg-gray-800 rounded"
                       >
-                        <option value={1}>Admin</option>
-                        <option value={2}>Teacher</option>
-                        <option value={3}>Publisher</option>
-                        <option value={4}>Parent</option>
+                        {userTypes.map(type => (
+                          <option key={type.id} value={type.id}>
+                            {type.label}
+                          </option>
+                        ))}
                       </select>
                     )}
                     <button
@@ -1177,15 +1204,58 @@ export default function AdminPage() {
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-          <div className="bg-gray-900 p-6 rounded-lg w-96">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-gray-900 p-6 rounded-lg w-[600px]">
             <h3 className="text-xl font-bold mb-4">Confirm Deletion</h3>
-            <p className="mb-4">
-              Are you sure you want to delete {selectedRows.length} user{selectedRows.length > 1 ? 's' : ''}? This action cannot be undone.
-            </p>
+            {deleteUserError && (
+              <div className="mb-4 p-3 bg-red-900 text-red-200 rounded">
+                {deleteUserError}
+              </div>
+            )}
+            {selectedRows.length > 0 && (
+              <>
+                {userAccounts.filter(user => selectedRows.includes(user.username) && user.upid === 2).length > 0 ? (
+                  <>
+                    <p className="mb-4 text-red-400">
+                      Warning: This action will delete parent accounts and all their associated child accounts. This action cannot be undone.
+                    </p>
+                    <p className="mb-4">
+                      The following accounts will be deleted:
+                    </p>
+                    <ul className="mb-4 list-disc list-inside">
+                      {userAccounts
+                        .filter(user => selectedRows.includes(user.username))
+                        .map((user, index) => (
+                          <li key={index}>
+                            {user.upid === 2 ? (
+                              <>
+                                Parent: {user.fullname} ({user.username})
+                                {getChildrenForParent(user.username).map((child, childIndex) => (
+                                  <li key={childIndex} className="ml-8">
+                                    Child: {child.fullname} ({child.username})
+                                  </li>
+                                ))}
+                              </>
+                            ) : (
+                              `${user.fullname} (${user.username})`
+                            )}
+                          </li>
+                        ))}
+                    </ul>
+                  </>
+                ) : (
+                  <p className="mb-4">
+                    Are you sure you want to delete {selectedRows.length} user{selectedRows.length > 1 ? 's' : ''}? This action cannot be undone.
+                  </p>
+                )}
+              </>
+            )}
             <div className="mt-6 flex justify-end space-x-2">
               <button
-                onClick={() => setShowDeleteModal(false)}
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setDeleteUserError(null);
+                }}
                 className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded"
               >
                 Cancel
