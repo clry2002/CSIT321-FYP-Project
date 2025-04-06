@@ -38,10 +38,6 @@ SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 # Initialize Supabase client
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# AI model setup
-api_key: str = os.getenv('key')
-model: str = "deepseek-r1-distill-llama-70b"
-deepseek = ChatGroq(api_key=api_key, model_name=model)
 parser = StrOutputParser()
 deepseek_chain = deepseek | parser
 
@@ -66,8 +62,8 @@ def clean_response(response):
     cleaned_response = re.sub(r"<think>", "", cleaned_response)
     cleaned_response = re.sub(r"</think>", "", cleaned_response)
 
-    # Replace **text** with bold formatting
-    cleaned_response = re.sub(r"\*\*(.*?)\*\*", r"<b>\1</b>", cleaned_response)
+    # Replace *text* with bold formatting
+    cleaned_response = re.sub(r"\\(.?)\\*", r"<b>\1</b>", cleaned_response)
 
     # Replace ### headings with <h3> tags
     cleaned_response = re.sub(r"###\s?(.*)", r"<h3>\1</h3>", cleaned_response)
@@ -79,32 +75,61 @@ def clean_response(response):
     # Strip any leading or trailing whitespace (including newlines)
     return cleaned_response.strip()
 
-def get_content_by_genre(genre):
+# Function to fetch content by genre and format (cfid)
+def get_content_by_genre_and_format(question):
     try:
-        # Fetch content filtered by genre
-        response = (
+        # Define potential genres and formats
+        genres = ["fantasy", "fiction", "romance", "maths", "thriller", "horror", "sci-fi", "science", "adventure"]
+        formats = {"videos": 1, "video": 1, "books": 2, "book": 2}  # Mapping for content formats
+
+        # Detect genre and format from the question
+        detected_genre = next((word for word in question.split() if word.lower() in genres), None)
+        detected_format = next((word for word in question.split() if word.lower() in formats), None)
+
+        if not detected_genre:
+            return {"error": "Unable to detect genre from the question"}
+        
+        cfid = formats.get(detected_format.lower(), None) if detected_format else None
+
+        # Fetch content filtered by genre and format (if cfid is detected)
+        query = (
             supabase
             .from_("temp_contentgenres")
-            .select("cid, temp_genre!inner(genrename), temp_content(title, description, minimumage, contenturl, status, coverimage)")
-            .ilike("temp_genre.genrename", f"%{genre}%")
-            .execute()
+            .select(
+                "cid, temp_genre!inner(genrename), "
+                "temp_content(title, description, minimumage, contenturl, status, coverimage, cfid)"
+            )
+            .ilike("temp_genre.genrename", f"%{detected_genre}%")
         )
+        
+        if cfid:
+            query = query.eq("temp_content.cfid", cfid)  # Filter by cfid if format is detected
 
-        logging.info(f"Filtered Supabase response: {response}")
+        response = query.execute()
+
+        logging.info(f"Filtered Supabase response: {response.data}")
 
         if not response.data:
-            return []  # No books found
+            return {"error": "No content found for the given genre and format"}
 
-        # Extract book details properly
-        filtered_books = [
-            item["temp_content"] for item in response.data if "temp_content" in item and item["temp_content"]
-        ]
+        # Separate books and videos based on cfid
+        filtered_books = []
+        filtered_videos = []
+        for item in response.data:
+            if "temp_content" in item and item["temp_content"]:
+                if item["temp_content"]["cfid"] == 2:  # Books
+                    filtered_books.append(item["temp_content"])
+                elif item["temp_content"]["cfid"] == 1:  # Videos
+                    filtered_videos.append(item["temp_content"])
 
-        return filtered_books
+        logging.info(f"Filtered books: {filtered_books}")
+        logging.info(f"Filtered videos: {filtered_videos}")
+
+        return {"genre": detected_genre, "books": filtered_books, "videos": filtered_videos}
 
     except Exception as e:
-        logging.error(f"Database error: {e}")
-        return []
+        logging.error(f"Database query failed: {e}")
+        return {"error": "Database query failed"}
 
 @app.route('/api/chat', methods=['POST'])
 def chat():
@@ -114,24 +139,19 @@ def chat():
     if not question:
         return jsonify({"error": "No question provided"}), 400
 
-    # Detect genre in the question
-    keywords = ["fantasy", "fiction", "romance", "maths", "thriller", "horror", "sci-fi", "science", "adventure"]
-    genre = next((word for word in question.split() if word in keywords), None)
+    # Fetch content by genre and format
+    content_response = get_content_by_genre_and_format(question)
 
-    if genre:
-        book_recommendations = get_content_by_genre(genre)
-        logging.info(f"Database books: {book_recommendations}")
+    if "error" in content_response:
+        # Fallback to AI-generated response if content not found or error occurs
+        try:
+            ai_answer = deepseek_chain.invoke(question)
+            return jsonify({"answer": clean_response(ai_answer)})
+        except Exception as e:
+            logging.error(f"AI response failed: {e}")
+            return jsonify({"error": "AI response failed"}), 500
 
-        if book_recommendations:
-            return jsonify({"books": book_recommendations})
-        
-    # If no books are found, recommendations come from AI
-    try:
-        ai_answer = deepseek_chain.invoke(question)
-        return jsonify({"answer": clean_response(ai_answer)})
-    except Exception as e:
-        logging.error(f"AI response failed: {e}")
-        return jsonify({"error": "AI response failed"}), 500
+    return jsonify(content_response)
 
 # Run the Flask app
 if __name__ == '__main__':

@@ -77,7 +77,7 @@ export default function CreateChildAccount() {
         .from('user_account')
         .select('username, fullname')
         .eq('user_id', parentUser.id)
-        .eq('upid', 4) // upid for parent
+        .eq('upid', 2) // upid for parent
         .single();
 
       if (parentDataError) {
@@ -119,7 +119,7 @@ export default function CreateChildAccount() {
           username,
           fullname: fullName,
           age: parseInt(age),
-          upid: 5, // upid for child
+          upid: 3, // upid for child
         })
         .select();
 

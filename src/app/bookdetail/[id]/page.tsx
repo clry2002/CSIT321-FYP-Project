@@ -1,17 +1,22 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import Navbar from '../../components/Navbar';
 import { supabase } from '@/lib/supabase';
 import type { Book } from '@/types/database.types';
+import ChatBot from '../../components/ChatBot';
 
 export default function BookDetailPage() {
   const params = useParams();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const query = searchParams.get('q') || '';
   const [book, setBook] = useState<Book | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
 
   useEffect(() => {
     const fetchBook = async () => {
@@ -20,12 +25,12 @@ export default function BookDetailPage() {
         setIsLoading(false);
         return;
       }
-
+      
       try {
         const { data, error } = await supabase
-          .from('books')
+          .from('temp_content')
           .select('*')
-          .eq('book_id', params.id)
+          .eq('cid', params.id)
           .single();
 
         if (error) throw error;
@@ -44,6 +49,17 @@ export default function BookDetailPage() {
   const getCleanImageUrl = (url: string | null) => {
     if (!url) return null;
     return url.startsWith('@') ? url.substring(1) : url;
+  };
+
+  // Handle navigation back to search results
+  const handleBackToSearch = () => {
+    // Check if we have a query to preserve
+    if (query) {
+      router.push(`/searchbooks?q=${encodeURIComponent(query)}`);
+    } else {
+      // If no query, just go back to the previous page
+      router.back();
+    }
   };
 
   if (isLoading) {
@@ -73,16 +89,26 @@ export default function BookDetailPage() {
       <Navbar />
       <div className="flex-1 overflow-y-auto pt-16 px-6">
         <div className="max-w-4xl mx-auto mt-8">
+          {/* Back Button */}
+          <div className="flex justify-start">
+            <button
+              onClick={handleBackToSearch}
+              className="mb-6 px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition"
+            >
+              ← Back to Search
+            </button>
+          </div>
+
           <div className="flex flex-col md:flex-row gap-8">
             {/* Book Cover */}
             <div className="w-full md:w-1/3">
               <div className="relative w-full h-[400px]">
-                {book.cover_image ? (
+                {book.coverimage ? (
                   <Image
-                    src={getCleanImageUrl(book.cover_image) || ''}
+                    src={getCleanImageUrl(book.coverimage) || ''}
                     alt={book.title}
                     fill
-                    className="object-cover rounded-lg shadow-lg"
+                    className="w-full h-full object-contain rounded-md shadow-sm"
                   />
                 ) : (
                   <div className="w-full h-full bg-gray-200 rounded-lg flex items-center justify-center">
@@ -91,9 +117,9 @@ export default function BookDetailPage() {
                 )}
               </div>
               <div className="mt-4">
-                {book.pdf_link && (
+                {book.contenturl && (
                   <a
-                    href={book.pdf_link}
+                    href={book.contenturl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="block w-full text-center bg-rose-500 text-white py-2 rounded-lg hover:bg-rose-600 transition-colors"
@@ -110,29 +136,26 @@ export default function BookDetailPage() {
               <div className="space-y-4">
                 <div>
                   <h2 className="text-gray-600">Author</h2>
-                  <p className="text-gray-900">{book.author}</p>
+                  <p className="text-gray-900">{book.credit}</p>
                 </div>
-                <div>
-                  <h2 className="text-gray-600">Genre</h2>
-                  <p className="text-gray-900">{book.genre.join(', ')}</p>
-                </div>
-                {book.publication_date && (
+                {book.createddate && (
                   <div>
                     <h2 className="text-gray-600">Date Published</h2>
                     <p className="text-gray-900">
-                      {new Date(book.publication_date).toLocaleDateString()}
+                      {new Date(book.createddate).toLocaleDateString()}
                     </p>
                   </div>
                 )}
                 <div>
                   <h2 className="text-gray-600">Summary</h2>
-                  <p className="text-gray-900">{book.summary}</p>
+                  <p className="text-gray-900">{book.description}</p>
                 </div>
               </div>
+              <ChatBot />
             </div>
           </div>
         </div>
       </div>
     </div>
   );
-} 
+}

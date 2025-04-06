@@ -28,7 +28,7 @@ export default function SearchPage() {
         <div className="max-w-2xl mx-auto mt-20">
           {/* Search Interface */}
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-4">Search</h1>
+            <h1 className="text-3xl font-bold text-gray-900 mb-4">Search Content</h1>
             <div className="relative">
               <input
                 type="text"

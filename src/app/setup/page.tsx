@@ -140,9 +140,9 @@ export default function SetupPage() {
       if (!user) throw new Error('No user found');
 
       // Determine upid based on selected role
-      const upid = userType === 'Parent' ? '68c6153c-6e36-4078-ad71-6ef653de7203' :
-        userType === 'Publisher' ? 'f39c4c3a-b01e-4d90-a186-8caf45b36323' :
-        userType === 'Educator' ? '325bdc77-6ac6-4ecc-a7a9-25bcb9d2b09f' : null;
+      const upid = userType === 'Parent' ? 2 :
+        userType === 'Publisher' ? 1 :
+        userType === 'Educator' ? 5 : null;
 
       if (!upid) {
         throw new Error('Invalid user type');
@@ -196,7 +196,7 @@ export default function SetupPage() {
       }
 
       // Handle profile creation based on user type
-      if (upid === 'f39c4c3a-b01e-4d90-a186-8caf45b36323') { // Publisher
+      if (upid === 1) { // Publisher
         // Check if publisher profile exists
         const { data: existingProfile, error: checkError } = await supabase
           .from('publisher_profile')
@@ -222,7 +222,7 @@ export default function SetupPage() {
             throw insertError;
           }
         }
-      } else if (upid === '68c6153c-6e36-4078-ad71-6ef653de7203') { // Parent
+      } else if (upid === 2) { // Parent
         // Check if parent profile exists
         const { data: existingProfile, error: checkError } = await supabase
           .from('parent_profile')
@@ -249,7 +249,7 @@ export default function SetupPage() {
             throw insertError;
           }
         }
-      } else if (upid === '325bdc77-6ac6-4ecc-a7a9-25bcb9d2b09f') { // Educator
+      } else if (upid === 5) { // Educator
         // Check if educator profile exists
         const { data: existingProfile, error: checkError } = await supabase
           .from('educator_profile')
@@ -278,11 +278,11 @@ export default function SetupPage() {
       await refreshProfile();
       
       // Redirect based on user type
-      if (upid === '68c6153c-6e36-4078-ad71-6ef653de7203') { // Parent
+      if (upid === 2) { // Parent
         router.push('/parentpage');
-      } else if (upid === 'f39c4c3a-b01e-4d90-a186-8caf45b36323') { // Publisher
+      } else if (upid === 1) { // Publisher
         router.push('/publisherpage');
-      } else if (upid === '325bdc77-6ac6-4ecc-a7a9-25bcb9d2b09f') { // Educator
+      } else if (upid === 5) { // Educator
         router.push('/teacherpage');
       }
     } catch (err) {
