@@ -6,6 +6,7 @@ import Image from 'next/image';
 import Navbar from '../../components/Navbar';
 import { supabase } from '@/lib/supabase';
 import type { Book } from '@/types/database.types';
+import ChatBot from '../../components/ChatBot';
 
 export default function BookDetailPage() {
   const params = useParams();
@@ -125,6 +126,7 @@ export default function BookDetailPage() {
                   <p className="text-gray-900">{book.description}</p>
                 </div>
             </div>
+            <ChatBot />
             </div>
           </div>
         </div>
