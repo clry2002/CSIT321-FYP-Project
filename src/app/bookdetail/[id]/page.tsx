@@ -82,7 +82,7 @@ export default function BookDetailPage() {
                     src={getCleanImageUrl(book.coverimage) || ''}
                     alt={book.title}
                     fill
-                    className="object-cover rounded-lg shadow-lg"
+                    className="w-full h-full object-contain rounded-md shadow-sm"
                   />
                 ) : (
                   <div className="w-full h-full bg-gray-200 rounded-lg flex items-center justify-center">
@@ -124,7 +124,7 @@ export default function BookDetailPage() {
                   <h2 className="text-gray-600">Summary</h2>
                   <p className="text-gray-900">{book.description}</p>
                 </div>
-              </div>
+            </div>
             </div>
           </div>
         </div>

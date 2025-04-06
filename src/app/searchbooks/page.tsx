@@ -181,7 +181,7 @@ export default function SearchBooksPage() {
                         alt={book.title}
                         width={96}
                         height={144}
-                        className="object-cover rounded-md shadow-sm"
+                        className="w-full h-full object-contain rounded-md shadow-sm"
                       />
                     ) : (
                       <div className="w-full h-full bg-gray-200 rounded-md flex items-center justify-center">
