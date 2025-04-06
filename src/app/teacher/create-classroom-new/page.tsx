@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import EduNavbar from '../../components/eduNavbar';
 
 export default function CreateClassroom() {
   const router = useRouter();
@@ -15,7 +16,7 @@ export default function CreateClassroom() {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
-    setErrorMessage(''); // Reset error message
+    setErrorMessage('');
   
     try {
       // Get the current authenticated user
@@ -69,7 +70,7 @@ export default function CreateClassroom() {
         throw new Error(insertError.message);
       }
   
-      router.push('/teacherpage');
+      router.push('/teacher/view-classroom-new');
   
     } catch (error: any) {
       console.error('Error creating classroom:', error);
@@ -80,14 +81,13 @@ export default function CreateClassroom() {
   };
   
 
-  // Optional: Check for authentication on component mount
   useEffect(() => {
     const checkAuth = async () => {
       const { data, error } = await supabase.auth.getSession();
 
       if (error || !data.session) {
         console.log('User not authenticated, redirecting to login');
-        router.push('/login'); // Redirect to login if not authenticated
+        router.push('/login');
       }
     };
 
@@ -96,6 +96,8 @@ export default function CreateClassroom() {
 
   return (
     <div className="flex flex-col h-screen bg-gray-100 overflow-hidden">
+    <EduNavbar />
+    
       {/* Main Content */}
       <div className="flex-1 overflow-y-auto px-6 py-30">
         {/* Header Section */}
@@ -133,15 +135,24 @@ export default function CreateClassroom() {
               />
             </div>
 
-            <div className="flex justify-end mt-4">
-              <button
-                type="submit"
-                className="bg-blue-500 text-white px-6 py-2 rounded-lg"
-                disabled={loading}
-              >
-                {loading ? 'Creating...' : 'Create Classroom'}
-              </button>
-            </div>
+            <div className="flex justify-end mt-4 gap-4">
+                <button
+                    type="button"
+                    onClick={() => router.back()} 
+                    className="bg-gray-300 text-black px-6 py-2 rounded-lg hover:bg-gray-400"
+                    disabled={loading}
+                >
+                    Cancel
+                </button>
+
+                <button
+                    type="submit"
+                    className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600"
+                    disabled={loading}
+                >
+                    {loading ? 'Creating...' : 'Create Classroom'}
+                </button>
+                </div>
           </form>
         </div>
       </div>
