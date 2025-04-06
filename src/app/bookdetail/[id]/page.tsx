@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import Navbar from '../../components/Navbar';
 import { supabase } from '@/lib/supabase';
@@ -10,9 +10,13 @@ import ChatBot from '../../components/ChatBot';
 
 export default function BookDetailPage() {
   const params = useParams();
+  const router = useRouter();
+  const searchParams = useSearchParams(); // Use useSearchParams hook
+  const query = searchParams.get('q') || ''; // Access query parameter 'q'
   const [book, setBook] = useState<Book | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
 
   useEffect(() => {
     const fetchBook = async () => {
@@ -21,7 +25,7 @@ export default function BookDetailPage() {
         setIsLoading(false);
         return;
       }
-
+      
       try {
         const { data, error } = await supabase
           .from('temp_content')
@@ -74,6 +78,16 @@ export default function BookDetailPage() {
       <Navbar />
       <div className="flex-1 overflow-y-auto pt-16 px-6">
         <div className="max-w-4xl mx-auto mt-8">
+          {/* Back Button */}
+          <div className="flex justify-start">
+            <button
+              onClick={() => router.push(`/searchbooks?q=${query}`)}
+              className="mb-6 px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition"
+            >
+              ← Back to Search
+            </button>
+          </div>
+
           <div className="flex flex-col md:flex-row gap-8">
             {/* Book Cover */}
             <div className="w-full md:w-1/3">
@@ -125,8 +139,8 @@ export default function BookDetailPage() {
                   <h2 className="text-gray-600">Summary</h2>
                   <p className="text-gray-900">{book.description}</p>
                 </div>
-            </div>
-            <ChatBot />
+              </div>
+              <ChatBot />
             </div>
           </div>
         </div>
