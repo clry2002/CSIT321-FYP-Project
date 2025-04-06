@@ -1,14 +1,13 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import axios from 'axios';
 
-// Define the Content interface with cfid and cid
+// Define the Content interface with cfid
 export interface Content {
   title: string;
   description: string;
   contenturl: string;
   coverimage: string;
   cfid: number; // 1 = video, 2 = book
-  cid: number; // Book unique ID
 }
 
 // Define the Message interface
@@ -49,7 +48,6 @@ export const useChatbot = () => {
               ...book,
               coverimage: book.coverimage || '',
               cfid: book.cfid || 2, // Default to book
-              cid: book.cid || 0,   // Ensure cid is present
             }))
           );
         }
@@ -60,7 +58,6 @@ export const useChatbot = () => {
               ...video,
               coverimage: video.coverimage || '',
               cfid: video.cfid || 1, // Default to video
-              cid: video.cid || 0,   // Ensure cid is present
             }))
           );
         }
