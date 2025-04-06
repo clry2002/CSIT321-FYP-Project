@@ -97,7 +97,7 @@ def get_content_by_genre_and_format(question):
             .from_("temp_contentgenres")
             .select(
                 "cid, temp_genre!inner(genrename), "
-                "temp_content(title, description, minimumage, contenturl, status, coverimage, cfid)"
+                "temp_content(cid, title, description, minimumage, contenturl, status, coverimage, cfid)"
             )
             .ilike("temp_genre.genrename", f"%{detected_genre}%")
         )
