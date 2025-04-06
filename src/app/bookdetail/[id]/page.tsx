@@ -11,8 +11,8 @@ import ChatBot from '../../components/ChatBot';
 export default function BookDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const searchParams = useSearchParams(); // Use useSearchParams hook
-  const query = searchParams.get('q') || ''; // Access query parameter 'q'
+  const searchParams = useSearchParams();
+  const query = searchParams.get('q') || '';
   const [book, setBook] = useState<Book | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -51,6 +51,17 @@ export default function BookDetailPage() {
     return url.startsWith('@') ? url.substring(1) : url;
   };
 
+  // Handle navigation back to search results
+  const handleBackToSearch = () => {
+    // Check if we have a query to preserve
+    if (query) {
+      router.push(`/searchbooks?q=${encodeURIComponent(query)}`);
+    } else {
+      // If no query, just go back to the previous page
+      router.back();
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex h-screen bg-white">
@@ -81,7 +92,7 @@ export default function BookDetailPage() {
           {/* Back Button */}
           <div className="flex justify-start">
             <button
-              onClick={() => router.push(`/searchbooks?q=${query}`)}
+              onClick={handleBackToSearch}
               className="mb-6 px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition"
             >
               ← Back to Search
