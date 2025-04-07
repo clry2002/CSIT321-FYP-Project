@@ -3,88 +3,141 @@
 import { useState, useEffect } from 'react';
 import Navbar from '../components/Navbar';
 import { supabase } from '@/lib/supabase';
-import { Plus } from 'lucide-react';
 import Image from 'next/image';
 import type { Book } from '@/types/database.types';
 
 export default function BookmarksPage() {
   const [bookmarkedBooks, setBookmarkedBooks] = useState<Book[]>([]);
   const [notification, setNotification] = useState<{ message: string; show: boolean }>({ message: '', show: false });
-  const [childId, setChildId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<any>(null);
+  const [childUaid, setChildUaid] = useState<string | null>(null);
 
-  // Fetch the first available child profile's bookmarks
+  useEffect(() => {
+    const fetchUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      console.log('Fetched user:', user);
+      setUser(user);
+      setLoading(false);
+
+      const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+        setUser(session?.user || null);
+        console.log('User onAuthStateChange:', session?.user);
+      });
+
+      return () => {
+        authListener?.unsubscribe();
+      };
+    };
+
+    fetchUser();
+  }, []);
+
   useEffect(() => {
     const fetchChildProfile = async () => {
-      try {
-        const { data: childProfiles, error } = await supabase
-          .from('child_profile')
-          .select('child_id, books_bookmark')
-          .limit(1);
+      if (!user) return;
 
-        if (error || !childProfiles || childProfiles.length === 0) {
-          console.error('No child profile found', error);
+      const { data, error } = await supabase
+        .from('user_account')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('upid', 3)
+        .single();
+
+      if (error) {
+        console.error('Child profile not found:', error);
+        return;
+      }
+
+      console.log('Matched child profile:', data);
+      setChildUaid(data.id); // This is the actual `uaid` used in temp_bookmark
+    };
+
+    fetchChildProfile();
+  }, [user]);
+
+  useEffect(() => {
+    const fetchBookmarks = async () => {
+      if (!childUaid) return;
+
+      console.log('Fetching bookmarks for child uaid:', childUaid);
+
+      try {
+        const { data: bookmarks, error: bookmarksError } = await supabase
+          .from('temp_bookmark')
+          .select('cid')
+          .eq('uaid', childUaid);
+
+        if (bookmarksError) {
+          console.error('Error fetching bookmarks:', bookmarksError);
           return;
         }
 
-        const childProfile = childProfiles[0];
-        setChildId(childProfile.child_id);
+        console.log('Fetched Bookmarks:', bookmarks);
 
-        // Ensure books_bookmark is an array
-        const bookmarkedTitles = Array.isArray(childProfile.books_bookmark) ? childProfile.books_bookmark : [];
+        if (!bookmarks || bookmarks.length === 0) {
+          console.log('No bookmarks found for this user.');
+          return;
+        }
 
-        // Fetch the books for this child profile
+        const bookmarkedCids = bookmarks.map((bookmark) => bookmark.cid);
+        console.log('Bookmarked CIDs:', bookmarkedCids);
+
         const { data: books, error: bookError } = await supabase
-          .from('books')
+          .from('temp_content')
           .select('*')
-          .in('title', bookmarkedTitles);
+          .in('cid', bookmarkedCids)
+          .eq('cfid', 2); // Ensure it's only books
 
         if (bookError) {
           console.error('Error fetching books:', bookError);
           return;
         }
 
-        setBookmarkedBooks(books || []);
+        console.log('Fetched Books:', books);
+
+        if (books) {
+          setBookmarkedBooks(books);
+        } else {
+          console.log('No books found for the given cids.');
+        }
       } catch (err) {
-        console.error('Error fetching child profile:', err);
+        console.error('Unexpected error fetching bookmarks:', err);
       }
     };
 
-    fetchChildProfile();
-  }, []);
+    fetchBookmarks();
+  }, [childUaid]);
 
   const handleRemoveBookmark = async (book: Book) => {
+    if (!childUaid) return;
+
+    console.log('Removing bookmark for uaid:', childUaid, 'book cid:', book.cid);
+
     try {
-      if (!childId) {
-        setNotification({ message: 'No child profile found', show: true });
-        setTimeout(() => setNotification({ message: '', show: false }), 3000);
-        return;
-      }
-
-      // Ensure safe array update
-      const updatedBookmarks = bookmarkedBooks.filter(b => b.book_id !== book.book_id).map(b => b.title);
-
-      // Update the database
       const { error } = await supabase
-        .from('child_profile')
-        .update({ books_bookmark: updatedBookmarks.length > 0 ? updatedBookmarks : [] })
-        .eq('child_id', childId);
+        .from('temp_bookmark')
+        .delete()
+        .eq('uaid', childUaid)
+        .eq('cid', book.cid);
 
       if (error) {
-        console.error('Error updating bookmarks:', error);
-        setNotification({ message: 'Failed to update bookmark', show: true });
+        console.error('Error removing bookmark:', error);
+        setNotification({ message: 'Failed to remove bookmark', show: true });
         return;
       }
 
-      // Update state
-      setBookmarkedBooks(prev => prev.filter(b => b.book_id !== book.book_id));
+      setBookmarkedBooks(prev => prev.filter(b => b.cid !== book.cid));
       setNotification({ message: 'Book removed from bookmarks', show: true });
       setTimeout(() => setNotification({ message: '', show: false }), 3000);
     } catch (err) {
-      console.error('Unexpected error removing bookmark:', err);
+      console.error('Unexpected error:', err);
       setNotification({ message: 'Failed to remove bookmark', show: true });
       setTimeout(() => setNotification({ message: '', show: false }), 3000);
     }
   };
+
+  if (loading) return <div>Loading...</div>;
 
   return (
     <div className="flex h-screen bg-white overflow-hidden">
@@ -92,54 +145,42 @@ export default function BookmarksPage() {
       <div className="flex-1 overflow-y-auto pt-16 px-6">
         <h1 className="text-4xl font-serif mt-10 text-black text-left">Bookmarked Books</h1>
 
-        {/* Notification Toast */}
         {notification.show && (
-          <div className="fixed top-4 right-4 z-50 bg-rose-500 text-white px-6 py-3 rounded-lg shadow-lg transform transition-all duration-300 ease-in-out">
+          <div className="fixed top-4 right-4 z-50 bg-rose-500 text-white px-6 py-3 rounded-lg shadow-lg">
             {notification.message}
           </div>
         )}
 
-        {/* Bookmarked Books List */}
         {bookmarkedBooks.length > 0 ? (
           <div className="space-y-6">
             {bookmarkedBooks.map((book) => (
-              <div key={book.book_id} className="flex items-start space-x-6 p-6 bg-white rounded-lg shadow-md hover:bg-gray-50 transition-colors">
+              <div key={book.cid} className="flex items-start space-x-6 p-6 bg-white rounded-lg shadow-md hover:bg-gray-50">
                 <div className="flex-shrink-0 w-32 h-48 relative">
-                  {book.cover_image ? (
-                    <Image
-                      src={book.cover_image}
-                      alt={book.title}
-                      fill
-                      className="object-cover rounded-md shadow-sm"
-                    />
+                  {book.coverimage ? (
+                    <Image src={book.coverimage} alt={book.title} fill className="object-cover rounded-md" />
                   ) : (
-                    <div className="w-full h-full bg-gray-200 rounded-md flex items-center justify-center">
-                      <span className="text-gray-400 text-sm">No cover</span>
+                    <div className="w-full h-full bg-gray-200 flex items-center justify-center rounded-md">
+                      <span className="text-gray-400">No cover</span>
                     </div>
                   )}
                 </div>
                 <div className="flex-grow">
                   <h3 className="text-2xl font-semibold text-gray-900 mb-2">
-                    <a href={`/bookdetail/${book.book_id}`} className="hover:text-rose-500 transition-colors">
+                    <a href={`/bookdetail/${book.cid}`} className="hover:text-rose-500">
                       {book.title}
                     </a>
                   </h3>
                   <p className="text-md text-gray-600 mb-2">{book.author}</p>
                   {book.genres && (
                     <div className="flex flex-wrap gap-2">
-                      {book.genres.map((genre, index) => (
-                        <span
-                          key={index}
-                          className="text-sm bg-gray-100 px-2 py-1 rounded"
-                        >
-                          {genre}
-                        </span>
+                      {book.genres.map((genre, idx) => (
+                        <span key={idx} className="text-sm bg-gray-100 px-2 py-1 rounded">{genre}</span>
                       ))}
                     </div>
                   )}
                 </div>
                 <button
-                  className="ml-6 p-2 rounded-full hover:bg-gray-100 transition-colors text-red-500"
+                  className="ml-6 p-2 rounded-full hover:bg-gray-100 text-red-500"
                   onClick={() => handleRemoveBookmark(book)}
                   aria-label="Remove bookmark"
                 >
@@ -157,5 +198,3 @@ export default function BookmarksPage() {
     </div>
   );
 }
-
-//
