@@ -1,23 +1,105 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useRouter } from 'next/navigation'; // Use Next.js router for navigation
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
+
+interface Content {
+  title: string;
+  credit: string;
+  genrename: string;
+}
 
 export default function PublisherPage() {
-  const router = useRouter(); // Initialize Next.js router
+  const router = useRouter();
 
   // State for published books and videos
-  const [books, setBooks] = useState([
-    { id: 1, title: 'Book Title 1', author: 'Author 1', genre: 'Fiction' },
-    { id: 2, title: 'Book Title 2', author: 'Author 2', genre: 'Science' },
-    { id: 3, title: 'Book Title 3', author: 'Author 3', genre: 'Fiction' },
-  ]);
+  const [books, setBooks] = useState<Content[]>([]); // Specify the type for books state
+  const [videos, setVideos] = useState<Content[]>([]); // Specify the type for videos state
 
-  const [videos, setVideos] = useState([
-    { id: 1, title: 'Video Title 1', duration: '10 min', genre: 'Educational' },
-    { id: 2, title: 'Video Title 2', duration: '20 min', genre: 'Entertainment' },
-    { id: 3, title: 'Video Title 3', duration: '15 min', genre: 'Educational' },
-  ]);
+  const [uaidPublisher, setUaidPublisher] = useState<string | null>(null); // Store the user ID (uaid)
+  const [loading, setLoading] = useState(true); // Add a loading state
+
+  useEffect(() => {
+    // Fetch the logged-in user and their publisher account
+    const fetchUser = async () => {
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+
+      if (userError || !userData?.user) {
+        console.error('Error fetching user or user is not logged in:', userError);
+        return;
+      }
+
+      const user = userData.user;
+
+      // Fetch the user account ID (uaid) using the logged-in user ID
+      const { data: userAccountData, error: userAccountError } = await supabase
+        .from('user_account')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (userAccountError) {
+        console.error('Error fetching user account data:', userAccountError);
+        return;
+      }
+
+      setUaidPublisher(userAccountData?.id || null); // Set the user account ID (uaid)
+      setLoading(false); // Set loading to false once the user is fetched
+    };
+
+    fetchUser();
+  }, []);
+
+  useEffect(() => {
+    // Fetch published content when uaidPublisher is available
+    const fetchPublishedContent = async () => {
+      if (!uaidPublisher) {
+        console.error('Publisher account ID (uaidPublisher) is null');
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase.rpc('view_published_book', { uaid_publisher: uaidPublisher });
+
+        if (error) {
+          console.error('Error executing RPC function:', error.message);
+          return;
+        }
+
+        console.log('Fetched content:', data);
+        
+        // Filter out only books (cfid = 2 indicates books) and videos (cfid = 1 indicates videos)
+        const filteredBooks = data.filter((content: any) => content.cfid === 2);
+        const filteredVideos = data.filter((content: any) => content.cfid === 1);
+        
+        // Map the filtered data to match the Content interface
+        const formattedBooks = filteredBooks.map((content: any) => ({
+          title: content.title,
+          credit: content.credit,
+          genrename: content.genrename,
+        }));
+        const formattedVideos = filteredVideos.map((content: any) => ({
+          title: content.title,
+          credit: content.credit,
+          genrename: content.genrename,
+        }));
+        
+        setBooks(formattedBooks); // Set the filtered books
+        setVideos(formattedVideos); // Set the filtered videos
+      } catch (error) {
+        console.error('Error fetching published content:', error);
+      }
+    };
+
+    if (!loading) {
+      fetchPublishedContent();
+    }
+  }, [uaidPublisher, loading]); // Fetch content when `uaidPublisher` is set and loading is complete
+
+  if (loading) {
+    return <div>Loading...</div>; // Show a loading message until the session is loaded
+  }
 
   return (
     <div className="flex flex-col h-screen bg-gray-100 overflow-hidden">
@@ -99,21 +181,25 @@ export default function PublisherPage() {
           <table className="table-auto w-full text-left text-gray-600 text-sm mb-3 border-collapse">
             <thead>
               <tr className="bg-gray-100">
-                <th className="px-4 py-2 border">ID</th>
                 <th className="px-4 py-2 border">Title</th>
-                <th className="px-4 py-2 border">Author</th>
+                <th className="px-4 py-2 border">Credit</th>
                 <th className="px-4 py-2 border">Genre</th>
               </tr>
             </thead>
             <tbody>
-              {books.map((book) => (
-                <tr key={book.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-2 border">{book.id}</td>
-                  <td className="px-4 py-2 border">{book.title}</td>
-                  <td className="px-4 py-2 border">{book.author}</td>
-                  <td className="px-4 py-2 border">{book.genre}</td>
+              {books.length > 0 ? (
+                books.map((book, index) => (
+                  <tr key={index} className="hover:bg-gray-50">
+                    <td className="px-4 py-2 border">{book.title}</td>
+                    <td className="px-4 py-2 border">{book.credit}</td>
+                    <td className="px-4 py-2 border">{book.genrename}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={3} className="text-center py-4">No published books yet.</td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
           <button
@@ -130,21 +216,25 @@ export default function PublisherPage() {
           <table className="table-auto w-full text-left text-gray-600 text-sm mb-3 border-collapse">
             <thead>
               <tr className="bg-gray-100">
-                <th className="px-4 py-2 border">ID</th>
                 <th className="px-4 py-2 border">Title</th>
-                <th className="px-4 py-2 border">Duration</th>
+                <th className="px-4 py-2 border">Credit</th>
                 <th className="px-4 py-2 border">Genre</th>
               </tr>
             </thead>
             <tbody>
-              {videos.map((video) => (
-                <tr key={video.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-2 border">{video.id}</td>
-                  <td className="px-4 py-2 border">{video.title}</td>
-                  <td className="px-4 py-2 border">{video.duration}</td>
-                  <td className="px-4 py-2 border">{video.genre}</td>
+              {videos.length > 0 ? (
+                videos.map((video, index) => (
+                  <tr key={index} className="hover:bg-gray-50">
+                    <td className="px-4 py-2 border">{video.title}</td>
+                    <td className="px-4 py-2 border">{video.credit}</td>
+                    <td className="px-4 py-2 border">{video.genrename}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={3} className="text-center py-4">No published videos yet.</td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
           <button
