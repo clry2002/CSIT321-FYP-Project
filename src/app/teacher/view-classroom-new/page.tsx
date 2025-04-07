@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import EduNavbar from '../../components/eduNavbar';
+import Link from 'next/link';
 
 type Classroom = {
   crid: number;
@@ -100,29 +101,39 @@ export default function ViewClassrooms() {
         {errorMessage && <p className="text-red-600">{errorMessage}</p>}
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {classrooms.map((classroom) => (
-            <div
-              key={classroom.crid}
-              className="bg-white rounded-lg shadow-md p-4 border border-gray-200"
-            >
-              <h2 className="text-xl font-semibold text-black">{classroom.name}</h2>
-              <p className="text-gray-700">{classroom.description}</p>
-              <button
-                onClick={() => openDeleteModal(classroom.crid)}
-                className="mt-4 bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
-              >
-                Delete
-              </button>
-            </div>
-          ))}
-        </div>
+            {classrooms.map((classroom) => (
+                <div key={classroom.crid} className="bg-white rounded-lg shadow-md p-4 border border-gray-200">
+                    <h2 className="text-xl font-semibold text-black">{classroom.name}</h2>
+                    <p className="text-gray-700">{classroom.description}</p>
+                    {/* Link to Classroom Details Page */}
+                    <Link href={`/teacher/classroom-details/${classroom.crid}`} passHref>
+                    <button className="mt-4 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                        View Details
+                        </button>
+                        </Link>
+                        </div>
+                    ))}
+                </div>
 
         {classrooms.length === 0 && !loading && (
           <div className="mt-4">
             <p className="text-gray-600">No classrooms created yet.</p>
             <button
-                    type="button"
-                    onClick={() => router.push('/teacher/create-classroom-new')}
+                type="button"
+                onClick={() => router.push('/teacher/create-classroom-new')}
+              className="mt-4 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+            >
+              Create Classroom
+            </button>
+          </div>
+        )}
+    
+
+      {classrooms.length && !loading && (
+          <div className="mt-22 absolute top-1 right-10 ">
+            <button
+                type="button"
+                onClick={() => router.push('/teacher/create-classroom-new')}
               className="mt-4 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
             >
               Create Classroom
