@@ -1,20 +1,37 @@
 export interface Book {
-    book_id: string;
+    cid: number; 
     title: string;
-    author: string;
-    genre: string[];
-    cover_image?: string | null;
-    publication_date?: string | null;
-    pdf_link?: string | null;
+    credit: string;  
+    genre: string[]; 
+    coverimage?: string | null;
+    minimumage: number;
+    description: string;
+    contenturl?: string | null;
+    cfid: number;
+    status: string; 
+    createddate?: string | null;
+    decisiondate?: string | null;
 }
 
 export interface Database {
     public: {
         Tables: {
-            books: {
+            temp_content: {
                 Row: Book;
-                Insert: Omit<Book, 'id'>;
-                Update: Partial<Omit<Book, 'id'>>;
+                Insert: Omit<Book, 'cid'>; 
+                Update: Partial<Omit<Book, 'cid'>>;
+            };
+            temp_genre: {
+                Row: {
+                    gid: number;
+                    genrename: string;
+                };
+            };
+            temp_contentformat: {
+                Row: {
+                    cfid: number;
+                    name: string;
+                };
             };
         };
     };

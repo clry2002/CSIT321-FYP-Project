@@ -6,18 +6,37 @@ import { supabase } from '@/lib/supabase';
 import Image from 'next/image';
 import type { Book } from '@/types/database.types';
 
-export default function BooksPage() {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<Book[]>([]);
-  const [userBooks, setUserBooks] = useState<Book[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
+export default function BookmarksPage() {
+  const [bookmarkedBooks, setBookmarkedBooks] = useState<Book[]>([]);
+  const [notification, setNotification] = useState<{ message: string; show: boolean }>({ message: '', show: false });
+  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<any>(null);
+  const [childUaid, setChildUaid] = useState<string | null>(null);
 
-  const handleSearch = async (query: string) => {
-    setSearchQuery(query);
-    if (!query.trim()) return;
+  useEffect(() => {
+    const fetchUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      console.log('Fetched user:', user);
+      setUser(user);
+      setLoading(false);
 
-    setIsSearching(true);
-    try {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+        setUser(session?.user || null);
+        console.log('User onAuthStateChange:', session?.user);
+      });
+
+      return () => {
+        subscription.unsubscribe();
+      };
+    };
+
+    fetchUser();
+  }, []);
+
+  useEffect(() => {
+    const fetchChildProfile = async () => {
+      if (!user) return;
+
       const { data, error } = await supabase
         .from('user_account')
         .select('id')
@@ -121,79 +140,58 @@ export default function BooksPage() {
   if (loading) return <div>Loading...</div>;
 
   return (
-    <div className="flex flex-col h-screen bg-white overflow-hidden">
-    <Navbar />
-      {/* Main Content */}
-      <div className="flex-1 overflow-y-auto pt-25 px-6">
-        
-        <div className="px-6">
-          <h2 className="text-2xl font-serif mb-6 text-black">My Bookmarks</h2>
+    <div className="flex h-screen bg-white overflow-hidden">
+      <Navbar />
+      <div className="flex-1 overflow-y-auto pt-16 px-6">
+        <h1 className="text-4xl font-serif mt-10 text-black text-left">Bookmarked Books</h1>
 
-          {/* Search Results */}
-          {isSearching ? (
-            <div className="text-center py-4">Searching...</div>
-          ) : searchResults.length > 0 ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-8">
-              {searchResults.map((book) => (
-                <div key={book.id} className="border rounded-lg p-4">
-                  <h3 className="font-medium">{book.title}</h3>
-                  <p className="text-sm text-gray-600">{book.author}</p>
-                  {book.genres && (
-                    <div className="mt-2 flex flex-wrap gap-1">
-                      {book.genres.map((genre, index) => (
-                        <span
-                          key={index}
-                          className="text-xs bg-gray-100 px-2 py-1 rounded"
-                        >
-                          {genre}
-                        </span>
-                      ))}
+        {notification.show && (
+          <div className="fixed top-4 right-4 z-50 bg-rose-500 text-white px-6 py-3 rounded-lg shadow-lg">
+            {notification.message}
+          </div>
+        )}
+
+        {bookmarkedBooks.length > 0 ? (
+          <div className="space-y-6">
+            {bookmarkedBooks.map((book) => (
+              <div key={book.cid} className="flex items-start space-x-6 p-6 bg-white rounded-lg shadow-md hover:bg-gray-50">
+                <div className="flex-shrink-0 w-32 h-48 relative">
+                  {book.coverimage ? (
+                    <Image src={book.coverimage} alt={book.title} fill className="object-cover rounded-md" />
+                  ) : (
+                    <div className="w-full h-full bg-gray-200 flex items-center justify-center rounded-md">
+                      <span className="text-gray-400">No cover</span>
                     </div>
                   )}
                 </div>
-              ))}
-            </div>
-          ) : searchQuery && (
-            <div className="text-center py-4 text-gray-500">No books found</div>
-          )}
-
-          {/* User's Books Section */}
-          <div>
-            {userBooks.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                Your collection is empty. Browse books and add them here!
+                <div className="flex-grow">
+                  <h3 className="text-2xl font-semibold text-gray-900 mb-2">
+                    <a href={`/bookdetail/${book.cid}`} className="hover:text-rose-500">
+                      {book.title}
+                    </a>
+                  </h3>
+                  <p className="text-md text-gray-600 mb-2">{book.credit}</p>
+                  {book.genre && (
+                    <div className="flex flex-wrap gap-2">
+                      <span className="text-sm bg-gray-100 px-2 py-1 rounded">{book.genre}</span>
+                    </div>
+                  )}
+                </div>
+                <button
+                  className="ml-6 p-2 rounded-full hover:bg-gray-100 text-red-500"
+                  onClick={() => handleRemoveBookmark(book)}
+                  aria-label="Remove bookmark"
+                >
+                  <svg className="w-6 h-6" fill="currentColor" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
               </div>
-            ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {userBooks.map((book) => (
-                  <div key={book.id} className="border rounded-lg p-4">
-                    <h3 className="font-medium">{book.title}</h3>
-                    <p className="text-sm text-gray-600">{book.author}</p>
-                    {book.genres && (
-                      <div className="mt-2 flex flex-wrap gap-1">
-                        {book.genres.map((genre, index) => (
-                          <span
-                            key={index}
-                            className="text-xs bg-gray-100 px-2 py-1 rounded"
-                          >
-                            {genre}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                    <button
-                      onClick={() => removeFromUserBooks(book.id)}
-                      className="mt-3 text-sm text-red-500 hover:text-red-600"
-                    >
-                      Remove
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
+            ))}
           </div>
-        </div>
-        <ChatBot />
+        ) : (
+          <div className="text-center py-8 text-gray-500">Your collection is empty. Browse books and add them here!</div>
+        )}
       </div>
     </div>
   );
