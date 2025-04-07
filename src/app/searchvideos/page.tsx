@@ -126,10 +126,11 @@ export default function SearchVideosPage() {
             <div className="text-center py-8 text-red-500">{error}</div>
           ) : query && videos.length > 0 ? (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {videos.map((video) => {
+              {videos.map((video, index) => {
                 const videoId = getVideoId(video.contenturl); // Use contenturl here
+                const videoKey = `video-${video.id || index}`; // Fallback to index if id is undefined
                 return (
-                  <div key={`video-${video.id}`} className="border rounded-lg overflow-hidden">
+                  <div key={videoKey} className="border rounded-lg overflow-hidden">
                     <div className="aspect-video relative">
                       {videoId ? (
                         <iframe

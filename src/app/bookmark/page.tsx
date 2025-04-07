@@ -20,13 +20,13 @@ export default function BookmarksPage() {
       setUser(user);
       setLoading(false);
 
-      const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
         setUser(session?.user || null);
         console.log('User onAuthStateChange:', session?.user);
       });
 
       return () => {
-        authListener?.unsubscribe();
+        subscription.unsubscribe();
       };
     };
 
@@ -170,12 +170,10 @@ export default function BookmarksPage() {
                       {book.title}
                     </a>
                   </h3>
-                  <p className="text-md text-gray-600 mb-2">{book.author}</p>
-                  {book.genres && (
+                  <p className="text-md text-gray-600 mb-2">{book.credit}</p>
+                  {book.genre && (
                     <div className="flex flex-wrap gap-2">
-                      {book.genres.map((genre, idx) => (
-                        <span key={idx} className="text-sm bg-gray-100 px-2 py-1 rounded">{genre}</span>
-                      ))}
+                      <span className="text-sm bg-gray-100 px-2 py-1 rounded">{book.genre}</span>
                     </div>
                   )}
                 </div>

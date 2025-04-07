@@ -3,25 +3,24 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Navbar from '../components/Navbar';
-import ChatBot from '../components/ChatBot';
 import { supabase } from '@/lib/supabase';
 import Image from 'next/image';
 import type { Book } from '@/types/database.types';
+import ChatBot from '../components/ChatBot';
 
 export default function SearchBooksPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const query = searchParams.get('q') || '';
-
   const [searchQuery, setSearchQuery] = useState(query);
-  const [items, setItems] = useState<Book[]>([]);
+  const [books, setBooks] = useState<Book[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [bookmarkedItems, setBookmarkedItems] = useState<Set<string>>(new Set());
+  const [bookmarkedBooks, setBookmarkedBooks] = useState<Set<string>>(new Set());
   const [notification, setNotification] = useState<{ message: string; show: boolean }>({ message: '', show: false });
   const [childId, setChildId] = useState<string | null>(null);
 
-  // Fetch child profile for current user
+  // Fetch child profile ID (uaid)
   useEffect(() => {
     const fetchChildProfile = async () => {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -49,9 +48,31 @@ export default function SearchBooksPage() {
     fetchChildProfile();
   }, []);
 
-  // Search books
+  // Fetch bookmarked books for childId
   useEffect(() => {
-    const searchItems = async () => {
+    const fetchBookmarks = async () => {
+      if (!childId) return;
+
+      const { data, error } = await supabase
+        .from('temp_bookmark')
+        .select('cid')
+        .eq('uaid', childId);
+
+      if (error) {
+        console.error('Error fetching bookmarks:', error);
+        return;
+      }
+
+      const bookmarkedCids = new Set(data?.map((item) => item.cid.toString()));
+      setBookmarkedBooks(bookmarkedCids);
+    };
+
+    fetchBookmarks();
+  }, [childId]);
+
+  // Fetch search results
+  useEffect(() => {
+    const searchBooks = async () => {
       if (!query) {
         setIsLoading(false);
         return;
@@ -59,53 +80,53 @@ export default function SearchBooksPage() {
 
       try {
         const { data, error } = await supabase.rpc('search_books', { searchquery: query });
-
         if (error) {
           console.error('Error from search_books function:', error);
           setError(`Error: ${error.message}`);
           return;
         }
-
-        setItems(data || []);
+        setBooks(data || []);
       } catch (err) {
-        console.error('Error searching items:', err);
-        setError('Failed to search items');
+        console.error('Error searching books:', err);
+        setError('Failed to search books');
       } finally {
         setIsLoading(false);
       }
     };
 
-    searchItems();
+    searchBooks();
   }, [query]);
 
-  // Handle bookmarking
-  const handleBookmark = async (item: Book) => {
+  // Bookmark handler
+  const handleBookmark = async (book: Book) => {
     if (!childId) {
       setNotification({ message: 'No child profile found', show: true });
       setTimeout(() => setNotification({ message: '', show: false }), 3000);
       return;
     }
 
-    const isBookmarked = bookmarkedItems.has(item.cid.toString());
-    const updatedBookmarks = new Set(bookmarkedItems);
+    const cidStr = book.cid.toString();
+    const isBookmarked = bookmarkedBooks.has(cidStr);
+    const updatedBookmarks = new Set(bookmarkedBooks);
 
     if (isBookmarked) {
-      updatedBookmarks.delete(item.cid.toString());
+      updatedBookmarks.delete(cidStr);
     } else {
-      updatedBookmarks.add(item.cid.toString());
+      updatedBookmarks.add(cidStr);
     }
 
     const { error } = await supabase
-      .from('temp_bookmark')
-      .upsert([{ uaid: childId, cid: item.cid }], { onConflict: ['uaid', 'cid'] });
+    .from('temp_bookmark')
+    .upsert([{ uaid: childId, cid: book.cid }], { onConflict: 'uaid,cid' });
+
 
     if (error) {
       console.error('Error updating bookmark:', error);
       setNotification({ message: 'Failed to update bookmark', show: true });
     } else {
-      setBookmarkedItems(updatedBookmarks);
+      setBookmarkedBooks(updatedBookmarks);
       setNotification({
-        message: isBookmarked ? 'Item removed from bookmarks' : 'You saved this item',
+        message: isBookmarked ? 'Book removed from bookmarks' : 'You saved this book',
         show: true,
       });
     }
@@ -113,44 +134,53 @@ export default function SearchBooksPage() {
     setTimeout(() => setNotification({ message: '', show: false }), 3000);
   };
 
-  // Handle search type switching
-  const handleSearch = (type: 'books' | 'videos' | 'pdfs') => {
+  const handleSearch = (type: 'books' | 'videos') => {
     if (!searchQuery.trim()) return;
-    const route = type === 'books' ? 'searchbooks' : type === 'videos' ? 'searchvideos' : 'searchpdfs';
-    router.push(`/${route}?q=${encodeURIComponent(searchQuery.trim())}`);
+    if (type === 'books') {
+      router.push(`/searchbooks?q=${encodeURIComponent(searchQuery.trim())}`);
+    } else {
+      router.push(`/searchvideos?q=${encodeURIComponent(searchQuery.trim())}`);
+    }
   };
 
   return (
     <div className="flex h-screen bg-white overflow-hidden">
       <Navbar />
       <div className="flex-1 overflow-y-auto pt-16 px-6">
-        <div className="mt-8 mb-4 flex justify-end">
-          <button
-            onClick={() => router.back()}
-            className="px-6 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 focus:outline-none focus:ring-2 focus:ring-rose-500"
-          >
-            Back
-          </button>
-        </div>
-
-        <div className="max-w-2xl mx-auto mt-4">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-4">Search Items</h1>
-            <div className="relative">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Enter your search query..."
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-rose-500 text-black"
-              />
+        <div className="max-w-7xl mx-auto">
+          {/* Search Interface */}
+          <div className="mt-20 mb-8">
+            <div className="max-w-2xl mx-auto">
+              <div className="relative mb-4">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search books and videos..."
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent text-black"
+                />
+              </div>
+              <div className="flex justify-center space-x-4">
+                <button
+                  onClick={() => handleSearch('books')}
+                  className="px-6 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2"
+                >
+                  Search Books
+                </button>
+                <button
+                  onClick={() => handleSearch('videos')}
+                  className="px-6 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2"
+                >
+                  Search Videos
+                </button>
+              </div>
             </div>
           </div>
 
           {query && (
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">
+            <h1 className="text-2xl font-bold text-gray-900 mb-6">
               Search Results for "{query}"
-            </h2>
+            </h1>
           )}
 
           {notification.show && (
@@ -163,22 +193,19 @@ export default function SearchBooksPage() {
             <div className="text-center py-8">Loading...</div>
           ) : error ? (
             <div className="text-center py-8 text-red-500">{error}</div>
-          ) : items.length > 0 ? (
+          ) : books.length > 0 ? (
             <div className="space-y-4">
-              {items.map((item) => (
-                <div
-                  key={`item-${item.cid}`}
-                  className="flex items-start space-x-4 p-4 bg-white rounded-lg hover:bg-gray-50 transition-colors"
-                >
+              {books.map((book) => (
+                <div key={book.cid} className="flex items-start space-x-4 p-4 bg-white rounded-lg hover:bg-gray-50 transition-colors">
                   <div className="flex-shrink-0 w-24 h-36 relative">
-                    {item.coverimage ? (
+                    {book.coverimage && book.coverimage.trim() !== "" ? (
                       <Image
                         src={
-                          item.coverimage.includes('http')
-                            ? item.coverimage
-                            : `https://bexeexbozsosdtatunld.supabase.co/storage/v1/object/public/book-covers/${item.coverimage}`
+                          book.coverimage.includes('http')
+                            ? book.coverimage
+                            : `https://bexeexbozsosdtatunld.supabase.co/storage/v1/object/public/book-covers/${book.coverimage}`
                         }
-                        alt={item.title}
+                        alt={book.title}
                         width={96}
                         height={144}
                         className="w-full h-full object-contain rounded-md shadow-sm"
@@ -192,37 +219,30 @@ export default function SearchBooksPage() {
 
                   <div className="flex-grow">
                     <h3 className="text-lg font-semibold text-gray-900">
-                      <a href={`/itemdetail/${item.cid}`} className="hover:text-rose-500 transition-colors">
-                        {item.title}
+                      <a href={`/bookdetail/${book.cid}`} className="hover:text-rose-500 transition-colors">
+                        {book.title}
                       </a>
                     </h3>
-                    <p className="text-sm text-gray-600">{item.credit}</p>
+                    <p className="text-sm text-gray-600">{book.credit}</p>
                   </div>
-
                   <button
                     className={`flex-shrink-0 ml-4 p-2 rounded-full hover:bg-gray-100 transition-colors ${
-                      bookmarkedItems.has(item.cid.toString()) ? 'text-rose-500' : 'text-gray-400'
+                      bookmarkedBooks.has(book.cid.toString()) ? 'text-rose-500' : 'text-gray-400'
                     }`}
-                    onClick={() => handleBookmark(item)}
+                    onClick={() => handleBookmark(book)}
                     aria-label="Toggle bookmark"
                   >
                     <svg className="w-6 h-6" fill="currentColor" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
-                      />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
                     </svg>
                   </button>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="text-center py-8 text-gray-500">No items found</div>
+            <div className="text-center py-8 text-gray-500">No books found</div>
           )}
         </div>
-
         <ChatBot />
       </div>
     </div>

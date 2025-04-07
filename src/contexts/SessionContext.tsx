@@ -28,61 +28,69 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Function to fetch user profile
-  const fetchUserProfile = async (session: any) => {
+  // Updated function to fetch user profile
+  const fetchUserProfile = async () => {
     try {
-      setLoading(true);
+      console.log('Fetching authenticated user...');
+      setLoading(true); // Start loading
 
-      if (!session?.user) {
-        console.warn('No active session or user found!');
-        setUserProfile(null);
+      // Get current session using the updated method
+      const { data: session, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) {
+        console.error(`Error fetching session: ${sessionError.message}`);
+        setUserProfile(null); // Reset the user profile on error
         return;
       }
 
-      const user = session.user;
+      if (!session) {
+        console.warn('No active session found!');
+        setUserProfile(null); // No session, no user
+        return;
+      }
 
-      // Fetch the user profile from the database
+      const user = session.user;  // Get the user from session
+      if (!user) {
+        console.warn('No user found in session!');
+        setUserProfile(null); // No user in session
+        return;
+      }
+
+      console.log('User fetched:', user);
+      // Continue with the user profile fetching logic
       const { data: profile, error: profileError } = await supabase
         .from('user_account')
         .select('*')
         .eq('user_id', user.id)
         .single();
-
       if (profileError) {
         console.error(`Error fetching profile: ${profileError.message}`);
         setUserProfile(null);
         return;
       }
 
-      setUserProfile(profile); // Update the profile
+      console.log('Profile successfully fetched:', profile);
+      setUserProfile(profile);
     } catch (error) {
       console.error('Unexpected error fetching user profile:', error);
-      setUserProfile(null);
+      setUserProfile(null); // Handle unexpected errors gracefully
     } finally {
-      setLoading(false);
+      setLoading(false); // End loading
     }
   };
 
   useEffect(() => {
-    // Listen for auth state changes
+    fetchUserProfile(); // Fetch user profile on mount
+
+    // Listen for auth state changes (e.g., login/logout)
+    console.log('Subscribing to auth state changes...');
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       console.log('Auth state changed:', event, session);
-
-      // Only fetch profile if session and user exist
-      if (session?.user) {
-        fetchUserProfile(session);
-      } else {
-        setUserProfile(null); // Clear user profile if no session
-      }
+      fetchUserProfile(); // Refresh user profile after auth state change
     });
 
-    // Initial fetch for session on component mount (if available)
-    const { data: initialSession } = supabase.auth.getSession();
-    if (initialSession?.user) {
-      fetchUserProfile(initialSession);
-    }
-
+    // Cleanup subscription on unmount
     return () => {
+      console.log('Unsubscribing from auth state changes...');
       subscription.unsubscribe();
     };
   }, []);
