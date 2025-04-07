@@ -12,7 +12,7 @@ from supabase import create_client, Client
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
-# Importing regex for cleaning <think> tags
+# Importing regex for cleaning <think> tags and question symbols
 import re
 
 # Load environment variables
@@ -80,8 +80,7 @@ def get_content_by_genre_and_format(question):
     try:
         # Define potential genres and formats
         genres = ["friendship", "fantasy", "fiction", "romance", "maths", "thriller", "horror", "sci-fi", "science", "adventure", "animals"]
-        formats = {"videos": 1, "video": 1, "video?": 1, "videos?": 1, "video.":1, "videos.": 1, "books": 2, 
-                   "book": 2, "books?": 2, "book?" : 2, "books.": 2, "book.": 1}  # Mapping for content formats
+        formats = {"videos": 1, "video": 1, "books": 2, "book": 2}  # Simplified since we now clean punctuation
 
         # Detect genre and format from the question
         detected_genre = next((word for word in question.split() if word.lower() in genres), None)
@@ -148,7 +147,10 @@ def read_data_from_file(file_path):
 @app.route('/api/chat', methods=['POST'])
 def chat():
     data = request.json
-    question = data.get("question", "").lower()
+    raw_question = data.get("question", "")
+    
+    # Remove punctuation/symbols and lowercase the question
+    question = re.sub(r'[^\w\s]', '', raw_question).strip().lower()
 
     if not question:
         return jsonify({"error": "No question provided"}), 400
