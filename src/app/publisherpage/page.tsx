@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
 interface Content {
+  cid: number;
   title: string;
   credit: string;
   genrename: string;
