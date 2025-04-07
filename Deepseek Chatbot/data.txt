@@ -1,8 +1,8 @@
 Can you recommend me the latest books?
-Yes, I can recommend you the latest books. What are you looking for?
+Yes, I can recommend you the latest books. What are you looking for? (kid friendly genre)
 
 Can you recommend me the latest videos?
-Yes, I can recommend you the latest videos. What are you looking for?
+Yes, I can recommend you the latest videos. What are you looking for? (kid friendly genre)
 
 Recommend books.
 Books, Child friendly.
