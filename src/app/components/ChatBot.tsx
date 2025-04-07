@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useChatbot } from '@/hooks/useChatbot';
-import { Send, MessageCircle } from 'lucide-react';
+import { Send, MessageCircle, Volume2 } from 'lucide-react';
 import './styles.css';
 import { useRouter } from 'next/navigation';
 
@@ -63,6 +63,31 @@ const ChatBot: React.FC = () => {
     return <a href={contenturl} target="_blank" rel="noopener noreferrer">View Video</a>;
   };
 
+  const handleSpeech = (title: string, description: string) => {
+    if ('speechSynthesis' in window) {
+      // Check if speech is already being synthesized
+      if (speechSynthesis.speaking) {
+        // Cancel any ongoing speech
+        speechSynthesis.cancel();
+      }
+  
+      // Concatenate title and description
+      const textToRead = `${title}. ${description}`;
+      
+      // Create a new speech utterance
+      const utterance = new SpeechSynthesisUtterance(textToRead);
+      utterance.lang = 'en-US'; 
+
+      speechSynthesis.speak(utterance);
+    }
+  };
+
+  const handleCloseChat = () => {
+    setIsOpen(false);
+    window.speechSynthesis.cancel();
+  };
+  
+
   return (
     <div className="chatbot-wrapper">
       <button onClick={() => setIsOpen(!isOpen)} className="chatbot-button">
@@ -72,7 +97,7 @@ const ChatBot: React.FC = () => {
       <div className={`chatbot-container ${isOpen ? 'visible' : 'hidden'}`}>
         <div className="chatbot-header">
           <h2 className="text-lg font-semibold">CoReadability Bot</h2>
-          <button onClick={() => setIsOpen(false)} className="close-button">✖</button>
+          <button onClick={handleCloseChat} className="close-button">✖</button>
         </div>
 
         <div ref={chatContainerRef} className="chat-container">
@@ -103,6 +128,13 @@ const ChatBot: React.FC = () => {
                             onClick={() => handleImageClick(item.coverimage)}
                           />
                         )}
+                        <button
+                            className="audio-button"
+                            onClick={() => handleSpeech(item.title, item.description)}
+                          >
+                            <Volume2 size={15} />
+                            <span className="description-text">Read Description</span> 
+                          </button>
                         <div style={{ marginTop: '8px' }}>
                           {item.cfid === 1 ? (
                             renderVideoContent(item.contenturl)
@@ -116,7 +148,6 @@ const ChatBot: React.FC = () => {
                               >
                                 View Book
                               </a>
-                              {/* Only create the link if cid is valid */}
                               {item.cid && item.cid !== 0 ? (
                                 <a
                                   href={`/bookdetail/${item.cid}`}
@@ -125,10 +156,11 @@ const ChatBot: React.FC = () => {
                                   View Details
                                 </a>
                               ) : (
-                                <span>Details unavailable</span> // Fallback message if cid is invalid
+                                <span>Details unavailable</span>
                               )}
                             </>
                           )}
+                          
                         </div>
                       </li>
                     ))}
@@ -140,7 +172,7 @@ const ChatBot: React.FC = () => {
             </div>
           ))}
 
-          {isLoading && <div className="bot-message dots">Thinking...</div>}
+          {isLoading && <div className="bot-message dots">Thinking</div>}
         </div>
 
         <form onSubmit={handleSubmit} className="chat-input">

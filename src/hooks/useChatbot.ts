@@ -15,6 +15,7 @@ export interface Content {
 export interface Message {
   content: string | Content[]; // Text or array of content
   role: 'user' | 'assistant';
+  audio_url?: string; 
 }
 
 export const useChatbot = () => {
