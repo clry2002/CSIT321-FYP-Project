@@ -4,13 +4,14 @@ import { useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Navbar from '../components/Navbar';
 import { supabase } from '@/lib/supabase';
+import ChatBot from '../components/ChatBot';
 
 interface Video {
   id: string;
   title: string;
   description: string;
   embeddedLink: string;
-  contenturl: string; // Using contenturl from DB
+  contenturl: string;
   thumbnail: string;
   views: number;
   timeAgo: string;
@@ -163,6 +164,7 @@ export default function SearchVideosPage() {
             </div>
           )}
         </div>
+        <ChatBot />
       </div>
     </div>
   );
