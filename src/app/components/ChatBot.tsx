@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useChatbot } from '@/hooks/useChatbot';
-import { Send, MessageCircle } from 'lucide-react';
+import { Send, MessageCircle, Volume2 } from 'lucide-react';
 import './styles.css';
+import { useRouter } from 'next/navigation';
 
 const ChatBot: React.FC = () => {
   const { messages, isLoading, sendMessage } = useChatbot();
@@ -9,8 +10,8 @@ const ChatBot: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [enlargedImage, setEnlargedImage] = useState<string | null>(null);
   const chatContainerRef = useRef<HTMLDivElement | null>(null);
+  const router = useRouter();
 
-  // Scroll to bottom when messages update
   useEffect(() => {
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
@@ -20,7 +21,6 @@ const ChatBot: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
-
     const userMessage = input.trim();
     setInput('');
     await sendMessage(userMessage);
@@ -38,7 +38,6 @@ const ChatBot: React.FC = () => {
     setEnlargedImage(null);
   };
 
-  // Render video content if it's a video; otherwise, render book link
   const renderVideoContent = (contenturl: string) => {
     if (contenturl.includes("<iframe")) {
       return <div dangerouslySetInnerHTML={{ __html: contenturl }} />;
@@ -64,18 +63,41 @@ const ChatBot: React.FC = () => {
     return <a href={contenturl} target="_blank" rel="noopener noreferrer">View Video</a>;
   };
 
+  const handleSpeech = (title: string, description: string) => {
+    if ('speechSynthesis' in window) {
+      // Check if speech is already being synthesized
+      if (speechSynthesis.speaking) {
+        // Cancel any ongoing speech
+        speechSynthesis.cancel();
+      }
+  
+      // Concatenate title and description
+      const textToRead = `${title}. ${description}`;
+      
+      // Create a new speech utterance
+      const utterance = new SpeechSynthesisUtterance(textToRead);
+      utterance.lang = 'en-US'; 
+
+      speechSynthesis.speak(utterance);
+    }
+  };
+
+  const handleCloseChat = () => {
+    setIsOpen(false);
+    window.speechSynthesis.cancel();
+  };
+  
+
   return (
     <div className="chatbot-wrapper">
-      {/* Floating button */}
       <button onClick={() => setIsOpen(!isOpen)} className="chatbot-button">
         <MessageCircle size={28} />
       </button>
 
-      {/* Chatbot panel */}
       <div className={`chatbot-container ${isOpen ? 'visible' : 'hidden'}`}>
         <div className="chatbot-header">
           <h2 className="text-lg font-semibold">CoReadability Bot</h2>
-          <button onClick={() => setIsOpen(false)} className="close-button">✖</button>
+          <button onClick={handleCloseChat} className="close-button">✖</button>
         </div>
 
         <div ref={chatContainerRef} className="chat-container">
@@ -97,24 +119,48 @@ const ChatBot: React.FC = () => {
                       <li key={idx} className="book-item">
                         <strong>{item.title}</strong> - {item.description}
                         <br />
-                        {/* Render the cover image if available for books */}
                         {item.coverimage && item.cfid !== 1 && (
                           <img
                             src={item.coverimage}
                             alt={`Cover of ${item.title}`}
                             width="100"
                             style={{ borderRadius: '8px', marginTop: '5px', cursor: 'pointer' }}
-                            onClick={() => handleImageClick(item.coverimage)} // Trigger image click
+                            onClick={() => handleImageClick(item.coverimage)}
                           />
                         )}
+                        <button
+                            className="audio-button"
+                            onClick={() => handleSpeech(item.title, item.description)}
+                          >
+                            <Volume2 size={15} />
+                            <span className="description-text">Read Description</span> 
+                          </button>
                         <div style={{ marginTop: '8px' }}>
-                          {item.cfid === 1
-                            ? renderVideoContent(item.contenturl)
-                            : (
-                              <a href={item.contenturl} target="_blank" rel="noopener noreferrer">
+                          {item.cfid === 1 ? (
+                            renderVideoContent(item.contenturl)
+                          ) : (
+                            <>
+                              <a
+                                href={item.contenturl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-block mr-2 bg-blue-500 text-white px-3 py-1 rounded"
+                              >
                                 View Book
                               </a>
-                            )}
+                              {item.cid && item.cid !== 0 ? (
+                                <a
+                                  href={`/bookdetail/${item.cid}`}
+                                  className="inline-block bg-emerald-500 text-white px-3 py-1 rounded"
+                                >
+                                  View Details
+                                </a>
+                              ) : (
+                                <span>Details unavailable</span>
+                              )}
+                            </>
+                          )}
+                          
                         </div>
                       </li>
                     ))}
@@ -143,7 +189,6 @@ const ChatBot: React.FC = () => {
         </form>
       </div>
 
-      {/* Modal for enlarged image */}
       {enlargedImage && (
         <div className="modal-overlay" onClick={closeModal}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>

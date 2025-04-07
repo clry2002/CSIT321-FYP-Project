@@ -79,7 +79,7 @@ def clean_response(response):
 def get_content_by_genre_and_format(question):
     try:
         # Define potential genres and formats
-        genres = ["fantasy", "fiction", "romance", "maths", "thriller", "horror", "sci-fi", "science", "adventure"]
+        genres = ["friendship", "fantasy", "fiction", "romance", "maths", "thriller", "horror", "sci-fi", "science", "adventure", "animals"]
         formats = {"videos": 1, "video": 1, "books": 2, "book": 2}  # Mapping for content formats
 
         # Detect genre and format from the question
@@ -97,7 +97,7 @@ def get_content_by_genre_and_format(question):
             .from_("temp_contentgenres")
             .select(
                 "cid, temp_genre!inner(genrename), "
-                "temp_content(title, description, minimumage, contenturl, status, coverimage, cfid)"
+                "temp_content(cid, title, description, minimumage, contenturl, status, coverimage, cfid)"
             )
             .ilike("temp_genre.genrename", f"%{detected_genre}%")
         )

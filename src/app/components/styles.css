@@ -352,3 +352,35 @@
   color: #0056b3;
   text-decoration: underline;
 }
+
+/* Chatbot Audio Button*/
+.audio-button {
+  background-color: #f3f30d;
+  color: #343636;
+  border-radius: 9999px;
+  padding: 8px;
+  transition: background 0.2s ease;
+}
+
+.image-container {
+  display: flex; 
+  align-items: center;
+  margin-bottom: 10px;
+}
+.audio-button:hover {
+  background-color: #d4f000;
+}
+
+.audio-button {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  margin-top: 5px;
+  margin-left: 0px;
+}
+
+.description-text {
+  font-size: 10px;
+  margin-left: 8px; 
+  color: #333; 
+}
