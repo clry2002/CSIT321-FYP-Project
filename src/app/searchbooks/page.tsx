@@ -3,50 +3,55 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Navbar from '../components/Navbar';
+import ChatBot from '../components/ChatBot';
 import { supabase } from '@/lib/supabase';
 import Image from 'next/image';
 import type { Book } from '@/types/database.types';
-import ChatBot from '../components/ChatBot';
 
 export default function SearchBooksPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const query = searchParams.get('q') || '';
+
   const [searchQuery, setSearchQuery] = useState(query);
-  const [books, setBooks] = useState<Book[]>([]);
+  const [items, setItems] = useState<Book[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [bookmarkedBooks, setBookmarkedBooks] = useState<Set<string>>(new Set());
+  const [bookmarkedItems, setBookmarkedItems] = useState<Set<string>>(new Set());
   const [notification, setNotification] = useState<{ message: string; show: boolean }>({ message: '', show: false });
+  const [childId, setChildId] = useState<string | null>(null);
 
+  // Fetch child profile for current user
   useEffect(() => {
-    const fetchBookmarkedBooks = async () => {
-      try {
-        const { data: sessionData } = await supabase.auth.getSession();
-        const user = sessionData?.session?.user;
-        if (!user) return;
+    const fetchChildProfile = async () => {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
 
-        const { data: profile, error } = await supabase
-          .from('child_profile')
-          .select('books_bookmark')
-          .eq('user_id', user.id)
-          .single();
-
-        if (error) throw error;
-
-        if (profile?.books_bookmark) {
-          setBookmarkedBooks(new Set(profile.books_bookmark));
-        }
-      } catch (err) {
-        console.error('Error fetching bookmarked books:', err);
+      if (userError || !user) {
+        console.error('User not logged in or error:', userError);
+        return;
       }
+
+      const { data, error } = await supabase
+        .from('user_account')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('upid', 3)
+        .single();
+
+      if (error) {
+        console.error('Child profile not found for this user:', error);
+        return;
+      }
+
+      setChildId(data.id);
     };
 
-    fetchBookmarkedBooks();
+    fetchChildProfile();
   }, []);
 
+  // Search books
   useEffect(() => {
-    const searchBooks = async () => {
+    const searchItems = async () => {
       if (!query) {
         setIsLoading(false);
         return;
@@ -54,107 +59,98 @@ export default function SearchBooksPage() {
 
       try {
         const { data, error } = await supabase.rpc('search_books', { searchquery: query });
+
         if (error) {
           console.error('Error from search_books function:', error);
           setError(`Error: ${error.message}`);
           return;
         }
-        setBooks(data || []);
+
+        setItems(data || []);
       } catch (err) {
-        console.error('Error searching books:', err);
-        setError('Failed to search books');
+        console.error('Error searching items:', err);
+        setError('Failed to search items');
       } finally {
         setIsLoading(false);
       }
     };
 
-    searchBooks();
+    searchItems();
   }, [query]);
 
-  const handleBookmark = async (book: Book) => {
-    try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const user = sessionData?.session?.user;
-      if (!user) {
-        setNotification({ message: 'Please log in to bookmark books', show: true });
-        setTimeout(() => setNotification({ message: '', show: false }), 3000);
-        return;
-      }
-
-      const isCurrentlyBookmarked = bookmarkedBooks.has(book.title);
-      const newBookmarkedBooks = new Set(bookmarkedBooks);
-
-      if (isCurrentlyBookmarked) {
-        newBookmarkedBooks.delete(book.title);
-        setNotification({ message: 'Book removed from bookmarks', show: true });
-      } else {
-        newBookmarkedBooks.add(book.title);
-        setNotification({ message: 'You saved this book', show: true });
-      }
-
-      const { error } = await supabase
-        .from('child_profile')
-        .update({ books_bookmark: Array.from(newBookmarkedBooks) })
-        .eq('user_id', user.id);
-
-      if (error) throw error;
-
-      setBookmarkedBooks(newBookmarkedBooks);
+  // Handle bookmarking
+  const handleBookmark = async (item: Book) => {
+    if (!childId) {
+      setNotification({ message: 'No child profile found', show: true });
       setTimeout(() => setNotification({ message: '', show: false }), 3000);
-    } catch (err) {
-      console.error('Error updating bookmarks:', err);
-      setNotification({ message: 'Failed to update bookmark', show: true });
-      setTimeout(() => setNotification({ message: '', show: false }), 3000);
+      return;
     }
+
+    const isBookmarked = bookmarkedItems.has(item.cid.toString());
+    const updatedBookmarks = new Set(bookmarkedItems);
+
+    if (isBookmarked) {
+      updatedBookmarks.delete(item.cid.toString());
+    } else {
+      updatedBookmarks.add(item.cid.toString());
+    }
+
+    const { error } = await supabase
+      .from('temp_bookmark')
+      .upsert([{ uaid: childId, cid: item.cid }], { onConflict: ['uaid', 'cid'] });
+
+    if (error) {
+      console.error('Error updating bookmark:', error);
+      setNotification({ message: 'Failed to update bookmark', show: true });
+    } else {
+      setBookmarkedItems(updatedBookmarks);
+      setNotification({
+        message: isBookmarked ? 'Item removed from bookmarks' : 'You saved this item',
+        show: true,
+      });
+    }
+
+    setTimeout(() => setNotification({ message: '', show: false }), 3000);
   };
 
-  const handleSearch = (type: 'books' | 'videos') => {
+  // Handle search type switching
+  const handleSearch = (type: 'books' | 'videos' | 'pdfs') => {
     if (!searchQuery.trim()) return;
-    if (type === 'books') {
-      router.push(`/searchbooks?q=${encodeURIComponent(searchQuery.trim())}`);
-    } else {
-      router.push(`/searchvideos?q=${encodeURIComponent(searchQuery.trim())}`);
-    }
+    const route = type === 'books' ? 'searchbooks' : type === 'videos' ? 'searchvideos' : 'searchpdfs';
+    router.push(`/${route}?q=${encodeURIComponent(searchQuery.trim())}`);
   };
 
   return (
     <div className="flex h-screen bg-white overflow-hidden">
       <Navbar />
       <div className="flex-1 overflow-y-auto pt-16 px-6">
-        <div className="max-w-7xl mx-auto">
-          {/* Search Interface */}
-          <div className="mt-20 mb-8">
-            <div className="max-w-2xl mx-auto">
-              <div className="relative mb-4">
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search books and videos..."
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent text-black"
-                />
-              </div>
-              <div className="flex justify-center space-x-4">
-                <button
-                  onClick={() => handleSearch('books')}
-                  className="px-6 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2"
-                >
-                  Search Books
-                </button>
-                <button
-                  onClick={() => handleSearch('videos')}
-                  className="px-6 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2"
-                >
-                  Search Videos
-                </button>
-              </div>
+        <div className="mt-8 mb-4 flex justify-end">
+          <button
+            onClick={() => router.back()}
+            className="px-6 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 focus:outline-none focus:ring-2 focus:ring-rose-500"
+          >
+            Back
+          </button>
+        </div>
+
+        <div className="max-w-2xl mx-auto mt-4">
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold text-gray-900 mb-4">Search Items</h1>
+            <div className="relative">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Enter your search query..."
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-rose-500 text-black"
+              />
             </div>
           </div>
 
           {query && (
-            <h1 className="text-2xl font-bold text-gray-900 mb-6">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">
               Search Results for "{query}"
-            </h1>
+            </h2>
           )}
 
           {notification.show && (
@@ -167,19 +163,22 @@ export default function SearchBooksPage() {
             <div className="text-center py-8">Loading...</div>
           ) : error ? (
             <div className="text-center py-8 text-red-500">{error}</div>
-          ) : books.length > 0 ? (
+          ) : items.length > 0 ? (
             <div className="space-y-4">
-              {books.map((book) => (
-                <div key={book.cid} className="flex items-start space-x-4 p-4 bg-white rounded-lg hover:bg-gray-50 transition-colors">
+              {items.map((item) => (
+                <div
+                  key={`item-${item.cid}`}
+                  className="flex items-start space-x-4 p-4 bg-white rounded-lg hover:bg-gray-50 transition-colors"
+                >
                   <div className="flex-shrink-0 w-24 h-36 relative">
-                    {book.coverimage && book.coverimage.trim() !== "" ? (
+                    {item.coverimage ? (
                       <Image
                         src={
-                          book.coverimage.includes('http')
-                            ? book.coverimage
-                            : `https://bexeexbozsosdtatunld.supabase.co/storage/v1/object/public/book-covers/${book.coverimage}`
+                          item.coverimage.includes('http')
+                            ? item.coverimage
+                            : `https://bexeexbozsosdtatunld.supabase.co/storage/v1/object/public/book-covers/${item.coverimage}`
                         }
-                        alt={book.title}
+                        alt={item.title}
                         width={96}
                         height={144}
                         className="w-full h-full object-contain rounded-md shadow-sm"
@@ -193,30 +192,37 @@ export default function SearchBooksPage() {
 
                   <div className="flex-grow">
                     <h3 className="text-lg font-semibold text-gray-900">
-                      <a href={`/bookdetail/${book.cid}`} className="hover:text-rose-500 transition-colors">
-                        {book.title}
+                      <a href={`/itemdetail/${item.cid}`} className="hover:text-rose-500 transition-colors">
+                        {item.title}
                       </a>
                     </h3>
-                    <p className="text-sm text-gray-600">{book.credit}</p>
+                    <p className="text-sm text-gray-600">{item.credit}</p>
                   </div>
+
                   <button
                     className={`flex-shrink-0 ml-4 p-2 rounded-full hover:bg-gray-100 transition-colors ${
-                      bookmarkedBooks.has(book.title) ? 'text-rose-500' : 'text-gray-400'
+                      bookmarkedItems.has(item.cid.toString()) ? 'text-rose-500' : 'text-gray-400'
                     }`}
-                    onClick={() => handleBookmark(book)}
+                    onClick={() => handleBookmark(item)}
                     aria-label="Toggle bookmark"
                   >
                     <svg className="w-6 h-6" fill="currentColor" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
+                      />
                     </svg>
                   </button>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="text-center py-8 text-gray-500">No books found</div>
+            <div className="text-center py-8 text-gray-500">No items found</div>
           )}
         </div>
+
         <ChatBot />
       </div>
     </div>
