@@ -18,33 +18,59 @@ export default function SearchBooksPage() {
   const [error, setError] = useState<string | null>(null);
   const [bookmarkedBooks, setBookmarkedBooks] = useState<Set<string>>(new Set());
   const [notification, setNotification] = useState<{ message: string; show: boolean }>({ message: '', show: false });
+  const [childId, setChildId] = useState<string | null>(null);
 
+  // Fetch child profile ID (uaid)
   useEffect(() => {
-    const fetchBookmarkedBooks = async () => {
-      try {
-        const { data: sessionData } = await supabase.auth.getSession();
-        const user = sessionData?.session?.user;
-        if (!user) return;
+    const fetchChildProfile = async () => {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
 
-        const { data: profile, error } = await supabase
-          .from('child_profile')
-          .select('books_bookmark')
-          .eq('user_id', user.id)
-          .single();
-
-        if (error) throw error;
-
-        if (profile?.books_bookmark) {
-          setBookmarkedBooks(new Set(profile.books_bookmark));
-        }
-      } catch (err) {
-        console.error('Error fetching bookmarked books:', err);
+      if (userError || !user) {
+        console.error('User not logged in or error:', userError);
+        return;
       }
+
+      const { data, error } = await supabase
+        .from('user_account')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('upid', 3)
+        .single();
+
+      if (error) {
+        console.error('Child profile not found for this user:', error);
+        return;
+      }
+
+      setChildId(data.id);
     };
 
-    fetchBookmarkedBooks();
+    fetchChildProfile();
   }, []);
 
+  // Fetch bookmarked books for childId
+  useEffect(() => {
+    const fetchBookmarks = async () => {
+      if (!childId) return;
+
+      const { data, error } = await supabase
+        .from('temp_bookmark')
+        .select('cid')
+        .eq('uaid', childId);
+
+      if (error) {
+        console.error('Error fetching bookmarks:', error);
+        return;
+      }
+
+      const bookmarkedCids = new Set(data?.map((item) => item.cid.toString()));
+      setBookmarkedBooks(bookmarkedCids);
+    };
+
+    fetchBookmarks();
+  }, [childId]);
+
+  // Fetch search results
   useEffect(() => {
     const searchBooks = async () => {
       if (!query) {
@@ -71,41 +97,41 @@ export default function SearchBooksPage() {
     searchBooks();
   }, [query]);
 
+  // Bookmark handler
   const handleBookmark = async (book: Book) => {
-    try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const user = sessionData?.session?.user;
-      if (!user) {
-        setNotification({ message: 'Please log in to bookmark books', show: true });
-        setTimeout(() => setNotification({ message: '', show: false }), 3000);
-        return;
-      }
-
-      const isCurrentlyBookmarked = bookmarkedBooks.has(book.title);
-      const newBookmarkedBooks = new Set(bookmarkedBooks);
-
-      if (isCurrentlyBookmarked) {
-        newBookmarkedBooks.delete(book.title);
-        setNotification({ message: 'Book removed from bookmarks', show: true });
-      } else {
-        newBookmarkedBooks.add(book.title);
-        setNotification({ message: 'You saved this book', show: true });
-      }
-
-      const { error } = await supabase
-        .from('child_profile')
-        .update({ books_bookmark: Array.from(newBookmarkedBooks) })
-        .eq('user_id', user.id);
-
-      if (error) throw error;
-
-      setBookmarkedBooks(newBookmarkedBooks);
+    if (!childId) {
+      setNotification({ message: 'No child profile found', show: true });
       setTimeout(() => setNotification({ message: '', show: false }), 3000);
-    } catch (err) {
-      console.error('Error updating bookmarks:', err);
-      setNotification({ message: 'Failed to update bookmark', show: true });
-      setTimeout(() => setNotification({ message: '', show: false }), 3000);
+      return;
     }
+
+    const cidStr = book.cid.toString();
+    const isBookmarked = bookmarkedBooks.has(cidStr);
+    const updatedBookmarks = new Set(bookmarkedBooks);
+
+    if (isBookmarked) {
+      updatedBookmarks.delete(cidStr);
+    } else {
+      updatedBookmarks.add(cidStr);
+    }
+
+    const { error } = await supabase
+    .from('temp_bookmark')
+    .upsert([{ uaid: childId, cid: book.cid }], { onConflict: 'uaid,cid' });
+
+
+    if (error) {
+      console.error('Error updating bookmark:', error);
+      setNotification({ message: 'Failed to update bookmark', show: true });
+    } else {
+      setBookmarkedBooks(updatedBookmarks);
+      setNotification({
+        message: isBookmarked ? 'Book removed from bookmarks' : 'You saved this book',
+        show: true,
+      });
+    }
+
+    setTimeout(() => setNotification({ message: '', show: false }), 3000);
   };
 
   const handleSearch = (type: 'books' | 'videos') => {
@@ -201,7 +227,7 @@ export default function SearchBooksPage() {
                   </div>
                   <button
                     className={`flex-shrink-0 ml-4 p-2 rounded-full hover:bg-gray-100 transition-colors ${
-                      bookmarkedBooks.has(book.title) ? 'text-rose-500' : 'text-gray-400'
+                      bookmarkedBooks.has(book.cid.toString()) ? 'text-rose-500' : 'text-gray-400'
                     }`}
                     onClick={() => handleBookmark(book)}
                     aria-label="Toggle bookmark"
