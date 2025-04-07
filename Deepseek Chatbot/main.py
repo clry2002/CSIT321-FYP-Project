@@ -12,7 +12,7 @@ from supabase import create_client, Client
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
-# Importing regex for cleaning <think> tags
+# Importing regex for cleaning <think> tags and question symbols
 import re
 
 # Load environment variables
@@ -79,8 +79,8 @@ def clean_response(response):
 def get_content_by_genre_and_format(question):
     try:
         # Define potential genres and formats
-        genres = ["fantasy", "fiction", "romance", "maths", "thriller", "horror", "sci-fi", "science", "adventure"]
-        formats = {"videos": 1, "video": 1, "books": 2, "book": 2}  # Mapping for content formats
+        genres = ["friendship", "fantasy", "fiction", "romance", "maths", "thriller", "horror", "sci-fi", "science", "adventure", "animals"]
+        formats = {"videos": 1, "video": 1, "books": 2, "book": 2}  # Simplified since we now clean punctuation
 
         # Detect genre and format from the question
         detected_genre = next((word for word in question.split() if word.lower() in genres), None)
@@ -131,13 +131,37 @@ def get_content_by_genre_and_format(question):
         logging.error(f"Database query failed: {e}")
         return {"error": "Database query failed"}
 
+# Function to read data from data.txt
+def read_data_from_file(file_path):
+    try:
+        with open(file_path, 'r') as file:
+            data = file.read()  # Read the entire content of the file
+        return data
+    except FileNotFoundError:
+        logging.error(f"File {file_path} not found.")
+        return None
+    except Exception as e:
+        logging.error(f"Error reading file {file_path}: {e}")
+        return None
+
 @app.route('/api/chat', methods=['POST'])
 def chat():
     data = request.json
-    question = data.get("question", "").lower()
+    raw_question = data.get("question", "")
+    
+    # Remove punctuation/symbols and lowercase the question
+    question = re.sub(r'[^\w\s]', '', raw_question).strip().lower()
 
     if not question:
         return jsonify({"error": "No question provided"}), 400
+
+    # Read data from data.txt to use as context
+    context_from_file = read_data_from_file("data.txt")
+    if context_from_file is None:
+        return jsonify({"error": "Failed to read context from file"}), 500
+
+    # Combine context from the file with the chatbot prompt
+    template_with_file_context = template.format(context=context_from_file, question=question)
 
     # Fetch content by genre and format
     content_response = get_content_by_genre_and_format(question)
@@ -145,7 +169,7 @@ def chat():
     if "error" in content_response:
         # Fallback to AI-generated response if content not found or error occurs
         try:
-            ai_answer = deepseek_chain.invoke(question)
+            ai_answer = deepseek_chain.invoke(template_with_file_context)
             return jsonify({"answer": clean_response(ai_answer)})
         except Exception as e:
             logging.error(f"AI response failed: {e}")

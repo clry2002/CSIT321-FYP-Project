@@ -11,24 +11,49 @@ export default function CreateClassroom() {
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  
+  // Real-time validation logic for classroom name
+  useEffect(() => {
+    const checkClassroomName = async () => {
+      if (classroomName === '') {
+        setErrorMessage('');
+        return;
+      }
 
+      const { data: existingClassroom, error } = await supabase
+        .from('temp_classroom')
+        .select('name')
+        .eq('name', classroomName)
+        .single();
+      
+      if (existingClassroom) {
+        setErrorMessage('Classroom name already exists. Please type another classroom name.');
+      } else {
+        setErrorMessage('');
+      }
+    };
+
+    // Directly call the validation function without timeout
+    checkClassroomName();
+
+  }, [classroomName]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     setErrorMessage('');
-  
+
     try {
       // Get the current authenticated user
       const {
         data: { user },
         error: userError
       } = await supabase.auth.getUser();
-  
+
       if (userError || !user) {
         throw new Error(userError?.message || 'User not authenticated');
       }
-  
+
       const {
         data: userData,
         error: userAccountError
@@ -37,20 +62,20 @@ export default function CreateClassroom() {
         .select('id')
         .eq('user_id', user.id)
         .single();
-  
+
       if (userAccountError || !userData) {
         throw new Error(userAccountError?.message || 'Failed to fetch user account');
       }
-  
+
       const uaid_educator = userData.id;
-  
+
       // Check if classroom name already exists
       const { data: existingClassroom, error: duplicateCheckError } = await supabase
         .from('temp_classroom')
         .select('name')
         .eq('name', classroomName)
         .single();
-  
+
       if (existingClassroom) {
         setErrorMessage('Classroom name already exists. Please type another classroom name.');
         return;
@@ -65,13 +90,12 @@ export default function CreateClassroom() {
             uaid_educator
           }
         ]);
-  
+
       if (insertError) {
         throw new Error(insertError.message);
       }
-  
+
       router.push('/teacher/view-classroom-new');
-  
     } catch (error: any) {
       console.error('Error creating classroom:', error);
       setErrorMessage(error.message || 'Failed to create classroom');
@@ -79,7 +103,6 @@ export default function CreateClassroom() {
       setLoading(false);
     }
   };
-  
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -96,8 +119,8 @@ export default function CreateClassroom() {
 
   return (
     <div className="flex flex-col h-screen bg-gray-100 overflow-hidden">
-    <EduNavbar />
-    
+      <EduNavbar />
+
       {/* Main Content */}
       <div className="flex-1 overflow-y-auto px-6 py-30">
         {/* Header Section */}
@@ -121,7 +144,7 @@ export default function CreateClassroom() {
               />
             </div>
             {errorMessage && (
-            <p className="text-red-600 text-sm mt-1">{errorMessage}</p>
+              <p className="text-red-600 text-sm mt-1">{errorMessage}</p>
             )}
             <div>
               <label htmlFor="description" className="text-gray-700">Description</label>

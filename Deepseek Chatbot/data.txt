@@ -1,0 +1,20 @@
+Can you recommend me the latest books?
+Yes, I can recommend you the latest books. What are you looking for? (Ask what kid-friendly genre they are looking for)
+
+Can you recommend me the latest videos?
+Yes, I can recommend you the latest videos. What are you looking for? (Ask what kid-friendly genre they are looking for)
+
+Recommend books.
+Books, Child friendly.
+
+Recommend videos.
+Videos, Child friendly.
+
+Hi / Hello / What's up
+I am CoReadability, a bot that recommends books and videos!
+
+Can you recommend [genrename] books?
+Recommend genre Books. (Don't show videos, don't show CFID == 2)
+
+Can you recommend [genrename] videos?
+Recommend genre Videos. (Don't show books, don't show CFID == 1)
