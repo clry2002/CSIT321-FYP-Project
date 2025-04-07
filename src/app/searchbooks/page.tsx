@@ -19,21 +19,21 @@ export default function SearchBooksPage() {
   const [notification, setNotification] = useState<{ message: string; show: boolean }>({ message: '', show: false });
   const [childId, setChildId] = useState<string | null>(null);
 
-  // Fetch the first available child profile
+  // Fetch child profile
   useEffect(() => {
     const fetchChildProfile = async () => {
       try {
         const { data: childProfiles, error } = await supabase
           .from('child_profile')
           .select('child_id, books_bookmark')
-          .limit(1); // Fetch only one child profile
+          .limit(1);
 
         if (error || !childProfiles || childProfiles.length === 0) {
           console.error('No child profile found', error);
           return;
         }
 
-        const childProfile = childProfiles[0]; // Pick the first child profile
+        const childProfile = childProfiles[0];
         setChildId(childProfile.child_id);
         setBookmarkedBooks(new Set(childProfile.books_bookmark || []));
       } catch (err) {
@@ -71,7 +71,6 @@ export default function SearchBooksPage() {
     searchBooks();
   }, [query]);
 
-  // Handle bookmarking
   const handleBookmark = async (book: Book) => {
     try {
       if (!childId) {
@@ -80,40 +79,32 @@ export default function SearchBooksPage() {
         return;
       }
 
-      const isCurrentlyBookmarked = bookmarkedBooks.has(book.title);
-      const newBookmarkedBooks = new Set(bookmarkedBooks);
+      const isBookmarked = bookmarkedBooks.has(book.title);
+      const updatedBookmarks = new Set(bookmarkedBooks);
 
-      if (isCurrentlyBookmarked) {
-        newBookmarkedBooks.delete(book.title);
+      if (isBookmarked) {
+        updatedBookmarks.delete(book.title);
       } else {
-        newBookmarkedBooks.add(book.title);
+        updatedBookmarks.add(book.title);
       }
 
-      // Ensure all books in the bookmark list exist in the "books" table
       const { data: validBooks, error } = await supabase
         .from('books')
         .select('title')
-        .in('title', Array.from(newBookmarkedBooks));
+        .in('title', Array.from(updatedBookmarks));
 
       if (error) {
         console.error('Error validating books:', error);
-        setNotification({ message: 'Failed to validate books for bookmarking', show: true });
+        setNotification({ message: 'Failed to validate books', show: true });
         return;
       }
 
-      const validBookTitles = new Set(validBooks.map((book) => book.title));
+      const validTitles = new Set(validBooks.map((b) => b.title.trim()));
+      const finalBookmarks = Array.from(updatedBookmarks).filter((title) => validTitles.has(title.trim()));
 
-      // Filter out invalid books from the list
-      const filteredBookmarkedBooks = Array.from(newBookmarkedBooks).filter((bookTitle) =>
-        validBookTitles.has(bookTitle.trim()) // Trim any leading or trailing spaces
-      );
-
-      console.log('Filtered Bookmarked Books:', filteredBookmarkedBooks);  // Debugging the filtered list
-
-      // Attempt to update Supabase with the valid books_bookmark
-      const { updateError } = await supabase
+      const { error: updateError } = await supabase
         .from('child_profile')
-        .update({ books_bookmark: filteredBookmarkedBooks })
+        .update({ books_bookmark: finalBookmarks })
         .eq('child_id', childId);
 
       if (updateError) {
@@ -122,9 +113,11 @@ export default function SearchBooksPage() {
         return;
       }
 
-      // Only update UI if Supabase update succeeds
-      setBookmarkedBooks(new Set(filteredBookmarkedBooks));
-      setNotification({ message: isCurrentlyBookmarked ? 'Book removed from bookmarks' : 'You saved this book', show: true });
+      setBookmarkedBooks(new Set(finalBookmarks));
+      setNotification({
+        message: isBookmarked ? 'Book removed from bookmarks' : 'You saved this book',
+        show: true,
+      });
 
       setTimeout(() => setNotification({ message: '', show: false }), 3000);
     } catch (err) {
@@ -136,18 +129,14 @@ export default function SearchBooksPage() {
 
   const handleSearch = (type: 'books' | 'videos') => {
     if (!searchQuery.trim()) return;
-    if (type === 'books') {
-      router.push(`/searchbooks?q=${encodeURIComponent(searchQuery.trim())}`);
-    } else {
-      router.push(`/searchvideos?q=${encodeURIComponent(searchQuery.trim())}`);
-    }
+    const route = type === 'books' ? 'searchbooks' : 'searchvideos';
+    router.push(`/${route}?q=${encodeURIComponent(searchQuery.trim())}`);
   };
 
   return (
     <div className="flex h-screen bg-white overflow-hidden">
       <Navbar />
       <div className="flex-1 overflow-y-auto pt-16 px-6">
-       {/* Back Button placed above the Search Input */}
         <div className="mt-8 mb-4 flex justify-end">
           <button
             onClick={() => router.back()}
@@ -157,7 +146,6 @@ export default function SearchBooksPage() {
           </button>
         </div>
 
-        {/* Search Input */}
         <div className="max-w-2xl mx-auto mt-4">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-4">Search Books</h1>
@@ -191,9 +179,12 @@ export default function SearchBooksPage() {
           ) : books.length > 0 ? (
             <div className="space-y-4">
               {books.map((book) => (
-                <div key={book.cid} className="flex items-start space-x-4 p-4 bg-white rounded-lg hover:bg-gray-50 transition-colors">
+                <div
+                  key={`book-${book.cid ?? book.title}`}
+                  className="flex items-start space-x-4 p-4 bg-white rounded-lg hover:bg-gray-50 transition-colors"
+                >
                   <div className="flex-shrink-0 w-24 h-36 relative">
-                    {book.coverimage && book.coverimage.trim() !== "" ? (
+                    {book.coverimage && book.coverimage.trim() !== '' ? (
                       <Image
                         src={
                           book.coverimage.includes('http')
@@ -220,6 +211,7 @@ export default function SearchBooksPage() {
                     </h3>
                     <p className="text-sm text-gray-600">{book.credit}</p>
                   </div>
+
                   <button
                     className={`flex-shrink-0 ml-4 p-2 rounded-full hover:bg-gray-100 transition-colors ${
                       bookmarkedBooks.has(book.title) ? 'text-rose-500' : 'text-gray-400'
@@ -228,7 +220,12 @@ export default function SearchBooksPage() {
                     aria-label="Toggle bookmark"
                   >
                     <svg className="w-6 h-6" fill="currentColor" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
+                      />
                     </svg>
                   </button>
                 </div>
