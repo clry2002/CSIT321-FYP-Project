@@ -62,6 +62,20 @@ export default function TeacherHome() {
               Create Classroom
             </button>
           </div>
+
+          <div className="bg-white rounded-lg shadow-md p-4">
+          <h2 className="text-lg font-serif mb-3 text-black">View Reports</h2>
+          <p className="text-gray-500 text-sm mb-4">
+            Working Create Classroom Function
+          </p>
+          <button
+            className="bg-purple-500 text-white px-4 py-2 rounded-lg w-full"
+            onClick={() => router.push('/teacher/create-classroom-new')}
+          >
+            Create Classroom
+          </button>
+        </div>
+
         </div>
       </div>
     </div>

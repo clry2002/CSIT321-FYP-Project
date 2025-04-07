@@ -6,6 +6,7 @@ import Navbar from '../components/Navbar';
 import { supabase } from '@/lib/supabase';
 import Image from 'next/image';
 import type { Book } from '@/types/database.types';
+import ChatBot from '../components/ChatBot';
 
 export default function SearchBooksPage() {
   const searchParams = useSearchParams();
@@ -194,7 +195,7 @@ export default function SearchBooksPage() {
                         alt={book.title}
                         width={96}
                         height={144}
-                        className="object-cover rounded-md shadow-sm"
+                        className="w-full h-full object-contain rounded-md shadow-sm"
                       />
                     ) : (
                       <div className="w-full h-full bg-gray-200 rounded-md flex items-center justify-center">
@@ -235,6 +236,7 @@ export default function SearchBooksPage() {
             <div className="text-center py-8 text-gray-500">No books found</div>
           )}
         </div>
+        <ChatBot />
       </div>
     </div>
   );
