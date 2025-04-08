@@ -8,7 +8,7 @@ export interface Content {
   contenturl: string;
   coverimage: string;
   cfid: number; // 1 = video, 2 = book
-  cid: number; // Book unique ID
+  cid: number; // Content unique ID
 }
 
 // Define the Message interface

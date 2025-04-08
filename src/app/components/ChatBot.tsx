@@ -86,7 +86,6 @@ const ChatBot: React.FC = () => {
     setIsOpen(false);
     window.speechSynthesis.cancel();
   };
-  
 
   return (
     <div className="chatbot-wrapper">
@@ -160,7 +159,16 @@ const ChatBot: React.FC = () => {
                               )}
                             </>
                           )}
-                          
+
+                          {/* For Videos, Add Video Detail Button */}
+                          {item.cfid === 1 && item.cid ? (
+                            <a
+                              href={`/videodetail/${item.cid}`}
+                              className="inline-block bg-emerald-500 text-white px-3 py-1 rounded"
+                            >
+                              View Video Details
+                            </a>
+                          ) : null}
                         </div>
                       </li>
                     ))}
