@@ -42,7 +42,8 @@ export default function ClassroomDetails() {
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
 
   const [allChildren, setAllChildren] = useState<ChildUser[]>([]);
-  const [selectedUsername, setSelectedUsername] = useState('');
+  const [studentEmail, setStudentEmail] = useState('');
+  const [studentError, setStudentError] = useState(''); // State for error message
   const [classroomStudents, setClassroomStudents] = useState<ClassroomStudent[]>([]);
 
   const router = useRouter();
@@ -51,7 +52,6 @@ export default function ClassroomDetails() {
   // Remove students
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [studentToRemove, setStudentToRemove] = useState<ClassroomStudent | null>(null);
-
 
 
   // Fetch child users and classroom students
@@ -113,28 +113,78 @@ export default function ClassroomDetails() {
     }
   }, [crid]);
 
+    // Handle email input change
+    const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      setStudentEmail(e.target.value);
+  
+      // Clear the error message when user starts typing
+      if (studentError) {
+        setStudentError('');
+      }
+    };
+  
+
   const handleAddStudent = async () => {
-    const selectedChild = allChildren.find((child) => child.username === selectedUsername);
-    if (!selectedChild) {
-      alert('Selected username not found.');
+    if (!studentEmail) {
+      setStudentError('Please enter a valid email.');
+      return;
+    }
+  
+    // Step 1: Query the auth.users table via the Supabase function
+    const { data: authUser, error: authError } = await supabase
+      .rpc('get_user_by_email', { email: studentEmail });
+  
+    if (authError || !authUser || !authUser[0]?.id) {
+      setStudentError('No user found for this email.');
+      return;
+    }
+  
+    const userId = authUser[0].id; // Access the id correctly from the array
+  
+    // Step 2: Use the authUser[0].id to query the user_account table
+    const { data: userAccount, error: uaError } = await supabase
+      .from('user_account')
+      .select('id, username, fullname, upid')
+      .eq('user_id', userId) 
+      .single();
+  
+    if (uaError || !userAccount) {
+      setStudentError('No user account found for this email.');
+      return;
+    }
+  
+    // Step 3: Check if the profile type is 3 (student)
+    if (userAccount.upid !== 3) {
+      setStudentError('Only students can be added.');
       return;
     }
 
-    const { error } = await supabase.from('temp_classroomstudents').insert({
-      crid: crid,
-      uaid_child: selectedChild.id,
-    });
+    // Step 4: Check if the email already exists in the temp_classroomstudents table
+    const { data: existingStudent} = await supabase
+      .from('temp_classroomstudents')
+      .select('uaid_child')
+      .eq('uaid_child', userAccount.id)
+      .eq('crid', crid)
+      .single();
+
+    if (existingStudent) {
+      setStudentError('This student has been added to the classroom.');
+      return;
+    }
+    
+    // Step 4: Insert into temp_classroomstudents
+    const { error: insertError } = await supabase
+      .from('temp_classroomstudents')
+      .insert({
+        crid: crid,
+        uaid_child: userAccount.id
+      });
   
-    if (error) {
-      alert('Failed to add student.');
+    if (insertError) {
+      setStudentError('Failed to add student.');
     } else {
-       // Remove the added student from the dropdown list
-       setAllChildren((prevChildren) =>
-        prevChildren.filter((child) => child.username !== selectedUsername)
-      );
-      setSelectedUsername(''); // Reset the dropdown selection
-      // Refresh list
-      const { data } = await supabase
+      setStudentEmail('');
+      const { data: updatedStudents } = await supabase
         .from('temp_classroomstudents')
         .select(`
           uaid_child,
@@ -146,19 +196,19 @@ export default function ClassroomDetails() {
         `)
         .eq('crid', crid);
   
-      if (data) {
-        const formattedData: ClassroomStudent[] = data.map((item: any) => ({
+      if (updatedStudents) {
+        const formatted = updatedStudents.map((item: any) => ({
           uaid_child: item.uaid_child,
-          invitation_status: item.invitation_status as InvitationStatus, // Cast to the enum
+          invitation_status: item.invitation_status,
           user_account: item.user_account,
         }));
-        setClassroomStudents(formattedData);
+        setClassroomStudents(formatted);
       }
     }
   };
 
   const handleRemoveStudent = async (uaid_child: string | null) => {
-    if (!uaid_child) return; // In case no student is selected
+    if (!uaid_child) return;
   
     // Remove the student from the classroom
     const { error } = await supabase
@@ -168,7 +218,7 @@ export default function ClassroomDetails() {
       .eq('uaid_child', uaid_child);
   
     if (error) {
-      alert('Failed to remove student.');
+      setStudentError('Failed to remove student.');
     } else {
       // Reload classroom students after removal
       const { data } = await supabase
@@ -191,23 +241,10 @@ export default function ClassroomDetails() {
         }));
         setClassroomStudents(formattedData);
       }
-  
-      // After removing, we also need to add the student back to the available list of children
-      const { data: allChildrenData } = await supabase
-        .from('user_account')
-        .select('id, username, fullname')
-        .eq('upid', 3); // Adjust this query based on your specific logic
-  
-      if (allChildrenData) {
-        setAllChildren(allChildrenData);
-      }
     }
-  
-    // Close the confirmation modal after removal
+
     setShowConfirmModal(false);
   };
-  
-  
   
   const handleDelete = async () => {
     if (!classroom) return;
@@ -217,7 +254,7 @@ export default function ClassroomDetails() {
       .eq('crid', classroom.crid);
 
     if (error) {
-      alert('Failed to delete classroom.');
+      setStudentError('Failed to delete classroom.');
     } else {
       router.back();
     }
@@ -235,7 +272,7 @@ export default function ClassroomDetails() {
       .eq('crid', classroom?.crid);
 
     if (error) {
-      alert('Failed to update classroom details.');
+      setStudentError('Failed to update classroom details.');
     } else {
       setClassroom({ crid: classroom!.crid, name, description });
       setIsEditing(false);
@@ -342,29 +379,27 @@ export default function ClassroomDetails() {
             )}
 
             {/* Add student section */}
-            <div className="mt-6 border-t pt-4">
-              <h2 className="text-lg font-semibold text-black mb-2">Add Student</h2>
-              <div className="flex gap-2 items-center">
-                <select
-                  value={selectedUsername}
-                  onChange={(e) => setSelectedUsername(e.target.value)}
-                  className="p-2 border rounded text-black"
-                >
-                  <option value="">Select a student</option>
-                  {allChildren.map((child) => (
-                    <option key={child.id} value={child.username}>
-                      {child.fullname} ({child.username})
-                    </option>
-                  ))}
-                </select>
-                <button
-                  onClick={handleAddStudent}
-                  className="bg-green-500 text-white px-4 py-2 rounded"
-                >
-                  Add Student
-                </button>
-              </div>
+            <div className="flex gap-2 items-center">
+              <input
+                type="email"
+                value={studentEmail}
+                onChange={handleEmailChange}
+                placeholder="Enter student email"
+                className="p-2 border rounded text-black"
+              />
+              <button
+                onClick={handleAddStudent}
+                className="bg-green-500 text-white px-4 py-2 rounded"
+              >
+                Add Student
+              </button>
+              {studentError && (
+                <div style={{ color: 'red', marginTop: '10px' }}>
+                  {studentError}
+                </div>
+              )}
             </div>
+
 
           {/* Student list */}
           <div className="mt-6 border-t pt-4">
@@ -380,8 +415,8 @@ export default function ClassroomDetails() {
                   </div>
                   <button
                     onClick={() => {
-                      setStudentToRemove(student); // Save full student object
-                      setShowConfirmModal(true);   // Show confirmation modal
+                      setStudentToRemove(student);
+                      setShowConfirmModal(true);
                     }}
                     className="bg-red-500 text-white px-2 py-1 rounded ml-4"
                   >
@@ -411,7 +446,7 @@ export default function ClassroomDetails() {
                     Cancel
                   </button>
                   <button
-                    onClick={() => handleRemoveStudent(studentToRemove!.uaid_child)} // Proceed with the removal
+                    onClick={() => handleRemoveStudent(studentToRemove!.uaid_child)}
                     className="bg-green-500 text-white px-4 py-2 rounded-md"
                   >
                     Confirm
