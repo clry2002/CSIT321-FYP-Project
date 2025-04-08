@@ -13,6 +13,20 @@ export interface Book {
     decisiondate?: string | null;
 }
 
+export interface Video {
+    cid: number
+    title: string;
+    credit: string;
+    genre: string[];
+    coverimage?: null;
+    minimumage: number;
+    description: string;
+    contenturl?: string | null;
+    cfid: number;
+    createddate?: string | null;
+    decisiondate?: string | null;
+}
+
 export interface Database {
     public: {
         Tables: {
