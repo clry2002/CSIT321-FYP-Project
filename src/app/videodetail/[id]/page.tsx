@@ -13,6 +13,7 @@ export default function VideoDetailPage() {
   const searchParams = useSearchParams();
   const query = searchParams.get('q') || '';
   const [video, setVideo] = useState<Video | null>(null);
+  const [genres, setGenres] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -25,16 +26,41 @@ export default function VideoDetailPage() {
       }
 
       try {
-        const { data, error } = await supabase
+        // Fetch video details
+        const { data: videoData, error: videoError } = await supabase
           .from('temp_content')
           .select('*')
           .eq('cid', params.id)
           .single();
 
-        if (error) throw error;
-        setVideo(data);
+        if (videoError) throw videoError;
+        setVideo(videoData);
+
+        // Fetch genres
+        const { data: genreData, error: genreError } = await supabase
+          .from('temp_contentgenres')
+          .select('temp_genre(genrename)')
+          .eq('cid', params.id);
+
+        if (genreError) throw genreError;
+
+        const genreNames = Array.isArray(genreData)
+        ? genreData.flatMap((g: any) => {
+            const genreField = g.temp_genre;
+
+            if (Array.isArray(genreField)) {
+              return genreField.map((tg) => tg.genrename);
+            } else if (genreField && typeof genreField === 'object') {
+              return [genreField.genrename];
+            } else {
+              return [];
+            }
+          })
+        : [];
+
+        setGenres(genreNames);
       } catch (err) {
-        console.error('Error fetching video:', err);
+        console.error('Error fetching video or genres:', err);
         setError('Failed to load video details');
       } finally {
         setIsLoading(false);
@@ -46,11 +72,9 @@ export default function VideoDetailPage() {
 
   // Handle navigation back to search results
   const handleBackToSearch = () => {
-    // Check if we have a query to preserve
     if (query) {
       router.push(`/searchvideos?q=${encodeURIComponent(query)}`);
     } else {
-      // If no query, just go back to the previous page
       router.back();
     }
   };
@@ -139,6 +163,24 @@ export default function VideoDetailPage() {
                     </p>
                   </div>
                 )}
+                
+                {/* Genres */}
+                {genres.length > 0 && (
+                  <div>
+                    <h2 className="text-gray-600">Genres</h2>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {genres.map((genre, idx) => (
+                        <span
+                          key={idx}
+                          className="bg-blue-100 text-blue-800 text-sm font-medium px-2.5 py-0.5 rounded"
+                        >
+                          {genre}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div>
                   <h2 className="text-gray-600">Summary</h2>
                   <p className="text-gray-900">{video.description}</p>

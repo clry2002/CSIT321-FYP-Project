@@ -248,8 +248,6 @@ export default function SearchVideosPage() {
                       </Link>
                       <p className="text-sm text-gray-600 mt-1">{video.description}</p>
                       <div className="mt-2 flex items-center text-sm text-gray-500">
-                        <span>{video.views} views</span>
-                        <span className="mx-2">•</span>
                         <span>{video.timeAgo}</span>
                       </div>
                       <button

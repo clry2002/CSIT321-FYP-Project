@@ -80,7 +80,7 @@ export default function ClassroomDetails() {
       .from('temp_classroom')
       .select('crid')
       .eq('name', name)  // Check for the classroom name
-      .neq('crid', classroom?.crid);  // Exclude the current classroom (avoiding self-conflict)
+      .neq('crid', classroom?.crid); 
   
     if (data && data.length > 0) {
       setErrorMessage('A classroom with this name already exists. Please choose a different name.');
@@ -92,13 +92,13 @@ export default function ClassroomDetails() {
         const { error } = await supabase
         .from('temp_classroom')
         .update({ name, description })
-        .eq('crid', classroom?.crid);  // Use optional chaining to ensure crid is not null
+        .eq('crid', classroom?.crid);  
 
         if (error) {
         alert('Failed to update classroom details.');
         } else {
-        setClassroom({ crid: classroom.crid, name, description });  // Update state with new data
-        setIsEditing(false); // Switch back to view mode
+        setClassroom({ crid: classroom.crid, name, description });  
+        setIsEditing(false); 
         }
     }
   };
@@ -112,8 +112,8 @@ export default function ClassroomDetails() {
         const { data, error } = await supabase
           .from('temp_classroom')
           .select('crid')
-          .eq('name', newName)  // Check for the classroom name
-          .neq('crid', classroom?.crid);  // Exclude the current classroom (avoiding self-conflict)
+          .eq('name', newName)  
+          .neq('crid', classroom?.crid);  
     
         if (data && data.length > 0) {
           setErrorMessage('A classroom with this name already exists. Please choose a different name.');
@@ -217,13 +217,13 @@ export default function ClassroomDetails() {
                   <h2 className="text-lg font-semibold text-black mb-4">Are you sure you want to delete this classroom?</h2>
                   <div className="flex justify-end space-x-4">
                     <button
-                      onClick={handleDelete}  // Proceed with deletion
+                      onClick={handleDelete} 
                       className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
                     >
                       Yes, Delete
                     </button>
                     <button
-                      onClick={() => setIsConfirmingDelete(false)}  // Close the modal
+                      onClick={() => setIsConfirmingDelete(false)} 
                       className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
                     >
                       Cancel
