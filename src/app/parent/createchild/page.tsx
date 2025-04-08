@@ -1,15 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-
-const GENRES = [
-  'Fantasy', 'Science Fiction', 'Mystery', 'Romance', 'Thriller',
-  'Horror', 'Historical Fiction', 'Literary Fiction', 'Young Adult',
-  'Biography', 'Self-Help', 'Business', 'Poetry', 'Drama',
-];
 
 export default function CreateChildAccount() {
   const router = useRouter();
@@ -19,8 +13,30 @@ export default function CreateChildAccount() {
   const [fullName, setFullName] = useState('');
   const [age, setAge] = useState('');
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
+  const [genres, setGenres] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    fetchGenres();
+  }, []);
+
+  const fetchGenres = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('temp_genre')
+        .select('genrename');
+
+      if (error) throw error;
+      
+      // Extract genrename from the data and set it to state
+      const genreNames = data.map(item => item.genrename);
+      setGenres(genreNames);
+    } catch (err) {
+      console.error('Error fetching genres:', err);
+      setError('Failed to load genres. Please try again.');
+    }
+  };
 
   const handleGenreToggle = (genre: string) => {
     setSelectedGenres((prev) => {
@@ -130,7 +146,7 @@ export default function CreateChildAccount() {
       
       console.log("User account created:", userAccountData);
 
-      // Create child profile record
+      // Create child profile record with favourite_genres
       const { data: childProfileData, error: childProfileError } = await supabase
         .from('child_profile')
         .insert({
@@ -291,7 +307,7 @@ export default function CreateChildAccount() {
                     Select up to 3 favorite genres:
                   </label>
                   <div className="grid grid-cols-2 gap-2">
-                    {GENRES.map((genre) => (
+                    {genres.map((genre) => (
                       <button
                         key={genre}
                         type="button"
