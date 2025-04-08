@@ -78,19 +78,30 @@ def clean_response(response):
 # Function to fetch content by genre and format (cfid)
 def get_content_by_genre_and_format(question):
     try:
-        # Define potential genres and formats
-        genres = ["friendship", "fantasy", "fiction", "romance", "maths", "thriller", "horror", "sci-fi", "science", "adventure", "animals"]
-        formats = {"videos": 1, "video": 1, "books": 2, "book": 2}  # Simplified since we now clean punctuation
+        # Fetch available genres from the database
+        genres_query = supabase.from_("temp_genre").select("genrename").execute()
+       
+        if not genres_query.data:
+            return {"error": "No genres found in the database"}
 
-        # Detect genre and format from the question
-        detected_genre = next((word for word in question.split() if word.lower() in genres), None)
+        # Extract the genre names from the query response
+        genres = [genre["genrename"].lower() for genre in genres_query.data]
+        formats = {"videos": 1, "video": 1, "books": 2, "book": 2}
+        
+        # Normalize the question text (remove punctuation and convert to lowercase)
+        normalized_question = re.sub(r'[^\w\s]', '', question).strip().lower()
+        
+        # Check if any genre matches in the normalized question text
+        detected_genre = next((genre for genre in genres if genre in normalized_question), None)
+        
+        # Detect format (video or book)
         detected_format = next((word for word in question.split() if word.lower() in formats), None)
-
+        
         if not detected_genre:
             return {"error": "Unable to detect genre from the question"}
         
         cfid = formats.get(detected_format.lower(), None) if detected_format else None
-
+        
         # Fetch content filtered by genre and format (if cfid is detected)
         query = (
             supabase
