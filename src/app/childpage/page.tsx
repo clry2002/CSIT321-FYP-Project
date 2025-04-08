@@ -51,6 +51,124 @@ export default function ChildPage() {
     fetchUserFullName();
   }, []);
 
+  useEffect(() => {
+    const recommendedForYou = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        const { data: userAccount, error: userAccountError } = await supabase
+          .from('user_account')
+          .select('id')
+          .eq('user_id', user.id)
+          .single();
+        if (userAccountError || !userAccount) {
+          console.error('Error fetching uaid:', userAccountError);
+          return;
+        }
+        const uaid = userAccount.id;
+        console.log('uaid:', uaid); //delete after debugging
+
+        //getTop5Genres
+        const { data: topGenres, error: genreError } = await supabase
+          .from('userInteractions')
+          .select('gid')
+          .eq('uaid', uaid)
+          .order('score', { ascending: false })
+          .limit(5);
+        if (genreError || !topGenres) {
+          console.error('Error fetching getTop5Genres:', genreError);
+          return;
+        }
+        const topGenreIds = topGenres.map(g => g.gid);
+        console.log('topGenreIds:', topGenreIds); //delete after debugging
+
+        //getSimilarUsers
+        const { data: similarUsers, error: similarUsersError } = await supabase
+          .from('userInteractions')
+          .select('uaid')
+          .in('gid', topGenreIds)
+          .neq('uaid', uaid);
+        if (similarUsersError || !similarUsers) {
+          console.error('Error fetching similar users:', similarUsersError);
+          return;
+        }
+        const similarUaidList = [...new Set(similarUsers.map(u => u.uaid))];
+        if (similarUaidList.length === 0) {
+          console.log("0 similar users");
+          //if none, show currently trending
+          return;
+        }
+        console.log('similarUaidList:', similarUaidList); //delete after debugging
+
+        const { data: similarBookmarks, error: bookmarksError } = await supabase
+          .from('temp_bookmark')
+          .select('cid')
+          .in('uaid', similarUaidList);
+        if (bookmarksError || !similarBookmarks) {
+          console.error('Error fetching similar user bookmark:', bookmarksError);
+          return;
+        }
+        console.log('similarBookmarks:', similarBookmarks); //delete after debugging
+
+        const { data: userBookmarks, error: userBookmarksError } = await supabase
+          .from('temp_bookmark')
+          .select('cid')
+          .eq('uaid', uaid);
+        const userCid = userBookmarks?.map(b => b.cid) || [];
+        //filtering similarBookmarks
+        const filteredCids = similarBookmarks
+          .map(b => b.cid)
+          .filter(bookId => !userCid.includes(bookId));
+  
+        //ranking by content frequency
+        const contentFrequency: Record<string, number> = {};
+        filteredCids.forEach((bookId: string) => {
+          contentFrequency[bookId] = (contentFrequency[bookId] || 0) + 1;
+        });
+        const rankedContentIds = Object.entries(contentFrequency)
+          .sort((a: [string, number], b: [string, number]) => b[1] - a[1])
+          .map(([bookId]) => bookId);
+
+        //check if at least 1 of 5 genres are present
+        const filteredRecommendedBooks = await Promise.all(
+          rankedContentIds.map(async (bookId) => {
+            const { data: bookGenres, error: genreError } = await supabase
+              .from('temp_contentgenres')
+              .select('gid')
+              .eq('cid', bookId);
+            if (genreError || !bookGenres) {
+              console.error('Error fetching genre(s) for content:', genreError);
+              return false;
+            }
+            //check if at least 1 of 5 genres are present
+            return bookGenres.some(genre => topGenreIds.includes(genre.gid));
+          })
+        );
+        //remove content(s) with 0 genres present
+        const finalFilteredContentIds = rankedContentIds.filter((bookId, index) => filteredRecommendedBooks[index]);
+
+        //get content infomation (unused)
+        if (finalFilteredContentIds.length === 0) {
+          console.log('0 content with similar genres');
+          return;
+        }
+        const { data: recommendedBooks, error: bookDetailsError } = await supabase
+          .from('temp_content')
+          .select('*')
+          .in('cid', finalFilteredContentIds)
+          .limit(10);
+        if (bookDetailsError) {
+          console.error('Error fetching recommended books:', bookDetailsError);
+          return;
+        }
+        console.log("recommendedBooks:", recommendedBooks); //delete after debugging
+      } catch (error) {
+        console.error('Error in recommendedForYou:', error);
+      }
+    };
+    recommendedForYou();
+  }, []);
+
   return (
     <div className="flex flex-col h-screen bg-white overflow-hidden">
       <Navbar/>
