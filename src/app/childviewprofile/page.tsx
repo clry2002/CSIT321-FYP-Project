@@ -236,14 +236,6 @@ export default function ChildViewProfile() {
           <div className="px-6 py-8">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-bold text-gray-900">My Profile</h2>
-              {hasChanges && (
-                <button
-                  onClick={handleSave}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                >
-                  Save Changes
-                </button>
-              )}
             </div>
 
             {saveMessage && (
@@ -355,6 +347,17 @@ export default function ChildViewProfile() {
                         )}
                       </div>
                     </div>
+
+                    {hasChanges && (
+                      <div className="mt-30">
+                        <button
+                          onClick={handleSave}
+                          className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                        >
+                          Save Changes
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

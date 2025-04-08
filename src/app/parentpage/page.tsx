@@ -256,7 +256,7 @@ export default function ParentHome() {
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold mb-4">Confirm Deletion</h3>
+            <h3 className="text-lg font-semibold mb-4 text-black">Confirm Deletion</h3>
             <p className="text-gray-600 mb-6">
               Are you sure you want to delete this child's profile? This action cannot be undone.
             </p>
@@ -316,16 +316,15 @@ export default function ParentHome() {
               children.map((child) => (
                 <div key={child.id} className="flex items-center justify-between mb-3">
                   <div>
-                    <h3 className="font-medium text-black text-sm">{child.name}</h3>
+                    <h3 
+                      className="font-medium text-black text-sm cursor-pointer hover:text-blue-500"
+                      onClick={() => router.push(`/parent/viewchild?childId=${child.id}`)}
+                    >
+                      {child.name}
+                    </h3>
                     <p className="text-gray-500 text-xs">Age: {child.age || 'Unknown'}</p>
                   </div>
                   <div className="flex space-x-2">
-                    <button
-                      className="text-blue-500 text-xs underline"
-                      onClick={() => router.push('/parent/editchild')}
-                    >
-                      Manage Profile
-                    </button>
                     <button
                       className="text-red-500 text-xs underline"
                       onClick={() => handleDeleteClick(child.id)}

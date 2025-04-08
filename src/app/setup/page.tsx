@@ -127,6 +127,10 @@ export default function SetupPage() {
       setError('Please choose a different username');
       return;
     }
+    if (parseInt(age) < 18) {
+      setError('You must be at least 18 years old to complete setup');
+      return;
+    }
     setError(null);
     setLoading(true);
 
