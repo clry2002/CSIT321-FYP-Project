@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import Navbar from '../components/Navbar';
 import { supabase } from '@/lib/supabase';
 import ChatBot from '../components/ChatBot';
+import Link from 'next/link'; // Import Link from next/navigation
 
 interface Video {
   id: string;
@@ -241,7 +242,10 @@ export default function SearchVideosPage() {
                       )}
                     </div>
                     <div className="p-4 relative">
-                      <h3 className="font-medium text-lg text-black">{video.title}</h3>
+                      {/* Video Title as Link */}
+                      <Link href={`/videodetail/${video.cid}`} passHref>
+                        <h3 className="font-medium text-lg text-black cursor-pointer">{video.title}</h3>
+                      </Link>
                       <p className="text-sm text-gray-600 mt-1">{video.description}</p>
                       <div className="mt-2 flex items-center text-sm text-gray-500">
                         <span>{video.views} views</span>
