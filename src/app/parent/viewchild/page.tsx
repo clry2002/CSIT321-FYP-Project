@@ -101,7 +101,7 @@ export default function ViewChild() {
       // Convert empty array to null for blocked_genres
       const blockedGenresToUpdate = selectedGenres.length === 0 ? null : selectedGenres;
 
-      // Update both blocked and favourite genres
+      // Update both blocked and favourite genres in child_profile
       const { error } = await supabase
         .from('child_profile')
         .update({ 
@@ -111,6 +111,46 @@ export default function ViewChild() {
         .eq('child_id', childId);
 
       if (error) throw error;
+
+      // Get genre IDs for selected blocked genres
+      const { data: genreData, error: genreError } = await supabase
+        .from('temp_genre')
+        .select('gid, genrename')
+        .in('genrename', selectedGenres);
+
+      if (genreError) throw genreError;
+
+      // Delete existing blocked genres for this child
+      const { error: deleteError } = await supabase
+        .from('blockedgenres')
+        .delete()
+        .eq('child_id', childId);
+
+      if (deleteError) throw deleteError;
+
+      // Insert new blocked genres if there are any
+      if (selectedGenres.length > 0) {
+        const blockedGenreRecords = genreData.map(genre => ({
+          child_id: childId,
+          genreid: genre.gid,
+          genrename: genre.genrename
+        }));
+
+        const { error: insertError } = await supabase
+          .from('blockedgenres')
+          .insert(blockedGenreRecords);
+
+        if (insertError) throw insertError;
+
+        // Update scores in userInteractions2 for blocked genres
+        const { error: scoreError } = await supabase
+          .from('userInteractions2')
+          .update({ score: 0 })
+          .eq('child_id', childId)
+          .in('genreid', genreData.map(genre => genre.gid));
+
+        if (scoreError) throw scoreError;
+      }
 
       setShowGenreModal(false);
       // Refresh the data
@@ -172,7 +212,7 @@ export default function ViewChild() {
                             onClick={() => setShowGenreModal(true)}
                             className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
                           >
-                            Add
+                            Edit
                           </button>
                         </td>
                       )}
