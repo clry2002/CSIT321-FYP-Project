@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { useUser } from '@supabase/auth-helpers-react';
 import Navbar from '../components/Navbar';
 import ChatBot from '../components/ChatBot';
+import { useRouter } from 'next/navigation'; // Import useRouter
 
 type Classroom = {
   crid: number;
@@ -22,6 +23,8 @@ export default function ClassroomPage() {
   const [loadingInvited, setLoadingInvited] = useState(false);
   const [loading, setLoading] = useState(true);
   const [userState, setUserState] = useState<any | null>(null);
+
+  const router = useRouter(); // Initialize useRouter hook
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -177,6 +180,11 @@ export default function ClassroomPage() {
     }
   };
 
+  // Redirect to the classroom board when a user clicks on an active classroom
+  const handleClassroomClick = (crid: number) => {
+    router.push(`/classroomboard/${crid}`);
+  };
+
   return (
     <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
       <Navbar />
@@ -189,7 +197,11 @@ export default function ClassroomPage() {
           {activeClassrooms.length > 0 ? (
             <div className="space-y-4">
               {activeClassrooms.map((classroom) => (
-                <div key={classroom.crid} className="bg-white shadow-md rounded-lg p-4">
+                <div 
+                  key={classroom.crid} 
+                  className="bg-white shadow-md rounded-lg p-4 cursor-pointer" 
+                  onClick={() => handleClassroomClick(classroom.crid)} // Add click handler
+                >
                   <h4 className="text-lg font-bold text-blue-600">{classroom.name}</h4>
                   <p className="text-sm text-gray-600">Description: {classroom.description}</p>
                   <p className="text-sm text-gray-600">Managed by: {classroom.educatorFullName}</p>
@@ -243,3 +255,4 @@ export default function ClassroomPage() {
     </div>
   );
 }
+  

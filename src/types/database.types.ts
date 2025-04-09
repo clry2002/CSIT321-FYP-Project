@@ -47,6 +47,18 @@ export interface Database {
                     name: string;
                 };
             };
+            userInteractions: {
+                Row: {
+                    id: number;
+                    uaid: string;
+                    gid: number;
+                    score: number;
+                    created_at: string;
+                    updated_at: string;
+                };
+                Insert: Omit<Database['public']['Tables']['userInteractions']['Row'], 'id' | 'created_at' | 'updated_at'>;
+                Update: Partial<Omit<Database['public']['Tables']['userInteractions']['Row'], 'id'>>;
+            };
         };
     };
 }

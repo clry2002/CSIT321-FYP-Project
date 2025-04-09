@@ -13,6 +13,8 @@ export default function BookmarksPage() {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
   const [childUaid, setChildUaid] = useState<string | null>(null);
+  const [bookGenres, setBookGenres] = useState<Record<number, string[]>>({});
+  const [videoGenres, setVideoGenres] = useState<Record<number, string[]>>({});
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -109,6 +111,61 @@ export default function BookmarksPage() {
         // Set books and videos
         setBookmarkedBooks(booksRes.data || []);
         setBookmarkedVideos(videosRes.data || []);
+
+        // Fetch genres for books and videos
+        const [bookGenresRes, videoGenresRes] = await Promise.all([
+          supabase
+            .from('temp_contentgenres')
+            .select('cid, temp_genre(genrename)')
+            .in('cid', bookmarkedCids),
+          supabase
+            .from('temp_contentgenres')
+            .select('cid, temp_genre(genrename)')
+            .in('cid', bookmarkedCids),
+        ]);
+
+        // Process book genres
+        const bookGenresMap: Record<number, string[]> = {};
+        if (bookGenresRes.data) {
+          bookGenresRes.data.forEach((item: any) => {
+            if (!bookGenresMap[item.cid]) {
+              bookGenresMap[item.cid] = [];
+            }
+            const genreField = item.temp_genre;
+            if (Array.isArray(genreField)) {
+              genreField.forEach((g: any) => {
+                if (g && g.genrename) {
+                  bookGenresMap[item.cid].push(g.genrename);
+                }
+              });
+            } else if (genreField && genreField.genrename) {
+              bookGenresMap[item.cid].push(genreField.genrename);
+            }
+          });
+        }
+        setBookGenres(bookGenresMap);
+
+        // Process video genres
+        const videoGenresMap: Record<number, string[]> = {};
+        if (videoGenresRes.data) {
+          videoGenresRes.data.forEach((item: any) => {
+            if (!videoGenresMap[item.cid]) {
+              videoGenresMap[item.cid] = [];
+            }
+            const genreField = item.temp_genre;
+            if (Array.isArray(genreField)) {
+              genreField.forEach((g: any) => {
+                if (g && g.genrename) {
+                  videoGenresMap[item.cid].push(g.genrename);
+                }
+              });
+            } else if (genreField && genreField.genrename) {
+              videoGenresMap[item.cid].push(genreField.genrename);
+            }
+          });
+        }
+        setVideoGenres(videoGenresMap);
+
       } catch (err) {
         console.error('Unexpected error fetching bookmarks:', err);
       }
@@ -199,7 +256,7 @@ export default function BookmarksPage() {
         {/* Bookmarked Books */}
         {bookmarkedBooks.length > 0 && (
           <div className="space-y-6">
-            <h2 className="text-2xl font-semibold">Books</h2>
+            <h2 className="text-2xl font-semibold text-blue-900">Books</h2>
             {bookmarkedBooks.map((book) => (
               <div key={book.cid} className="flex items-start space-x-6 p-6 bg-white rounded-lg shadow-md hover:bg-gray-50">
                 <div className="flex-shrink-0 w-32 h-48 relative">
@@ -218,10 +275,22 @@ export default function BookmarksPage() {
                     </a>
                   </h3>
                   <p className="text-md text-gray-600 mb-2">{book.credit}</p>
+                  {bookGenres[book.cid] && bookGenres[book.cid].length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {bookGenres[book.cid].map((genre, idx) => (
+                        <span
+                          key={idx}
+                          className="bg-blue-100 text-blue-800 text-sm font-medium px-2.5 py-0.5 rounded"
+                        >
+                          {genre}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <button
                   className="ml-6 p-2 rounded-full hover:bg-gray-100 text-red-500"
-                  onClick={() => handleRemoveBookmark(book.cid, 2)} // cfid = 2 for books
+                  onClick={() => handleRemoveBookmark(book.cid, 2)}
                   aria-label="Remove bookmark"
                 >
                   <svg className="w-6 h-6" fill="currentColor" stroke="currentColor" viewBox="0 0 24 24">
@@ -236,15 +305,12 @@ export default function BookmarksPage() {
         {/* Bookmarked Videos */}
         {bookmarkedVideos.length > 0 && (
           <div className="space-y-6 mt-12">
-            <h2 className="text-2xl font-semibold">Videos</h2>
+            <h2 className="text-2xl font-semibold text-blue-900">Videos</h2>
             {bookmarkedVideos.map((video) => (
               <div key={video.cid} className="flex items-start space-x-6 p-6 bg-white rounded-lg shadow-md hover:bg-gray-50">
-                {/* Video player */}
                 <div className="flex-shrink-0" style={{ width: '300px', height: '170px' }}>
-                  {video.contenturl && renderYouTubePlayer(video.contenturl, 300, 170)} {/* 300x170 size */}
+                  {video.contenturl && renderYouTubePlayer(video.contenturl, 300, 170)}
                 </div>
-                
-                {/* Video title and description */}
                 <div className="flex-grow">
                   <h3 className="text-2xl font-semibold text-gray-900 mb-2">
                     <a href={`/videodetail/${video.cid}`} className="hover:text-rose-500">
@@ -252,12 +318,22 @@ export default function BookmarksPage() {
                     </a>
                   </h3>
                   <p className="text-md text-gray-600 mb-2">{video.description}</p>
+                  {videoGenres[video.cid] && videoGenres[video.cid].length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {videoGenres[video.cid].map((genre, idx) => (
+                        <span
+                          key={idx}
+                          className="bg-blue-100 text-blue-800 text-sm font-medium px-2.5 py-0.5 rounded"
+                        >
+                          {genre}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
-
-                {/* Remove bookmark button */}
                 <button
                   className="ml-6 p-2 rounded-full hover:bg-gray-100 text-red-500"
-                  onClick={() => handleRemoveBookmark(video.cid, 1)} // cfid = 1 for videos
+                  onClick={() => handleRemoveBookmark(video.cid, 1)}
                   aria-label="Remove bookmark"
                 >
                   <svg className="w-6 h-6" fill="currentColor" stroke="currentColor" viewBox="0 0 24 24">
