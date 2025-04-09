@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase'; // Make sure supabase is imported correctly
 import Navbar from '../../components/Navbar'; // Import Navbar component
-import { useParams } from 'next/navigation'; 
+import { useParams, useRouter } from 'next/navigation'; // Using useParams and useRouter for navigation
+
 type Classroom = {
   crid: number;
   name: string;
@@ -19,6 +20,7 @@ export default function ClassroomBoardPage() {
   const [isUserAuthenticated, setIsUserAuthenticated] = useState(false); // To check user authentication
   const [hasAccess, setHasAccess] = useState(false); // To check if the user can access the classroom
   const { id } = useParams(); // Getting the dynamic 'id' from URL params
+  const router = useRouter(); // For navigation (back button)
 
   // Fetch user account data function
   useEffect(() => {
@@ -57,7 +59,7 @@ export default function ClassroomBoardPage() {
           console.log('Fetched User Account ID:', userAccountData?.id);
         } else {
           console.log('No user account found for this user');
-          setUserAccountId(null);
+          setUserAccountId(null); // Explicitly set to null if no data is found
         }
       } catch (err) {
         console.error('Error fetching user account ID:', err instanceof Error ? err.message : err);
@@ -102,10 +104,10 @@ export default function ClassroomBoardPage() {
 
         // Check if the user has access (match `uaid_child` and invitation status is 'accepted')
         const { data: invitationData, error: invitationError } = await supabase
-          .from('temp_classroomstudents')
+          .from('temp_classroomstudents') // Correct table for checking invitations
           .select('uaid_child, invitation_status')
-          .eq('crid', id) 
-          .eq('uaid_child', userAccountId)
+          .eq('crid', id) // Match the classroom ID
+          .eq('uaid_child', userAccountId) // Match the child user ID
           .single();
 
         if (invitationError || !invitationData) {
@@ -158,16 +160,38 @@ export default function ClassroomBoardPage() {
 
   if (error) {
     return (
-      <div className="flex justify-center items-center h-screen bg-red-100">
-        <div className="text-2xl text-red-600">{error}</div>
+      <div className="flex flex-col h-screen bg-red-100">
+        <Navbar /> 
+        <div className="flex justify-center items-center h-full">
+          <div className="text-2xl text-red-600 text-center">{error}</div>
+        </div>
+        <div className="flex justify-center mt-4">
+          <button
+            onClick={() => router.push('/classroom')}
+            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            Go Back
+          </button>
+        </div>
       </div>
     );
   }
 
   if (!hasAccess) {
     return (
-      <div className="flex justify-center items-center h-screen bg-red-100">
-        <div className="text-2xl text-red-600">You do not have access to this classroom.</div>
+      <div className="flex flex-col h-screen bg-red-100">
+        <Navbar />
+        <div className="flex justify-center items-center h-full">
+          <div className="text-2xl text-red-600 text-center">You do not have access to this classroom.</div>
+        </div>
+        <div className="flex justify-center mt-4">
+          <button
+            onClick={() => router.push('/classroom')}
+            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            Go Back
+          </button>
+        </div>
       </div>
     );
   }
