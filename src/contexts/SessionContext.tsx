@@ -35,7 +35,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setLoading(true); // Start loading
 
       // Get current session using the updated method
-      const { data: session, error: sessionError } = await supabase.auth.getSession();
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
       if (sessionError) {
         console.error(`Error fetching session: ${sessionError.message}`);
         setUserProfile(null); // Reset the user profile on error

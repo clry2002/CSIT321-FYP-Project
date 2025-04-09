@@ -44,7 +44,7 @@ export default function ClassroomDetails() {
 
   const [allChildren, setAllChildren] = useState<ChildUser[]>([]);
   const [studentEmail, setStudentEmail] = useState('');
-  const [studentError, setStudentError] = useState(''); // State for error message
+  const [studentError, setStudentError] = useState('');
   const [classroomStudents, setClassroomStudents] = useState<ClassroomStudent[]>([]);
   const [showRejected, setShowRejected] = useState(false);
   const toggleRejected = () => {
@@ -117,7 +117,7 @@ export default function ClassroomDetails() {
   // Fetch child users and classroom students
   useEffect(() => {
     const fetchChildUsers = async () => {
-      const { data, error } = await supabase
+      const { data, error } = await supabase  
         .from('user_account')
         .select('id, username, fullname')
         .eq('upid', 3);
