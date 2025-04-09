@@ -1,103 +1,245 @@
 'use client';
 
-import { supabase } from '@/lib/supabase'; // Import Supabase for potential use
+import { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabase';
+import { useUser } from '@supabase/auth-helpers-react';
 import Navbar from '../components/Navbar';
-import ChatBot from "../components/ChatBot";
+import ChatBot from '../components/ChatBot';
 
 type Classroom = {
-  id: number;
+  crid: number;
   name: string;
-  teacher: string;
-  books: Array<{ id: number; title: string; genre: string }>;
-  videos: Array<{ id: number; title: string; duration: string }>;
+  description: string;
+  invitation_status: 'pending' | 'accepted' | 'rejected';
+  educatorFullName?: string;
 };
 
 export default function ClassroomPage() {
-  // Hard-coded data
-  const classrooms: Classroom[] = [
-    {
-      id: 1,
-      name: "Science Class",
-      teacher: "Ms. Joan",
-      books: [
-        { id: 3, title: "Physics Book", genre: "Science" },
-        { id: 4, title: "Chemistry Book", genre: "Science" },
-      ],
-      videos: [
-        { id: 3, title: "The World of Physics", duration: "16 minutes" },
-        { id: 4, title: "Introduction to Chemistry", duration: "18 minutes" },
-      ],
-    },
-    {
-      id: 2,
-      name: "English Class",
-      teacher: "Mr. Lee",
-      books: [
-        { id: 5, title: "Shakespearean Drama", genre: "Literature" },
-        { id: 6, title: "Modern Poetry", genre: "Literature" },
-      ],
-      videos: [
-        { id: 5, title: "Exploring Shakespeare", duration: "22 minutes" },
-        { id: 6, title: "Understanding Poetry", duration: "30 minutes" },
-      ],
-    },
-  ];
+  const user = useUser();
+  const [userAccountId, setUserAccountId] = useState<string | null>(null);
+  const [invitedClassrooms, setInvitedClassrooms] = useState<Classroom[]>([]);
+  const [activeClassrooms, setActiveClassrooms] = useState<Classroom[]>([]);
+  const [loadingInvited, setLoadingInvited] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [userState, setUserState] = useState<any | null>(null);
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      console.log('Fetched user:', user);
+      if (user) {
+        setUserState(user);
+        setLoading(false);
+      }
+
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+        setUserState(session?.user || null);
+        console.log('User onAuthStateChange:', session?.user);
+      });
+
+      return () => {
+        subscription.unsubscribe();
+      };
+    };
+
+    fetchUser();
+  }, []);
+
+  useEffect(() => {
+    if (!userState || !userState.id) return;
+
+    const fetchUserAccountId = async () => {
+      try {
+        console.log('Fetching user account ID...');
+        const { data, error } = await supabase
+          .from('user_account')
+          .select('id')
+          .eq('user_id', userState.id)
+          .single();
+
+        if (error) throw error;
+
+        console.log('User account ID fetched:', data?.id);
+        setUserAccountId(data?.id || null);
+      } catch (err) {
+        console.error('Error fetching user account ID:', err instanceof Error ? err.message : err);
+      }
+    };
+
+    fetchUserAccountId();
+  }, [userState]);
+
+  useEffect(() => {
+    if (!userAccountId) return;
+
+    const fetchInvitedClassrooms = async () => {
+      setLoadingInvited(true);
+      try {
+        console.log('Fetching invited classrooms for user account ID:', userAccountId);
+        const { data: invites, error: inviteError } = await supabase
+          .from('temp_classroomstudents')
+          .select('crid, invitation_status')
+          .eq('uaid_child', userAccountId);
+
+        if (inviteError) throw inviteError;
+
+        console.log('Fetched invited classrooms:', invites);
+
+        const classroomIds = invites?.map(i => i.crid) || [];
+        const invitationStatuses = invites?.map(i => i.invitation_status) || [];
+
+        if (classroomIds.length === 0) {
+          console.log('No invited classrooms found.');
+          setInvitedClassrooms([]);
+        } else {
+          // Fetch classroom data along with invitation status and educator
+          const { data: classroomData, error: classError } = await supabase
+            .from('temp_classroom')
+            .select('crid, name, description, uaid_educator')
+            .in('crid', classroomIds);
+
+          if (classError) throw classError;
+
+          console.log('Fetched classroom data:', classroomData);
+
+          // Fetch educator fullname based on uaid_educator
+          const classroomsWithEducatorFullName = await Promise.all(classroomData?.map(async (classroom) => {
+            const { data: educatorData, error: educatorError } = await supabase
+              .from('user_account')
+              .select('fullname')
+              .eq('id', classroom.uaid_educator)
+              .single();
+
+            if (educatorError) throw educatorError;
+
+            return {
+              ...classroom,
+              educatorFullName: educatorData?.fullname || 'Unknown Educator',
+              invitation_status: invites.find(invite => invite.crid === classroom.crid)?.invitation_status || 'pending',
+            };
+          })) || [];
+
+          // Filter classrooms based on invitation status
+          setInvitedClassrooms(classroomsWithEducatorFullName.filter(classroom => classroom.invitation_status === 'pending'));
+          setActiveClassrooms(classroomsWithEducatorFullName.filter(classroom => classroom.invitation_status === 'accepted'));
+        }
+      } catch (err) {
+        console.error('Error fetching invited classrooms:', err instanceof Error ? err.message : err);
+        setInvitedClassrooms([]);
+      } finally {
+        setLoadingInvited(false);
+      }
+    };
+
+    fetchInvitedClassrooms();
+  }, [userAccountId]);
+
+  // Handle accepting the invitation
+  const handleAcceptInvitation = async (crid: number) => {
+    try {
+      const { error } = await supabase
+        .from('temp_classroomstudents')
+        .update({ invitation_status: 'accepted' })
+        .eq('uaid_child', userAccountId)
+        .eq('crid', crid);
+
+      if (error) throw error;
+
+      // Update the state immediately to reflect the accepted status
+      setInvitedClassrooms(prev => prev.filter(classroom => classroom.crid !== crid));
+      const acceptedClassroom = invitedClassrooms.find(classroom => classroom.crid === crid);
+      if (acceptedClassroom) {
+        setActiveClassrooms(prev => [...prev, { ...acceptedClassroom, invitation_status: 'accepted' }]);
+      }
+      console.log('Invitation accepted for classroom:', crid);
+    } catch (err) {
+      console.error('Error accepting invitation:', err instanceof Error ? err.message : err);
+    }
+  };
+
+  // Handle rejecting the invitation
+  const handleRejectInvitation = async (crid: number) => {
+    try {
+      const { error } = await supabase
+        .from('temp_classroomstudents')
+        .update({ invitation_status: 'rejected' })
+        .eq('uaid_child', userAccountId)
+        .eq('crid', crid);
+
+      if (error) throw error;
+
+      // Remove the rejected classroom from both sections
+      setInvitedClassrooms(prev => prev.filter(classroom => classroom.crid !== crid));
+      setActiveClassrooms(prev => prev.filter(classroom => classroom.crid !== crid));
+      console.log('Invitation rejected for classroom:', crid);
+    } catch (err) {
+      console.error('Error rejecting invitation:', err instanceof Error ? err.message : err);
+    }
+  };
 
   return (
     <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
       <Navbar />
-      {/* Main Content */}
-      <div className="flex-1 overflow-y-auto pt-25 px-6">
-        <div className="px-6">
-          <h2 className="text-2xl font-serif mb-6 text-black">Classrooms</h2>
+      <div className="flex-1 overflow-y-auto pt-30 px-6 pb-6">
+        <h2 className="text-2xl font-serif mb-6 text-black">Classrooms</h2>
 
-          {classrooms.length > 0 ? (
-            <div className="space-y-8">
-              {classrooms.map((classroom) => (
-                <div key={classroom.id} className="bg-white shadow-md rounded-lg p-6">
-                  <h3 className="text-xl font-bold text-blue-600">{classroom.name}</h3>
-                  <p className="text-sm text-gray-600 mb-4">
-                    Teacher: <span className="font-medium">{classroom.teacher}</span>
-                  </p>
-
-                  <div className="mb-4">
-                    <h4 className="text-lg font-medium text-black mb-2">Books</h4>
-                    {classroom.books.length > 0 ? (
-                      <ul className="list-disc list-inside text-gray-700">
-                        {classroom.books.map((book) => (
-                          <li key={book.id}>
-                            {book.title} <span className="text-gray-500">({book.genre})</span>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="text-gray-500">No books available.</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <h4 className="text-lg font-medium text-black mb-2">Videos</h4>
-                    {classroom.videos.length > 0 ? (
-                      <ul className="list-disc list-inside text-gray-700">
-                        {classroom.videos.map((video) => (
-                          <li key={video.id}>
-                            {video.title} <span className="text-gray-500">({video.duration})</span>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="text-gray-500">No videos available.</p>
-                    )}
-                  </div>
+        {/* Active Classrooms Section */}
+        <div className="mb-12">
+          <h3 className="text-xl font-semibold mb-3 text-blue-700">Active Classrooms</h3>
+          {activeClassrooms.length > 0 ? (
+            <div className="space-y-4">
+              {activeClassrooms.map((classroom) => (
+                <div key={classroom.crid} className="bg-white shadow-md rounded-lg p-4">
+                  <h4 className="text-lg font-bold text-blue-600">{classroom.name}</h4>
+                  <p className="text-sm text-gray-600">Description: {classroom.description}</p>
+                  <p className="text-sm text-gray-600">Managed by: {classroom.educatorFullName}</p>
+                  {/* Invitation Status is not displayed in Active Classrooms */}
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-center text-gray-500">No classrooms available.</p>
+            <p className="text-gray-400">You don't have any active classrooms.</p>
           )}
         </div>
-        <ChatBot />
+
+        {/* Invited Classrooms Section */}
+        <div className="mb-12">
+          <h3 className="text-xl font-semibold mb-3 text-green-700">Invited Classrooms</h3>
+          {loadingInvited && invitedClassrooms.length === 0 ? (
+            <p className="text-gray-400">Loading invited classrooms...</p>
+          ) : invitedClassrooms.length > 0 ? (
+            <div className="space-y-4">
+              {invitedClassrooms.map((classroom) => (
+                <div key={classroom.crid} className="bg-white shadow-md rounded-lg p-4">
+                  <h4 className="text-lg font-bold text-blue-600">{classroom.name}</h4>
+                  <p className="text-sm text-gray-600">Teacher: {classroom.description}</p>
+                  <p className="text-sm text-gray-600">Invitation Status: {classroom.invitation_status}</p>
+                  <p className="text-sm text-gray-600">Managed by: {classroom.educatorFullName}</p>
+                  {classroom.invitation_status === 'pending' && (
+                    <div className="flex space-x-4 mt-4">
+                      <button
+                        className="px-4 py-2 bg-green-500 text-white rounded"
+                        onClick={() => handleAcceptInvitation(classroom.crid)}
+                      >
+                        Accept
+                      </button>
+                      <button
+                        className="px-4 py-2 bg-red-500 text-white rounded"
+                        onClick={() => handleRejectInvitation(classroom.crid)}
+                      >
+                        Reject
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            !loadingInvited && <p className="text-gray-400">You don't have any invites.</p>
+          )}
+        </div>
       </div>
+      <ChatBot />
     </div>
   );
 }
