@@ -194,6 +194,7 @@ export default function ChildViewProfile() {
         const newInteractions = genresToAdd.map(genre => ({
           child_id: userId,
           genreid: allGenres.find(g => g.genrename === genre)?.gid,
+          genrename: genre,
           score: 20
         }));
 
