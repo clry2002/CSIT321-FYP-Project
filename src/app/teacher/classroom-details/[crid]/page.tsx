@@ -46,6 +46,7 @@ export default function ClassroomDetails() {
   const [studentEmail, setStudentEmail] = useState('');
   const [studentError, setStudentError] = useState('');
   const [classroomStudents, setClassroomStudents] = useState<ClassroomStudent[]>([]);
+  const [educatorId, setEducatorId] = useState<string | null>(null);
   const [showRejected, setShowRejected] = useState(false);
   const toggleRejected = () => {
     setShowRejected(!showRejected);
@@ -59,12 +60,48 @@ export default function ClassroomDetails() {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [studentToRemove, setStudentToRemove] = useState<ClassroomStudent | null>(null);
 
+  // Dismiss rejected students
+  const [isConfirmingDismissRejected, setIsConfirmingDismissRejected] = useState(false);
 
   const statusLabels = {
     [InvitationStatus.Accepted]: 'Accepted',
     [InvitationStatus.Pending]: 'Pending',
     [InvitationStatus.Rejected]: 'Rejected',
   };
+
+  const fetchEducatorId = async () => {
+    try {
+      const { data: { user }, error } = await supabase.auth.getUser();
+  
+      if (!user || error) {
+        setErrorMessage('Failed to fetch user session.');
+        return;
+      }
+  
+      // Query the user_account table for the educator with Upid = 5
+      const { data, error: uaError } = await supabase
+        .from('user_account')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('upid', 5) 
+        .single();
+  
+      if (uaError || !data) {
+        setErrorMessage('Failed to fetch educator account.');
+        console.error('Error fetching educator:', uaError);
+        return;
+      }
+  
+      // Set the educator ID if it exists
+      setEducatorId(data.id);
+      console.log('Educator ID fetched:', data.id); // Log the educator ID
+  
+    } catch (error) {
+      console.error('Error in fetchEducatorId:', error);
+      setErrorMessage('An error occurred while fetching the educator ID.');
+    }
+  };
+  
 
   const fetchClassroomStudents = async () => {
     const { data, error } = await supabase
@@ -79,7 +116,12 @@ export default function ClassroomDetails() {
       `)
       .eq('crid', crid);
   
+    if (data) {
+      console.log('Fetched classroom students:', data);
+    }
+      
     if (!error && data) {
+      
       // Check if the user_account exists before trying to access its properties
       const formattedData = data.map((item: any) => {
         if (item.user_account) {
@@ -116,6 +158,7 @@ export default function ClassroomDetails() {
   
   // Fetch child users and classroom students
   useEffect(() => {
+
     const fetchChildUsers = async () => {
       const { data, error } = await supabase  
         .from('user_account')
@@ -145,51 +188,52 @@ export default function ClassroomDetails() {
     };
 
     if (crid) {
+      fetchEducatorId();
       fetchChildUsers();
       fetchClassroomStudents();
       fetchClassroomDetails();
     }
   }, [crid]);
+  
+  // Handle email input change
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setStudentEmail(e.target.value);
 
-    // Handle email input change
-    const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      setStudentEmail(e.target.value);
-  
-      // Clear the error message when user starts typing
-      if (studentError) {
-        setStudentError('');
-      }
-    };
-  
+    // Clear the error message when user starts typing
+    if (studentError) {
+      setStudentError('');
+    }
+  };
+
   const handleAddStudent = async () => {
     if (!studentEmail) {
       setStudentError('Please enter a valid email.');
       return;
     }
-  
+
     // Step 1: Query the auth.users table via the Supabase function
     const { data: authUser, error: authError } = await supabase
       .rpc('get_user_by_email', { email: studentEmail });
-  
+
     if (authError || !authUser || !authUser[0]?.id) {
       setStudentError('No user found for this email.');
       return;
     }
-  
+
     const userId = authUser[0].id; // Access the id correctly from the array
-  
+
     // Step 2: Use the authUser[0].id to query the user_account table
     const { data: userAccount, error: uaError } = await supabase
       .from('user_account')
       .select('id, username, fullname, upid')
       .eq('user_id', userId) 
       .single();
-  
+
     if (uaError || !userAccount) {
       setStudentError('No user account found for this email.');
       return;
     }
-  
+
     // Step 3: Check if the profile type is 3 (student)
     if (userAccount.upid !== 3) {
       setStudentError('Only students can be added.');
@@ -216,7 +260,7 @@ export default function ClassroomDetails() {
         crid: crid,
         uaid_child: userAccount.id
       });
-  
+
     if (insertError) {
       setStudentError('Failed to add student.');
     } else {
@@ -232,7 +276,7 @@ export default function ClassroomDetails() {
           )
         `)
         .eq('crid', crid);
-  
+
       if (updatedStudents) {
         const formatted = updatedStudents.map((item: any) => ({
           uaid_child: item.uaid_child,
@@ -241,6 +285,52 @@ export default function ClassroomDetails() {
         }));
         setClassroomStudents(formatted);
       }
+    }
+  };
+
+  // Dismiss rejected students functionality
+  const handleDismissRejected = async () => {
+    setIsConfirmingDismissRejected(true);
+  };
+
+  // Confirm and dismiss rejected students
+  const confirmDismissRejected = async () => {
+    if (!educatorId) {
+      setStudentError('Educator ID is not available.');
+      console.error('Educator ID is not set');
+      setIsConfirmingDismissRejected(false);
+      return;
+    }
+  
+    try {
+      // Ensure classroom ID is a number
+      const classroom_id = classroom?.crid;
+      const educator_id = educatorId;
+  
+      console.log('Dismissing rejected students for classroom_id:', classroom_id, 'educator_id:', educator_id);
+  
+      // Call the PostgreSQL function
+      const { error } = await supabase
+        .rpc('delete_rejected_classroom_students_v2', { 
+          classroom_id: classroom_id,
+          educator_id: educator_id
+        });
+  
+      if (error) {
+        setStudentError('Failed to dismiss rejected students.');
+        console.error('Error dismissing rejected students:', error);
+      } else {
+        console.log('Successfully dismissed rejected students');
+        fetchClassroomStudents();
+        setShowRejected(false);
+        setRejectedStudents([]);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      setStudentError('An error occurred while dismissing students.');
+    } finally {
+      // Hide confirmation UI
+      setIsConfirmingDismissRejected(false);
     }
   };
 
@@ -476,10 +566,17 @@ export default function ClassroomDetails() {
 
               {/* Rejected students section */}
               <div className="mt-6 border-t pt-4">
-
               {showRejected && rejectedStudents.length > 0 && (
-                <div className="rejected-students">
-                  <h2 className="font-bold text-black">Rejected Students</h2>
+              <div className="rejected-students mt-6 relative">
+              <div className="flex justify-between items-center mb-2">
+                <h2 className="font-bold text-black">Rejected Students</h2>
+                <span
+                  onClick={handleDismissRejected}
+                  className="text-red-600 hover:text-red-800 hover:underline cursor-pointer text-sm"
+                >
+                  Dismiss All Rejected Students
+                </span>
+              </div>
                   <ul>
                     {rejectedStudents.map((student) => (
                       <li key={student.uaid_child} style={{ color: 'black' }}>
@@ -487,6 +584,27 @@ export default function ClassroomDetails() {
                       </li>
                     ))}
                   </ul>
+                  
+                  {/* Show either the dismiss button or confirmation UI */}
+                  {isConfirmingDismissRejected && (
+                    <div className="mt-4 p-3 border border-red-300 bg-red-50 rounded">
+                      <p className="text-black mb-2">Are you sure you want to dismiss all rejected students?</p>
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={confirmDismissRejected}
+                          className="px-4 py-2 bg-red-600 text-white rounded"
+                        >
+                          Yes, Dismiss All
+                        </button>
+                        <button
+                          onClick={() => setIsConfirmingDismissRejected(false)}
+                          className="px-4 py-2 bg-gray-500 text-white rounded"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
