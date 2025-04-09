@@ -384,3 +384,17 @@
   margin-left: 8px; 
   color: #333; 
 }
+
+
+/* Educator - show rejected students */
+.rejected-link {
+  font-weight: bold;
+  color: black;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.rejected-link:hover {
+  text-decoration: underline;
+  color: blue;
+}

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter, useParams } from 'next/navigation';
 import EduNavbar from '../../../components/eduNavbar';
+import '../../../components/styles.css';
 
 type Classroom = {
   crid: number;
@@ -18,9 +19,9 @@ type ChildUser = {
 };
 
 enum InvitationStatus {
-  Pending = 'Pending',
-  Accepted = 'Accepted',
-  Rejected = 'Rejected', 
+  Pending = 'pending',
+  Accepted = 'accepted',
+  Rejected = 'rejected', 
 }
 
 type ClassroomStudent = {
@@ -45,6 +46,11 @@ export default function ClassroomDetails() {
   const [studentEmail, setStudentEmail] = useState('');
   const [studentError, setStudentError] = useState(''); // State for error message
   const [classroomStudents, setClassroomStudents] = useState<ClassroomStudent[]>([]);
+  const [showRejected, setShowRejected] = useState(false);
+  const toggleRejected = () => {
+    setShowRejected(!showRejected);
+  };
+  const [rejectedStudents, setRejectedStudents] = useState<ClassroomStudent[]>([]);
 
   const router = useRouter();
   const { crid } = useParams();
@@ -54,6 +60,60 @@ export default function ClassroomDetails() {
   const [studentToRemove, setStudentToRemove] = useState<ClassroomStudent | null>(null);
 
 
+  const statusLabels = {
+    [InvitationStatus.Accepted]: 'Accepted',
+    [InvitationStatus.Pending]: 'Pending',
+    [InvitationStatus.Rejected]: 'Rejected',
+  };
+
+  const fetchClassroomStudents = async () => {
+    const { data, error } = await supabase
+      .from('temp_classroomstudents')
+      .select(`
+        uaid_child,
+        invitation_status,
+        user_account (
+          username,
+          fullname
+        )
+      `)
+      .eq('crid', crid);
+  
+    if (!error && data) {
+      // Check if the user_account exists before trying to access its properties
+      const formattedData = data.map((item: any) => {
+        if (item.user_account) {
+          return {
+            ...item,
+            user_account: item.user_account,
+          };
+        } else {
+          console.error('Missing user_account for uaid_child:', item.uaid_child);
+          return {
+            ...item,
+            user_account: {
+              username: 'Unknown',
+              fullname: 'Unknown', 
+            },
+          };
+        }
+      });
+  
+      // Separate accepted/pending and rejected students
+      const acceptedPending = formattedData.filter(
+        (item: any) => item.invitation_status !== InvitationStatus.Rejected
+      );
+      const rejected = formattedData.filter(
+        (item: any) => item.invitation_status === InvitationStatus.Rejected
+      );
+
+      setClassroomStudents(acceptedPending);
+      setRejectedStudents(rejected);
+    } else {
+      setErrorMessage('Failed to fetch classroom students.');
+    }
+  };
+  
   // Fetch child users and classroom students
   useEffect(() => {
     const fetchChildUsers = async () => {
@@ -63,28 +123,6 @@ export default function ClassroomDetails() {
         .eq('upid', 3);
 
       if (!error && data) setAllChildren(data);
-    };
-
-    const fetchClassroomStudents = async () => {
-      const { data, error } = await supabase
-        .from('temp_classroomstudents')
-        .select(`
-          uaid_child,
-          invitation_status,
-          user_account (
-            username,
-            fullname
-          )
-        `)
-        .eq('crid', crid);
-
-      if (!error && data) {
-        const formattedData = data.map((item: any) => ({
-          ...item,
-          user_account: item.user_account,
-        }));
-        setClassroomStudents(formattedData);
-      }
     };
 
     const fetchClassroomDetails = async () => {
@@ -123,7 +161,6 @@ export default function ClassroomDetails() {
       }
     };
   
-
   const handleAddStudent = async () => {
     if (!studentEmail) {
       setStudentError('Please enter a valid email.');
@@ -400,32 +437,71 @@ export default function ClassroomDetails() {
               )}
             </div>
 
-
+          {/* Validates whether student accounts have been created in web application */}
+          <div>
+            {allChildren.length === 0 && (
+              <h2 style={{ color: 'red' }}>There are no student accounts created yet. Please ask your students to register for an account.</h2>
+            )}
+          </div>
+  
           {/* Student list */}
           <div className="mt-6 border-t pt-4">
             <h2 className="text-lg font-semibold text-black mb-2">Students in Classroom</h2>
-            <ul className="list-disc pl-5 text-black">
-              {classroomStudents.map((student) => (
-                <li key={student.uaid_child} className="flex justify-between items-center">
-                  <div>
-                    {student.user_account.fullname} ({student.user_account.username}) - Status:{' '}
-                    {student.invitation_status === InvitationStatus.Accepted
-                      ? 'Accepted'
-                      : 'Pending'}
-                  </div>
-                  <button
-                    onClick={() => {
-                      setStudentToRemove(student);
-                      setShowConfirmModal(true);
-                    }}
-                    className="bg-red-500 text-white px-2 py-1 rounded ml-4"
-                  >
-                    Remove
-                  </button>
-                </li>
-              ))}
-            </ul>
+            {classroomStudents.length > 0 ? (
+              <ul className="list-disc pl-5 text-black">
+                {classroomStudents.map((student) => (
+                  <li key={student.uaid_child} className="flex justify-between items-center">
+                    <div>
+                      {student.user_account.fullname} ({student.user_account.username}) - Status:{' '}
+                      <span className="font-medium">
+                        {statusLabels[student.invitation_status] || 'Unknown'}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setStudentToRemove(student);
+                        setShowConfirmModal(true);
+                      }}
+                      className="bg-red-500 text-white px-2 py-1 rounded ml-4"
+                    >
+                      Remove
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p style={{ color: 'gray' }}>No students have been added to your classroom yet. Please add students to get started.</p> // Message for no students
+            )}
           </div>
+
+              {/* Rejected students section */}
+              <div className="mt-6 border-t pt-4">
+
+              {showRejected && rejectedStudents.length > 0 && (
+                <div className="rejected-students">
+                  <h2 className="font-bold text-black">Rejected Students</h2>
+                  <ul>
+                    {rejectedStudents.map((student) => (
+                      <li key={student.uaid_child} style={{ color: 'black' }}>
+                        {student.user_account.fullname} ({student.user_account.username})
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {showRejected && rejectedStudents.length === 0 && (
+                <p style={{ color: 'black' }}>No rejected students</p>
+              )}
+
+              <span
+                onClick={toggleRejected}
+                className="rejected-link"
+              >
+                {showRejected ? 'Hide Rejected Students' : 'Show Rejected Students'}
+              </span>
+
+              </div>
 
           {/* Confirmation Modal */}
           {showConfirmModal && (
