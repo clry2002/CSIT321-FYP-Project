@@ -151,6 +151,59 @@ export default function ChildViewProfile() {
 
       if (profileError) throw profileError;
 
+      // Get current genres from userInteractions2
+      const { data: currentInteractions, error: currentError } = await supabase
+        .from('userInteractions2')
+        .select('genreid')
+        .eq('child_id', userId);
+
+      if (currentError) throw currentError;
+
+      const currentGenreIds = currentInteractions?.map(interaction => interaction.genreid) || [];
+
+      // Get all genre IDs and names
+      const { data: allGenres, error: genresError } = await supabase
+        .from('temp_genre')
+        .select('gid, genrename');
+
+      if (genresError) throw genresError;
+
+      // Find genres to remove (set score to 0)
+      const genresToRemove = currentGenreIds.filter(id => 
+        !selectedGenres.includes(allGenres.find(g => g.gid === id)?.genrename || '')
+      );
+
+      // Find genres to add (set score to 20)
+      const genresToAdd = selectedGenres.filter(genre => 
+        !currentGenreIds.includes(allGenres.find(g => g.genrename === genre)?.gid || 0)
+      );
+
+      // Update removed genres to score 0
+      if (genresToRemove.length > 0) {
+        const { error: removeError } = await supabase
+          .from('userInteractions2')
+          .update({ score: 0 })
+          .eq('child_id', userId)
+          .in('genreid', genresToRemove);
+
+        if (removeError) throw removeError;
+      }
+
+      // Add new genres with score 20
+      if (genresToAdd.length > 0) {
+        const newInteractions = genresToAdd.map(genre => ({
+          child_id: userId,
+          genreid: allGenres.find(g => g.genrename === genre)?.gid,
+          score: 20
+        }));
+
+        const { error: addError } = await supabase
+          .from('userInteractions2')
+          .insert(newInteractions);
+
+        if (addError) throw addError;
+      }
+
       setSaveMessage({ type: 'success', text: 'Profile updated successfully!' });
       setHasChanges(false);
       setEditingField(null);
@@ -318,15 +371,24 @@ export default function ChildViewProfile() {
                       <div className="mt-2">
                         {!showGenreSelector ? (
                           <div className="flex flex-wrap gap-2">
-                            {selectedGenres.map((genre) => (
+                            {selectedGenres.length === 0 ? (
                               <button
-                                key={genre}
                                 onClick={handleGenreClick}
-                                className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-rose-100 text-rose-800 cursor-pointer hover:bg-rose-200"
+                                className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800 cursor-pointer hover:bg-gray-200"
                               >
-                                {genre}
+                                Add
                               </button>
-                            ))}
+                            ) : (
+                              selectedGenres.map((genre) => (
+                                <button
+                                  key={genre}
+                                  onClick={handleGenreClick}
+                                  className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-rose-100 text-rose-800 cursor-pointer hover:bg-rose-200"
+                                >
+                                  {genre}
+                                </button>
+                              ))
+                            )}
                           </div>
                         ) : (
                           <div className="flex flex-wrap gap-2">
@@ -349,7 +411,7 @@ export default function ChildViewProfile() {
                     </div>
 
                     {hasChanges && (
-                      <div className="mt-30">
+                      <div className="mt-30 flex justify-end">
                         <button
                           onClick={handleSave}
                           className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"

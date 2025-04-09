@@ -162,6 +162,33 @@ export default function CreateChildAccount() {
       
       console.log("Child profile created:", childProfileData);
 
+      // Get genre IDs for selected genres
+      const { data: genreData, error: genreError } = await supabase
+        .from('temp_genre')
+        .select('gid, genrename')
+        .in('genrename', selectedGenres);
+
+      if (genreError) {
+        console.error("Error fetching genre IDs:", genreError);
+        throw genreError;
+      }
+
+      // Insert genre interactions into userInteractions2 with initial score of 20
+      const genreInteractions = genreData.map(genre => ({
+        child_id: childUser.id,
+        genreid: genre.gid,
+        score: 20
+      }));
+
+      const { error: interactionsError } = await supabase
+        .from('userInteractions2')
+        .insert(genreInteractions);
+
+      if (interactionsError) {
+        console.error("Error creating genre interactions:", interactionsError);
+        throw interactionsError;
+      }
+
       // Insert parent-child relationship into isparentof
       const { data: relationshipData, error: relationshipError } = await supabase
         .from('isparentof')
