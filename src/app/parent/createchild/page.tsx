@@ -13,9 +13,12 @@ export default function CreateChildAccount() {
   const [fullName, setFullName] = useState('');
   const [age, setAge] = useState('');
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
-  const [genres, setGenres] = useState<string[]>([]);
+  const [genres, setGenres] = useState<{ gid: number; genrename: string }[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [parentEmail, setParentEmail] = useState('');
+  const [showReauthModal, setShowReauthModal] = useState(false);
+  const [parentPassword, setParentPassword] = useState('');
 
   useEffect(() => {
     fetchGenres();
@@ -23,15 +26,9 @@ export default function CreateChildAccount() {
 
   const fetchGenres = async () => {
     try {
-      const { data, error } = await supabase
-        .from('temp_genre')
-        .select('genrename');
-
+      const { data, error } = await supabase.from('temp_genre').select('gid, genrename');
       if (error) throw error;
-      
-      // Extract genrename from the data and set it to state
-      const genreNames = data.map(item => item.genrename);
-      setGenres(genreNames);
+      setGenres(data);
     } catch (err) {
       console.error('Error fetching genres:', err);
       setError('Failed to load genres. Please try again.');
@@ -39,9 +36,9 @@ export default function CreateChildAccount() {
   };
 
   const handleGenreToggle = (genre: string) => {
-    setSelectedGenres((prev) => {
+    setSelectedGenres(prev => {
       if (prev.includes(genre)) {
-        return prev.filter((g) => g !== genre);
+        return prev.filter(g => g !== genre);
       } else if (prev.length < 3) {
         return [...prev, genre];
       }
@@ -51,186 +48,86 @@ export default function CreateChildAccount() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     if (selectedGenres.length === 0) {
       setError('Please select at least one favorite genre.');
       return;
     }
-
     if (!fullName.trim()) {
-      setError('Please enter the child\'s full name.');
+      setError("Please enter the child's full name.");
       return;
     }
-
     if (!age || parseInt(age) < 1 || parseInt(age) > 17) {
       setError('Please enter a valid age between 1 and 17.');
       return;
     }
-
     setError(null);
     setLoading(true);
 
     try {
-      console.log("Starting child account creation process...");
-      
-      // First, get the current logged-in parent
       const { data: { user: parentUser }, error: parentUserError } = await supabase.auth.getUser();
-      
-      if (parentUserError) {
-        console.error("Error getting parent auth user:", parentUserError);
-        throw new Error('Authentication error. Please log in again.');
-      }
-      
-      if (!parentUser) {
-        console.error("No parent user found");
-        throw new Error('No authenticated user found. Please log in.');
-      }
-      
-      console.log("Parent User ID:", parentUser.id);
+      if (parentUserError || !parentUser) throw new Error('Authentication error. Please log in again.');
+      setParentEmail(parentUser.email || '');
 
-      // Get parent's profile information
       const { data: parentData, error: parentDataError } = await supabase
         .from('user_account')
         .select('username, fullname')
         .eq('user_id', parentUser.id)
-        .eq('upid', 2) // upid for parent
+        .eq('upid', 2)
         .single();
+      if (parentDataError || !parentData) throw new Error('Failed to fetch parent profile.');
 
-      if (parentDataError) {
-        console.error("Error getting parent profile:", parentDataError);
-        throw new Error('Failed to fetch parent profile. Please try again.');
-      }
-      
-      if (!parentData) {
-        console.error("No parent profile found");
-        throw new Error('Parent profile not found. Please contact support.');
-      }
-      
-      console.log("Parent profile:", parentData);
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({ email, password });
+      if (signUpError || !signUpData.user) throw new Error('Failed to create child account.');
 
-      // Create child's auth account
-      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-      });
-
-      if (signUpError) {
-        console.error("Error signing up child:", signUpError);
-        throw signUpError;
-      }
-      
-      if (!signUpData.user) {
-        console.error("No user returned from signup");
-        throw new Error('Failed to create child account. Please try again.');
-      }
-      
       const childUser = signUpData.user;
-      console.log("Child User created:", childUser.id);
-
-      // Insert into `user_account` table
-      const { data: userAccountData, error: userAccountError } = await supabase
-        .from('user_account')
-        .insert({
-          user_id: childUser.id,
-          username,
-          fullname: fullName,
-          age: parseInt(age),
-          upid: 3, // upid for child
-        })
-        .select();
-
-      if (userAccountError) {
-        console.error("Error creating user account:", userAccountError);
-        throw userAccountError;
-      }
-      
-      console.log("User account created:", userAccountData);
-
-      // Create child profile record with favourite_genres
-      const { data: childProfileData, error: childProfileError } = await supabase
-        .from('child_profile')
-        .insert({
-          child_id: childUser.id,
-          favourite_genres: selectedGenres
-        })
-        .select();
-
-      if (childProfileError) {
-        console.error("Error creating child profile:", childProfileError);
-        throw childProfileError;
-      }
-      
-      console.log("Child profile created:", childProfileData);
-
-      // Get genre IDs for selected genres
-      const { data: genreData, error: genreError } = await supabase
-        .from('temp_genre')
-        .select('gid, genrename')
-        .in('genrename', selectedGenres);
-
-      if (genreError) {
-        console.error("Error fetching genre IDs:", genreError);
-        throw genreError;
-      }
-
-      // Insert genre interactions into userInteractions2 with initial score of 20
-      const genreInteractions = genreData.map(genre => ({
-        child_id: childUser.id,
-        genreid: genre.gid,
-        score: 20
-      }));
-
-      const { error: interactionsError } = await supabase
-        .from('userInteractions2')
-        .insert(genreInteractions);
-
-      if (interactionsError) {
-        console.error("Error creating genre interactions:", interactionsError);
-        throw interactionsError;
-      }
-
-      // Insert parent-child relationship into isparentof
-      const { data: relationshipData, error: relationshipError } = await supabase
-        .from('isparentof')
-        .insert({
-          parent: parentData.username,
-          child: username
-        })
-        .select();
-
-      if (relationshipError) {
-        console.error("Error creating parent-child relationship:", relationshipError);
-        throw relationshipError;
-      }
-      
-      console.log("Parent-child relationship created:", relationshipData);
-
-      // Re-authenticate as parent to ensure we maintain parent's session
-      console.log("Re-authenticating as parent...");
-      const { error: reAuthError } = await supabase.auth.signInWithPassword({
-        email: parentUser.email!,
-        password: password // Note: You would need to store the parent's password temporarily or implement another solution
+      await supabase.from('user_account').insert({
+        user_id: childUser.id,
+        username,
+        fullname: fullName,
+        age: parseInt(age),
+        upid: 3,
       });
-      
-      if (reAuthError) {
-        console.error("Error re-authenticating as parent:", reAuthError);
-        // This is non-critical, so we'll just log it and continue
-      }
 
-      // Redirect to parent page with success parameter
-      console.log("Account creation successful, redirecting...");
-      router.push('/parentpage?success=Child account successfully created!');
+      await supabase.from('child_profile').insert({
+        child_id: childUser.id,
+        favourite_genres: selectedGenres
+      });
+
+      const genreInteractions = genres
+        .filter(genre => selectedGenres.includes(genre.genrename))
+        .map(genre => ({
+          child_id: childUser.id,
+          genreid: genre.gid,
+          score: 20
+        }));
+
+      await supabase.from('userInteractions2').insert(genreInteractions);
+
+      await supabase.from('isparentof').insert({
+        parent: parentData.username,
+        child: username
+      });
+
+      setShowReauthModal(true);
     } catch (err) {
       console.error('Error creating child account:', err);
-      if (err instanceof Error) {
-        setError(err.message);
-      } else if (typeof err === 'object' && err !== null && 'message' in err) {
-        setError((err as { message: string }).message);
-      } else {
-        setError('An error occurred during account creation. Please try again.');
-      }
+      setError(err instanceof Error ? err.message : 'An error occurred.');
       setLoading(false);
     }
+  };
+
+  const handleParentReauth = async () => {
+    const { error: reauthError } = await supabase.auth.signInWithPassword({
+      email: parentEmail,
+      password: parentPassword
+    });
+
+    if (reauthError) {
+      setError('Failed to log back in as parent. Please try again.');
+      return;
+    }
+
+    router.push('/parentpage?success=Child account successfully created!');
   };
 
   return (
@@ -241,136 +138,63 @@ export default function CreateChildAccount() {
           <div className="max-w-2xl">
             <form onSubmit={handleSubmit} className="space-y-6">
               {error && (
-                <div
-                  className={`p-3 rounded-lg text-sm ${
-                    error.includes('successfully')
-                      ? 'bg-green-50 text-green-600'
-                      : 'bg-red-50 text-red-500'
-                  }`}
-                >
-                  {error}
-                </div>
+                <div className={`p-3 rounded-lg text-sm ${error.includes('successfully') ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-500'}`}>{error}</div>
               )}
 
               <div className="space-y-4">
-                <div>
-                  <label htmlFor="fullName" className="block text-sm font-medium text-black">
-                    Full Name
-                  </label>
-                  <input
-                    id="fullName"
-                    type="text"
-                    required
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-rose-500 text-black"
-                    placeholder="Enter child's full name"
-                  />
-                </div>
+                <label className="block">
+                  <span className="text-sm font-medium text-black">Full Name</span>
+                  <input id="fullName" type="text" required value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Enter child's full name" className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-rose-500 text-black" />
+                </label>
+
+                <label className="block">
+                  <span className="text-sm font-medium text-black">Age</span>
+                  <input id="age" type="number" required min="1" max="17" value={age} onChange={(e) => setAge(e.target.value)} placeholder="Enter child's age" className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-rose-500 text-black" />
+                </label>
+
+                <label className="block">
+                  <span className="text-sm font-medium text-black">Username</span>
+                  <input id="username" type="text" required value={username} onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))} pattern="[a-z0-9_]+" title="Username can only contain lowercase letters, numbers, and underscores." className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-rose-500 text-black" />
+                </label>
+
+                <label className="block">
+                  <span className="text-sm font-medium text-black">Email</span>
+                  <input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Child's email" className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-rose-500 text-black" />
+                </label>
+
+                <label className="block">
+                  <span className="text-sm font-medium text-black">Password</span>
+                  <input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Create a password" className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-rose-500 text-black" />
+                </label>
 
                 <div>
-                  <label htmlFor="age" className="block text-sm font-medium text-black">
-                    Age
-                  </label>
-                  <input
-                    id="age"
-                    type="number"
-                    required
-                    min="1"
-                    max="17"
-                    value={age}
-                    onChange={(e) => setAge(e.target.value)}
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-rose-500 text-black"
-                    placeholder="Enter child's age"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="username" className="block text-sm font-medium text-black">
-                    Username
-                  </label>
-                  <input
-                    id="username"
-                    type="text"
-                    required
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-rose-500 text-black"
-                    pattern="[a-z0-9_]+"
-                    title="Username can only contain lowercase letters, numbers, and underscores."
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-black">
-                    Email
-                  </label>
-                  <input
-                    id="email"
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-rose-500 text-black"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="password" className="block text-sm font-medium text-black">
-                    Password
-                  </label>
-                  <input
-                    id="password"
-                    type="password"
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-rose-500 text-black"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-black">
-                    Select up to 3 favorite genres:
-                  </label>
+                  <label className="block text-sm font-medium text-black mb-1">Select up to 3 favorite genres:</label>
                   <div className="grid grid-cols-2 gap-2">
                     {genres.map((genre) => (
-                      <button
-                        key={genre}
-                        type="button"
-                        onClick={() => handleGenreToggle(genre)}
-                        className={`p-2 text-sm rounded-lg ${
-                          selectedGenres.includes(genre)
-                            ? 'bg-rose-500 text-white'
-                            : 'border border-gray-300 text-gray-700'
-                        }`}
-                      >
-                        {genre}
-                      </button>
+                      <button key={genre.gid} type="button" onClick={() => handleGenreToggle(genre.genrename)} className={`p-2 text-sm rounded-lg ${selectedGenres.includes(genre.genrename) ? 'bg-rose-500 text-white' : 'border border-gray-300 text-gray-700'}`}>{genre.genrename}</button>
                     ))}
                   </div>
                 </div>
               </div>
 
               <div className="flex justify-end space-x-4">
-                <Link
-                  href="/parentpage"
-                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
-                >
-                  Cancel
-                </Link>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="px-4 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600"
-                >
-                  {loading ? 'Creating...' : 'Create Account'}
-                </button>
+                <Link href="/parentpage" className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">Cancel</Link>
+                <button type="submit" disabled={loading} className="px-4 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600">{loading ? 'Creating...' : 'Create Account'}</button>
               </div>
             </form>
           </div>
         </div>
       </div>
+
+      {showReauthModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg space-y-4 max-w-sm w-full">
+            <h3 className="text-lg font-semibold">Re-enter Parent Password</h3>
+            <input type="password" value={parentPassword} onChange={(e) => setParentPassword(e.target.value)} placeholder="Parent Password" className="w-full px-3 py-2 border border-gray-300 rounded" />
+            <button onClick={handleParentReauth} className="w-full bg-rose-500 text-white py-2 rounded hover:bg-rose-600">Continue as Parent</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
