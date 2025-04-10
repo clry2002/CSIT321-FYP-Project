@@ -24,7 +24,7 @@ export default function Navbar() {
         <b><span className="text-xs text-gray-800 mt-1">My Classroom</span></b>
       </Link>
 
-      <Link href="/settings" className="flex flex-col items-center p-2.5 rounded-lg hover:bg-gray-200">
+      <Link href="/childsettings" className="flex flex-col items-center p-2.5 rounded-lg hover:bg-gray-200">
         <Settings className="w-5 h-5 text-gray-800" />
         <b><span className="text-xs text-gray-800 mt-1">Settings</span></b>
       </Link>

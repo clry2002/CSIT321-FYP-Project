@@ -292,7 +292,7 @@ export default function ParentHome() {
             </button>
             <button
               className="bg-gray-900 text-white px-4 py-2 rounded-lg"
-              onClick={() => console.log('Open Settings')}
+              onClick={() => router.push('/parent/settings')}
             >
               Settings
             </button>

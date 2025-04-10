@@ -207,7 +207,7 @@ export default function AccountSettings() {
 
             <div className="mt-8">
               <Link
-                href="/settings"
+                href="/childsettings"
                 className="text-blue-600 hover:text-blue-800"
               >
                 ← Back to Settings

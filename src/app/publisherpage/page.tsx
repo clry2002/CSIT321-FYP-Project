@@ -110,7 +110,7 @@ export default function PublisherPage() {
         <div className="flex space-x-3">
           <button
             className="bg-gray-900 text-white px-4 py-2 rounded-lg"
-            onClick={() => console.log('Open Settings')}
+            onClick={() => router.push('/publisher/settings')}
           >
             Settings
           </button>

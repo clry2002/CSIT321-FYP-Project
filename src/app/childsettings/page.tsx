@@ -26,7 +26,7 @@ export default function SettingsPage() {
                 </div>
               </Link>
               
-              <Link href="/accountsettings" className="w-1/2">
+              <Link href="/childaccountsettings" className="w-1/2">
                 <div className="p-6 border rounded-lg shadow hover:border-blue-300 hover:bg-blue-50 transition">
                   <div className="flex items-center space-x-3">
                     <Settings className="w-6 h-6 text-gray-900" />
