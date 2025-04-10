@@ -16,6 +16,62 @@ export default function VideoDetailPage() {
   const [genres, setGenres] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [childId, setChildId] = useState<string | null>(null);
+  const [bookmarkedVideos, setBookmarkedVideos] = useState<Set<string>>(new Set());
+  const [notification, setNotification] = useState<{ message: string; show: boolean }>({ message: '', show: false });
+
+  // Get child ID (uaid)
+  useEffect(() => {
+    const fetchChildProfile = async () => {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      console.log("Auth User:", user);
+
+      if (userError || !user) {
+        console.error('Failed to get user:', userError);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('user_account')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('upid', 3)
+        .single();
+
+      if (error) {
+        console.error('Child profile not found:', error);
+        return;
+      }
+
+      console.log("Fetched childId (uaid):", data.id);
+      setChildId(data.id);
+    };
+
+    fetchChildProfile();
+  }, []);
+
+  // Load bookmarks
+  useEffect(() => {
+    const fetchBookmarks = async () => {
+      if (!childId) return;
+
+      const { data, error } = await supabase
+        .from('temp_bookmark')
+        .select('cid')
+        .eq('uaid', childId);
+
+      if (error) {
+        console.error('Error fetching bookmarks:', error);
+        return;
+      }
+
+      console.log("Fetched bookmarks for childId:", childId, data);
+      const bookmarkedCids = new Set(data?.map((item) => item.cid.toString()));
+      setBookmarkedVideos(bookmarkedCids);
+    };
+
+    fetchBookmarks();
+  }, [childId]);
 
   useEffect(() => {
     const fetchVideo = async () => {
@@ -45,18 +101,18 @@ export default function VideoDetailPage() {
         if (genreError) throw genreError;
 
         const genreNames = Array.isArray(genreData)
-        ? genreData.flatMap((g: any) => {
-            const genreField = g.temp_genre;
+          ? genreData.flatMap((g: any) => {
+              const genreField = g.temp_genre;
 
-            if (Array.isArray(genreField)) {
-              return genreField.map((tg) => tg.genrename);
-            } else if (genreField && typeof genreField === 'object') {
-              return [genreField.genrename];
-            } else {
-              return [];
-            }
-          })
-        : [];
+              if (Array.isArray(genreField)) {
+                return genreField.map((tg) => tg.genrename);
+              } else if (genreField && typeof genreField === 'object') {
+                return [genreField.genrename];
+              } else {
+                return [];
+              }
+            })
+          : [];
 
         setGenres(genreNames);
       } catch (err) {
@@ -69,6 +125,58 @@ export default function VideoDetailPage() {
 
     fetchVideo();
   }, [params.id]);
+
+  // Handle bookmark
+  const handleBookmark = async () => {
+    if (!childId) {
+      console.warn('No child ID set — cannot bookmark');
+      setNotification({ message: 'No child profile found', show: true });
+      setTimeout(() => setNotification({ message: '', show: false }), 3000);
+      return;
+    }
+
+    if (!video) return;
+
+    const cidStr = video.cid.toString();
+    const isBookmarked = bookmarkedVideos.has(cidStr);
+    const updatedBookmarks = new Set(bookmarkedVideos);
+
+    if (isBookmarked) {
+      // DELETE bookmark
+      const { error } = await supabase
+        .from('temp_bookmark')
+        .delete()
+        .eq('uaid', childId)
+        .eq('cid', video.cid);
+
+      if (error) {
+        console.error('Error deleting bookmark:', error);
+        setNotification({ message: 'Failed to remove bookmark', show: true });
+      } else {
+        updatedBookmarks.delete(cidStr);
+        setBookmarkedVideos(updatedBookmarks);
+        setNotification({ message: 'Video removed from bookmarks', show: true });
+        console.log('Bookmark removed');
+      }
+    } else {
+      // UPSERT bookmark
+      const { error } = await supabase
+        .from('temp_bookmark')
+        .upsert([{ uaid: childId, cid: video.cid }], { onConflict: 'uaid,cid' });
+
+      if (error) {
+        console.error('Error saving bookmark:', error);
+        setNotification({ message: 'Failed to save bookmark', show: true });
+      } else {
+        updatedBookmarks.add(cidStr);
+        setBookmarkedVideos(updatedBookmarks);
+        setNotification({ message: 'Video saved to bookmarks', show: true });
+        console.log('Bookmark saved');
+      }
+    }
+
+    setTimeout(() => setNotification({ message: '', show: false }), 3000);
+  };
 
   // Handle navigation back to search results
   const handleBackToSearch = () => {
@@ -184,6 +292,18 @@ export default function VideoDetailPage() {
                 <div>
                   <h2 className="text-gray-600">Summary</h2>
                   <p className="text-gray-900">{video.description}</p>
+                </div>
+
+                {/* Bookmark button */}
+                <div className="mt-4">
+                  <button
+                    onClick={handleBookmark}
+                    className={`px-4 py-2 rounded-lg ${
+                      bookmarkedVideos.has(video.cid.toString()) ? 'bg-rose-500' : 'bg-yellow-500'
+                    } text-white`}
+                  >
+                    {bookmarkedVideos.has(video.cid.toString()) ? 'Remove Bookmark' : 'Add to Bookmark'}
+                  </button>
                 </div>
               </div>
             </div>
