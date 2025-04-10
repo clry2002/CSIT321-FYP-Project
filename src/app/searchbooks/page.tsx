@@ -110,26 +110,26 @@ export default function SearchBooksPage() {
     const updatedBookmarks = new Set(bookmarkedBooks);
 
     if (isBookmarked) {
+      // Remove bookmark
       updatedBookmarks.delete(cidStr);
+      await supabase
+        .from('temp_bookmark')
+        .delete()
+        .eq('uaid', childId)
+        .eq('cid', book.cid);
     } else {
+      // Add bookmark
       updatedBookmarks.add(cidStr);
+      await supabase
+        .from('temp_bookmark')
+        .upsert([{ uaid: childId, cid: book.cid }], { onConflict: 'uaid,cid' });
     }
 
-    const { error } = await supabase
-    .from('temp_bookmark')
-    .upsert([{ uaid: childId, cid: book.cid }], { onConflict: 'uaid,cid' });
-
-
-    if (error) {
-      console.error('Error updating bookmark:', error);
-      setNotification({ message: 'Failed to update bookmark', show: true });
-    } else {
-      setBookmarkedBooks(updatedBookmarks);
-      setNotification({
-        message: isBookmarked ? 'Book removed from bookmarks' : 'You saved this book',
-        show: true,
-      });
-    }
+    setBookmarkedBooks(updatedBookmarks);
+    setNotification({
+      message: isBookmarked ? 'Book removed from bookmarks' : 'You saved this book',
+      show: true,
+    });
 
     setTimeout(() => setNotification({ message: '', show: false }), 3000);
   };
