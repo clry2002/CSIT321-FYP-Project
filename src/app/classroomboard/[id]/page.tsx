@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase'; 
-import Navbar from '../../components/Navbar'; // Import Navbar component
+import Navbar from '../../components/Navbar'; 
 import { useParams, useRouter } from 'next/navigation'; 
 
 type Classroom = {
@@ -31,14 +31,11 @@ export default function ClassroomBoardPage() {
   const { id } = useParams(); 
   const router = useRouter(); 
 
- 
   useEffect(() => {
     const fetchUserAccountId = async () => {
       try {
         const { data, error: userError } = await supabase.auth.getUser();
-        if (userError) {
-          throw userError;
-        }
+        if (userError) throw userError;
 
         if (!data?.user) {
           setIsUserAuthenticated(false);
@@ -52,13 +49,9 @@ export default function ClassroomBoardPage() {
           .eq('user_id', data.user.id)
           .single();
 
-        if (error) {
-          throw error;
-        }
+        if (error) throw error;
 
-        if (userAccountData) {
-          setUserAccountId(userAccountData?.id);
-        }
+        if (userAccountData) setUserAccountId(userAccountData.id);
       } catch (err) {
         console.error('Error fetching user account ID:', err instanceof Error ? err.message : err);
       }
@@ -67,7 +60,6 @@ export default function ClassroomBoardPage() {
     fetchUserAccountId();
   }, []);
 
-  // Fetch classroom details and check invitation status
   useEffect(() => {
     const fetchClassroomDetails = async () => {
       if (!id || !userAccountId) return;
@@ -79,19 +71,15 @@ export default function ClassroomBoardPage() {
           .eq('crid', id)
           .single();
 
-        if (error) {
-          throw error;
-        }
+        if (error) throw error;
 
         const educatorData = await supabase
           .from('user_account')
           .select('fullname')
-          .eq('id', data?.uaid_educator)
+          .eq('id', data.uaid_educator)
           .single();
 
-        if (educatorData.error) {
-          throw educatorData.error;
-        }
+        if (educatorData.error) throw educatorData.error;
 
         setClassroom({
           crid: data.crid,
@@ -101,16 +89,13 @@ export default function ClassroomBoardPage() {
           cid: data.cid,
         });
 
-        // Fetch content details using the cid (content ID)
         const { data: contentData, error: contentError } = await supabase
           .from('temp_content')
-          .select('coverimage, title, cfid, contenturl') // Added cfid and contenturl
+          .select('coverimage, title, cfid, contenturl')
           .eq('cid', data.cid)
           .single();
 
-        if (contentError) {
-          throw contentError;
-        }
+        if (contentError) throw contentError;
 
         if (contentData) {
           setContent({
@@ -121,7 +106,6 @@ export default function ClassroomBoardPage() {
           });
         }
 
-        // Check if the user has access
         const { data: invitationData, error: invitationError } = await supabase
           .from('temp_classroomstudents')
           .select('uaid_child, invitation_status')
@@ -159,13 +143,10 @@ export default function ClassroomBoardPage() {
     fetchClassroomDetails();
   }, [id, userAccountId]);
 
-  // Function to navigate to the video or book detail page
   const handleRedirectToDetail = (cid: number, cfid: number) => {
     if (cfid === 1) {
-      // Navigate to the video detail page
       router.push(`/videodetail/${cid}`);
     } else if (cfid === 2) {
-      // Navigate to the book detail page
       router.push(`/bookdetail/${cid}`);
     }
   };
@@ -255,11 +236,10 @@ export default function ClassroomBoardPage() {
             </div>
           </div>
 
-          {/* Display content based on cfid */}
           {content.cfid === 1 ? (
             <div className="mt-6">
               <h4 className="text-xl font-semibold text-gray-600 mb-2">Videos to watch!</h4>
-              <div className="relative" style={{ paddingBottom: '56.25%'}}>
+              <div className="relative" style={{ paddingBottom: '56.25%' }}>
                 <iframe
                   src={`https://www.youtube.com/embed/${content.contenturl.split('v=')[1]}`}
                   title={content.title}
@@ -285,13 +265,24 @@ export default function ClassroomBoardPage() {
                 className="w-full h-64 object-cover rounded-lg mb-4"
               />
               <h4
-                onClick={() => handleRedirectToDetail(classroom.cid, content.cfid)} // Use classroom.cid here
+                onClick={() => handleRedirectToDetail(classroom.cid, content.cfid)}
                 className="mt-4 text-2xl text-blue-600 font-semibold text-center cursor-pointer"
               >
                 {content.title}
               </h4>
             </div>
           )}
+
+          {/* View Discussion Board Section */}
+          <div className="mt-10 text-center">
+            <h4 className="text-xl font-semibold text-gray-700 mb-4">Want to discuss with your classmates?</h4>
+            <button
+              onClick={() => router.push(`/classroomboard/${id}/discussion`)}
+              className="px-6 py-3 bg-purple-600 text-white rounded-xl text-lg hover:bg-purple-700 transition duration-200"
+            >
+              View Discussion Board 💬
+            </button>
+          </div>
         </div>
       </div>
     </div>
