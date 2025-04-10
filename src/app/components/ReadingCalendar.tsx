@@ -19,16 +19,21 @@ interface Book {
   title: string;
 }
 
-export default function ReadingCalendar() {
+interface ReadingCalendarProps {
+  selectedBook?: Book;
+  onClose?: () => void;
+}
+
+export default function ReadingCalendar({ selectedBook, onClose }: ReadingCalendarProps) {
   const router = useRouter();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [schedules, setSchedules] = useState<ReadingSchedule[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newSchedule, setNewSchedule] = useState({
-    bookTitle: '',
+    bookTitle: selectedBook?.title || '',
     pages: 0,
-    content_id: 0
+    content_id: selectedBook?.cid || 0
   });
   const [bookSearch, setBookSearch] = useState('');
   const [searchResults, setSearchResults] = useState<Book[]>([]);
@@ -223,6 +228,11 @@ export default function ReadingCalendar() {
       // Reset form
       setNewSchedule({ bookTitle: '', pages: 0, content_id: 0 });
       setIsModalOpen(false);
+      
+      // Close the parent modal if onClose is provided
+      if (onClose) {
+        onClose();
+      }
     } catch (error) {
       console.error('Error saving schedule:', error);
     }

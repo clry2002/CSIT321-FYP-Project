@@ -5,8 +5,11 @@ import Navbar from '../components/Navbar';
 import { supabase } from '@/lib/supabase';
 import Image from 'next/image';
 import type { Book, Video } from '@/types/database.types';
+import { useRouter } from 'next/navigation';
+import { format } from 'date-fns';
 
 export default function BookmarksPage() {
+  const router = useRouter();
   const [bookmarkedBooks, setBookmarkedBooks] = useState<Book[]>([]);
   const [bookmarkedVideos, setBookmarkedVideos] = useState<Video[]>([]);
   const [notification, setNotification] = useState<{ message: string; show: boolean }>({ message: '', show: false });
@@ -15,6 +18,10 @@ export default function BookmarksPage() {
   const [childUaid, setChildUaid] = useState<string | null>(null);
   const [bookGenres, setBookGenres] = useState<Record<number, string[]>>({});
   const [videoGenres, setVideoGenres] = useState<Record<number, string[]>>({});
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [selectedBook, setSelectedBook] = useState<Book | null>(null);
+  const [scheduledDate, setScheduledDate] = useState<string>('');
+  const [pagesToRead, setPagesToRead] = useState<number>(0);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -239,6 +246,53 @@ export default function BookmarksPage() {
     return <div>No valid YouTube URL found</div>;
   };
 
+  const handleScheduleBook = (book: Book) => {
+    setSelectedBook(book);
+    setScheduledDate(format(new Date(), 'yyyy-MM-dd'));
+    setPagesToRead(0);
+    setShowScheduleModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setShowScheduleModal(false);
+    setSelectedBook(null);
+    setScheduledDate('');
+    setPagesToRead(0);
+  };
+
+  const handleSaveSchedule = async () => {
+    if (!selectedBook || !scheduledDate || pagesToRead <= 0) {
+      setNotification({ message: 'Please fill in all fields', show: true });
+      setTimeout(() => setNotification({ message: '', show: false }), 3000);
+      return;
+    }
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { error } = await supabase
+        .from('reading_schedules')
+        .insert({
+          user_id: user.id,
+          date: new Date(scheduledDate).toISOString(),
+          book_title: selectedBook.title,
+          pages: pagesToRead,
+          content_id: selectedBook.cid
+        });
+
+      if (error) throw error;
+
+      setNotification({ message: 'Reading schedule saved successfully', show: true });
+      setTimeout(() => setNotification({ message: '', show: false }), 3000);
+      handleCloseModal();
+    } catch (error) {
+      console.error('Error saving schedule:', error);
+      setNotification({ message: 'Failed to save schedule', show: true });
+      setTimeout(() => setNotification({ message: '', show: false }), 3000);
+    }
+  };
+
   if (loading) return <div>Loading...</div>;
 
   return (
@@ -250,6 +304,73 @@ export default function BookmarksPage() {
         {notification.show && (
           <div className="fixed top-4 right-4 z-50 bg-rose-500 text-white px-6 py-3 rounded-lg shadow-lg">
             {notification.message}
+          </div>
+        )}
+
+        {/* Schedule Modal */}
+        {showScheduleModal && selectedBook && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+            <div className="bg-white p-6 rounded-xl w-[400px]">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-medium text-black">Schedule Reading</h3>
+                <button
+                  onClick={handleCloseModal}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Book</label>
+                  <p className="text-gray-900 font-medium">{selectedBook.title}</p>
+                </div>
+                
+                <div>
+                  <label htmlFor="date" className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                  <input
+                    type="date"
+                    id="date"
+                    value={scheduledDate}
+                    min={format(new Date(), 'yyyy-MM-dd')}
+                    onChange={(e) => setScheduledDate(e.target.value)}
+                    className="w-full border rounded-lg p-2 text-gray-900"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="pages" className="block text-sm font-medium text-gray-700 mb-1">Pages to Read</label>
+                  <input
+                    type="number"
+                    id="pages"
+                    min="1"
+                    value={pagesToRead || ''}
+                    onChange={(e) => setPagesToRead(parseInt(e.target.value) || 0)}
+                    className="w-full border rounded-lg p-2 text-gray-900"
+                    placeholder="Enter number of pages"
+                  />
+                </div>
+
+                <div className="flex justify-end space-x-2 pt-4">
+                  <button
+                    onClick={handleCloseModal}
+                    className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSaveSchedule}
+                    disabled={!scheduledDate || pagesToRead <= 0}
+                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                  >
+                    Save Schedule
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
@@ -287,6 +408,12 @@ export default function BookmarksPage() {
                       ))}
                     </div>
                   )}
+                  <button
+                    onClick={() => handleScheduleBook(book)}
+                    className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                  >
+                    Schedule Reading
+                  </button>
                 </div>
                 <button
                   className="ml-6 p-2 rounded-full hover:bg-gray-100 text-red-500"
