@@ -24,6 +24,38 @@ export default function BookDetailPage() {
   const [pagesToRead, setPagesToRead] = useState<number>(0);
   const [notification, setNotification] = useState<{ message: string; show: boolean }>({ message: '', show: false });
 
+  const [childId, setChildId] = useState<number | null>(null);
+  const [isBookmarked, setIsBookmarked] = useState<boolean>(false);
+
+  // Fetch child profile ID (uaid)
+  useEffect(() => {
+    const fetchChildProfile = async () => {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+      if (userError || !user) {
+        console.error('User not logged in or error:', userError);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('user_account')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('upid', 3)
+        .single();
+
+      if (error) {
+        console.error('Child profile not found for this user:', error);
+        return;
+      }
+
+      setChildId(data.id);
+    };
+
+    fetchChildProfile();
+  }, []);
+
+  // Fetch book and genre info
   useEffect(() => {
     const fetchBook = async () => {
       if (!params.id) {
@@ -33,7 +65,6 @@ export default function BookDetailPage() {
       }
 
       try {
-        // Fetch book details
         const { data: bookData, error: bookError } = await supabase
           .from('temp_content')
           .select('*')
@@ -43,7 +74,6 @@ export default function BookDetailPage() {
         if (bookError) throw bookError;
         setBook(bookData);
 
-        // Fetch genres
         const { data: genreData, error: genreError } = await supabase
           .from('temp_contentgenres')
           .select('temp_genre(genrename)')
@@ -52,18 +82,17 @@ export default function BookDetailPage() {
         if (genreError) throw genreError;
 
         const genreNames = Array.isArray(genreData)
-        ? genreData.flatMap((g: any) => {
-            const genreField = g.temp_genre;
-
-            if (Array.isArray(genreField)) {
-              return genreField.map((tg) => tg.genrename);
-            } else if (genreField && typeof genreField === 'object') {
-              return [genreField.genrename];
-            } else {
-              return [];
-            }
-          })
-        : [];
+          ? genreData.flatMap((g: any) => {
+              const genreField = g.temp_genre;
+              if (Array.isArray(genreField)) {
+                return genreField.map((tg) => tg.genrename);
+              } else if (genreField && typeof genreField === 'object') {
+                return [genreField.genrename];
+              } else {
+                return [];
+              }
+            })
+          : [];
 
         setGenres(genreNames);
       } catch (err) {
@@ -76,6 +105,44 @@ export default function BookDetailPage() {
 
     fetchBook();
   }, [params.id]);
+
+  // Fetch bookmark status
+  useEffect(() => {
+    const fetchBookmark = async () => {
+      if (!childId || !params.id) return;
+
+      const { data, error } = await supabase
+        .from('temp_bookmark')
+        .select('*')
+        .eq('uaid', childId)
+        .eq('cid', params.id)
+        .single();
+
+      setIsBookmarked(!error && data);
+    };
+
+    fetchBookmark();
+  }, [childId, params.id]);
+
+  const toggleBookmark = async () => {
+    if (!childId || !book) return;
+
+    if (isBookmarked) {
+      const { error } = await supabase
+        .from('temp_bookmark')
+        .delete()
+        .eq('uaid', childId)
+        .eq('cid', book.cid);
+
+      if (!error) setIsBookmarked(false);
+    } else {
+      const { error } = await supabase
+        .from('temp_bookmark')
+        .insert({ uaid: childId, cid: book.cid });
+
+      if (!error) setIsBookmarked(true);
+    }
+  };
 
   const getCleanImageUrl = (url: string | null) => {
     if (!url) return null;
@@ -168,7 +235,6 @@ export default function BookDetailPage() {
         )}
 
         <div className="max-w-4xl mx-auto mt-8">
-          {/* Back Button */}
           <div className="flex justify-start">
             <button
               onClick={handleBackToSearch}
@@ -179,7 +245,6 @@ export default function BookDetailPage() {
           </div>
 
           <div className="flex flex-col md:flex-row gap-8">
-            {/* Book Cover */}
             <div className="w-full md:w-1/3">
               <div className="relative w-full h-[400px]">
                 {book.coverimage ? (
@@ -195,6 +260,7 @@ export default function BookDetailPage() {
                   </div>
                 )}
               </div>
+
               <div className="mt-4 space-y-2">
                 {book.contenturl && (
                   <a
@@ -212,10 +278,17 @@ export default function BookDetailPage() {
                 >
                   Schedule Reading
                 </button>
+                <button
+                  onClick={toggleBookmark}
+                  className={`block w-full text-center ${
+                    isBookmarked ? 'bg-yellow-400 hover:bg-yellow-500' : 'bg-gray-300 hover:bg-gray-400'
+                  } text-white py-2 rounded-lg transition-colors`}
+                >
+                  {isBookmarked ? 'Remove Bookmark' : 'Add to Bookmarks'}
+                </button>
               </div>
             </div>
 
-            {/* Schedule Modal */}
             {showScheduleModal && book && (
               <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
                 <div className="bg-white p-6 rounded-xl w-[400px]">
@@ -230,13 +303,13 @@ export default function BookDetailPage() {
                       </svg>
                     </button>
                   </div>
-                  
+
                   <div className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Book</label>
                       <p className="text-gray-900 font-medium">{book.title}</p>
                     </div>
-                    
+
                     <div>
                       <label htmlFor="date" className="block text-sm font-medium text-gray-700 mb-1">Date</label>
                       <input
@@ -282,7 +355,6 @@ export default function BookDetailPage() {
               </div>
             )}
 
-            {/* Book Details */}
             <div className="w-full md:w-2/3">
               <h1 className="text-3xl font-bold text-gray-900 mb-2">{book.title}</h1>
               <div className="space-y-4">
