@@ -22,7 +22,6 @@ export default function ParentalControlPage() {
         const fetchParentalControls = async () => {
             setLoading(true);
             try {
-                // Get all genres from temp_genre
                 const { data: genreList, error: genreListError } = await supabase
                     .from('temp_genre')
                     .select('*');
@@ -30,7 +29,6 @@ export default function ParentalControlPage() {
                 if (genreListError) throw genreListError;
                 setAllGenres(genreList || []);
 
-                // Get child profile based on user_id from route
                 const { data: child, error: childError } = await supabase
                     .from('user_account')
                     .select('*')
@@ -40,7 +38,6 @@ export default function ParentalControlPage() {
                 if (childError || !child) throw childError || new Error('Child profile not found.');
                 setChildProfile(child);
 
-                // Get parent-child relationship and time limit
                 const { data: relation, error: relationError } = await supabase
                     .from('isparentof')
                     .select('parent, timeLimitMinute')
@@ -51,7 +48,6 @@ export default function ParentalControlPage() {
                 setParentUsername(relation.parent);
                 setTimeLimit(relation.timeLimitMinute || 0);
 
-                // Fetch banned genres for the child
                 const { data: blockedGenres, error: genreError } = await supabase
                     .from('blockedgenres')
                     .select('genreid')
@@ -59,19 +55,11 @@ export default function ParentalControlPage() {
 
                 if (genreError) throw genreError;
 
-                // Log to verify the fetched blocked genres
-                console.log('Fetched blocked genres for child ID:', child.id);
-                console.log('Blocked genres:', blockedGenres);
-
-                // Ensure genreId mapping works correctly
                 const genreIds = blockedGenres.map((genre) => genre.genreid);
-                console.log('Mapped genre IDs:', genreIds);
-
                 const banned = genreList
                     .filter((g) => genreIds.includes(g.gid))
                     .map((g) => g.genrename);
 
-                console.log('Mapped banned genres:', banned); // Debugging log
                 setBannedGenres(banned);
             } catch (err) {
                 console.error('Error fetching parental controls:', err);
@@ -91,7 +79,6 @@ export default function ParentalControlPage() {
             const updated = prev.includes(genre)
                 ? prev.filter((g) => g !== genre)
                 : [...prev, genre];
-            console.log('Updated banned genres:', updated); // Debugging log
             return updated;
         });
     };
@@ -105,7 +92,6 @@ export default function ParentalControlPage() {
         try {
             if (!childProfile || !parentUsername) throw new Error('Child or parent not loaded');
 
-            // Update time limit
             const { error: updateParentError } = await supabase
                 .from('isparentof')
                 .update({ timeLimitMinute: timeLimit })
@@ -114,7 +100,6 @@ export default function ParentalControlPage() {
 
             if (updateParentError) throw updateParentError;
 
-            // Remove old blocked genres
             const { error: deleteGenresError } = await supabase
                 .from('blockedgenres')
                 .delete()
@@ -122,7 +107,6 @@ export default function ParentalControlPage() {
 
             if (deleteGenresError) throw deleteGenresError;
 
-            // Insert updated blocked genres
             const genreInserts = bannedGenres.map((genre) => {
                 const genreObj = allGenres.find((g) => g.genrename === genre);
                 return {
@@ -151,7 +135,20 @@ export default function ParentalControlPage() {
         <div className="flex h-screen bg-white overflow-hidden">
             <div className="flex-1 overflow-y-auto pt-16">
                 <div className="px-6 py-8">
-                    <h2 className="text-2xl font-bold text-gray-900 mb-6">Parental Controls</h2>
+                    {/* Back Button */}
+                    <button
+                        onClick={() => router.back()}
+                        className="mb-4 inline-flex items-center px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg"
+                    >
+                        ← Back
+                    </button>
+
+                    <h2 className="text-2xl font-bold text-gray-900 mb-1">Parental Controls</h2>
+                    {childProfile?.fullname && (
+                        <p className="text-gray-600 text-md mb-6">
+                            Managing settings for: <span className="font-medium">{childProfile.fullname}</span>
+                        </p>
+                    )}
                     <div className="max-w-2xl space-y-6">
                         {error && (
                             <div className="p-3 rounded-lg text-sm bg-red-50 text-red-500">
