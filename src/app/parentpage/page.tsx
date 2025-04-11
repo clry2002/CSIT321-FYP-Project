@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import Link from 'next/link';
 
 export default function ParentHome() {
   const router = useRouter();
@@ -34,7 +35,7 @@ export default function ParentHome() {
       // Hide notification after 5 seconds
       setTimeout(() => setShowNotification(false), 5000);
     }
-    
+
     // Always fetch parent data when component mounts or when url params change
     fetchParentData();
   }, [searchParams]);
@@ -43,25 +44,25 @@ export default function ParentHome() {
     setLoading(true);
     setError(null);
     console.log("Fetching parent data...");
-    
+
     try {
       // Get current user
       const { data: { user }, error: userError } = await supabase.auth.getUser();
-      
+
       if (userError) {
         console.error("Error getting auth user:", userError);
         setError("Authentication error. Please log in again.");
         router.push('/landing');
         return;
       }
-      
+
       if (!user) {
         console.log("No authenticated user found");
         setError("No authenticated user found. Please log in.");
         router.push('/landing');
         return;
       }
-      
+
       console.log("Authenticated user ID:", user.id);
 
       // Fetch parent's full name from user_account
@@ -316,7 +317,7 @@ export default function ParentHome() {
               children.map((child) => (
                 <div key={child.id} className="flex items-center justify-between mb-3">
                   <div>
-                    <h3 
+                    <h3
                       className="font-medium text-black text-sm cursor-pointer hover:text-blue-500"
                       onClick={() => router.push(`/parent/viewchild?childId=${child.id}`)}
                     >
@@ -383,14 +384,14 @@ export default function ParentHome() {
               children.map((child) => (
                 <button
                   key={child.id}
-                  className="bg-blue-500 text-white px-4 py-2 rounded-lg w-full mb-2"
-                  onClick={() => router.push('/parent/parentalcontrol')}
+                  className="block w-full text-center text-md bg-blue-500 text-white mb-2 p-3 rounded"
+                  onClick={() => router.push(`/parent/parentalcontrol/${child.id}`)}
                 >
-                  Manage {child.name}'s Profile
+                  {child.name}'s Settings
                 </button>
               ))
             ) : (
-              <p className="text-gray-500 text-sm">No children to manage.</p>
+              <p className="text-gray-500 text-sm">No settings available for children.</p>
             )}
           </div>
         </div>
