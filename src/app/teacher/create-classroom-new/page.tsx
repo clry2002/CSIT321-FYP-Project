@@ -95,7 +95,7 @@ export default function CreateClassroom() {
         throw new Error(insertError.message);
       }
 
-      router.push('/teacher/view-classroom-new');
+      router.push('/teacherpage');
     } catch (error: any) {
       console.error('Error creating classroom:', error);
       setErrorMessage(error.message || 'Failed to create classroom');

@@ -5,6 +5,13 @@ import { supabase } from '@/lib/supabase';
 import { useRouter, useParams } from 'next/navigation';
 import EduNavbar from '../../../components/eduNavbar';
 import '../../../components/styles.css';
+import DeleteClassroom from '../../../components/educator/DeleteClassroom';
+import { Pencil, Check, X, MessageCircle, Bell, Users } from 'lucide-react';
+
+// Import section components
+import StudentsSection from '../../../components/educator/ClassroomDetails/Students';
+import DiscussionBoardSection from '../../../components/educator/ClassroomDetails/DiscussionBoard';
+//import AnnouncementBoardSection from '../../../components/educator/ClassroomDetails/AnnouncementBoard';
 
 type Classroom = {
   crid: number;
@@ -12,62 +19,35 @@ type Classroom = {
   description: string;
 };
 
-type ChildUser = {
-  id: string;
-  username: string;
-  fullname: string;
-};
-
-enum InvitationStatus {
-  Pending = 'pending',
-  Accepted = 'accepted',
-  Rejected = 'rejected', 
+// Define tabs
+enum TabType {
+  STUDENTS = 'students',
+  DISCUSSIONS = 'discussions',
+  ANNOUNCEMENTS = 'announcements',
 }
-
-type ClassroomStudent = {
-  uaid_child: string;
-  invitation_status: InvitationStatus;
-  user_account: {
-    username: string;
-    fullname: string;
-  };
-};
 
 export default function ClassroomDetails() {
   const [classroom, setClassroom] = useState<Classroom | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
-  const [isEditing, setIsEditing] = useState(false);
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
-
-  const [allChildren, setAllChildren] = useState<ChildUser[]>([]);
-  const [studentEmail, setStudentEmail] = useState('');
-  const [studentError, setStudentError] = useState('');
-  const [classroomStudents, setClassroomStudents] = useState<ClassroomStudent[]>([]);
   const [educatorId, setEducatorId] = useState<string | null>(null);
-  const [showRejected, setShowRejected] = useState(false);
-  const toggleRejected = () => {
-    setShowRejected(!showRejected);
-  };
-  const [rejectedStudents, setRejectedStudents] = useState<ClassroomStudent[]>([]);
+  
+  // Tab state
+  const [activeTab, setActiveTab] = useState<TabType>(TabType.STUDENTS);
+  
+  // Classroom editing state
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedName, setEditedName] = useState('');
+  const [editedDescription, setEditedDescription] = useState('');
+  const [nameError, setNameError] = useState('');
 
   const router = useRouter();
   const { crid } = useParams();
 
-  // Remove students
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [studentToRemove, setStudentToRemove] = useState<ClassroomStudent | null>(null);
-
-  // Dismiss rejected students
-  const [isConfirmingDismissRejected, setIsConfirmingDismissRejected] = useState(false);
-
-  const statusLabels = {
-    [InvitationStatus.Accepted]: 'Accepted',
-    [InvitationStatus.Pending]: 'Pending',
-    [InvitationStatus.Rejected]: 'Rejected',
-  };
+  useEffect(() => {
+    fetchEducatorId();
+    fetchClassroomDetails();
+  }, [crid]);
 
   const fetchEducatorId = async () => {
     try {
@@ -94,333 +74,87 @@ export default function ClassroomDetails() {
   
       // Set the educator ID if it exists
       setEducatorId(data.id);
-      console.log('Educator ID fetched:', data.id); // Log the educator ID
-  
     } catch (error) {
       console.error('Error in fetchEducatorId:', error);
       setErrorMessage('An error occurred while fetching the educator ID.');
     }
   };
-  
 
-  const fetchClassroomStudents = async () => {
+  const fetchClassroomDetails = async () => {
+    setLoading(true);
+    setErrorMessage('');
     const { data, error } = await supabase
-      .from('temp_classroomstudents')
-      .select(`
-        uaid_child,
-        invitation_status,
-        user_account (
-          username,
-          fullname
-        )
-      `)
-      .eq('crid', crid);
-  
-    if (data) {
-      console.log('Fetched classroom students:', data);
-    }
-      
-    if (!error && data) {
-      
-      // Check if the user_account exists before trying to access its properties
-      const formattedData = data.map((item: any) => {
-        if (item.user_account) {
-          return {
-            ...item,
-            user_account: item.user_account,
-          };
-        } else {
-          console.error('Missing user_account for uaid_child:', item.uaid_child);
-          return {
-            ...item,
-            user_account: {
-              username: 'Unknown',
-              fullname: 'Unknown', 
-            },
-          };
-        }
-      });
-  
-      // Separate accepted/pending and rejected students
-      const acceptedPending = formattedData.filter(
-        (item: any) => item.invitation_status !== InvitationStatus.Rejected
-      );
-      const rejected = formattedData.filter(
-        (item: any) => item.invitation_status === InvitationStatus.Rejected
-      );
-
-      setClassroomStudents(acceptedPending);
-      setRejectedStudents(rejected);
-    } else {
-      setErrorMessage('Failed to fetch classroom students.');
-    }
-  };
-  
-  // Fetch child users and classroom students
-  useEffect(() => {
-
-    const fetchChildUsers = async () => {
-      const { data, error } = await supabase  
-        .from('user_account')
-        .select('id, username, fullname')
-        .eq('upid', 3);
-
-      if (!error && data) setAllChildren(data);
-    };
-
-    const fetchClassroomDetails = async () => {
-      setLoading(true);
-      setErrorMessage('');
-      const { data, error } = await supabase
-        .from('temp_classroom')
-        .select('crid, name, description')
-        .eq('crid', crid)
-        .single();
-
-      if (error || !data) {
-        setErrorMessage('Failed to fetch classroom details.');
-      } else {
-        setClassroom(data);
-        setName(data.name);
-        setDescription(data.description);
-      }
-      setLoading(false);
-    };
-
-    if (crid) {
-      fetchEducatorId();
-      fetchChildUsers();
-      fetchClassroomStudents();
-      fetchClassroomDetails();
-    }
-  }, [crid]);
-  
-  // Handle email input change
-  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setStudentEmail(e.target.value);
-
-    // Clear the error message when user starts typing
-    if (studentError) {
-      setStudentError('');
-    }
-  };
-
-  const handleAddStudent = async () => {
-    if (!studentEmail) {
-      setStudentError('Please enter a valid email.');
-      return;
-    }
-
-    // Step 1: Query the auth.users table via the Supabase function
-    const { data: authUser, error: authError } = await supabase
-      .rpc('get_user_by_email', { email: studentEmail });
-
-    if (authError || !authUser || !authUser[0]?.id) {
-      setStudentError('No user found for this email.');
-      return;
-    }
-
-    const userId = authUser[0].id; // Access the id correctly from the array
-
-    // Step 2: Use the authUser[0].id to query the user_account table
-    const { data: userAccount, error: uaError } = await supabase
-      .from('user_account')
-      .select('id, username, fullname, upid')
-      .eq('user_id', userId) 
-      .single();
-
-    if (uaError || !userAccount) {
-      setStudentError('No user account found for this email.');
-      return;
-    }
-
-    // Step 3: Check if the profile type is 3 (student)
-    if (userAccount.upid !== 3) {
-      setStudentError('Only students can be added.');
-      return;
-    }
-
-    // Step 4: Check if the email already exists in the temp_classroomstudents table
-    const { data: existingStudent} = await supabase
-      .from('temp_classroomstudents')
-      .select('uaid_child')
-      .eq('uaid_child', userAccount.id)
+      .from('temp_classroom')
+      .select('crid, name, description')
       .eq('crid', crid)
       .single();
 
-    if (existingStudent) {
-      setStudentError('This student has been added to the classroom.');
-      return;
-    }
-    
-    // Step 4: Insert into temp_classroomstudents
-    const { error: insertError } = await supabase
-      .from('temp_classroomstudents')
-      .insert({
-        crid: crid,
-        uaid_child: userAccount.id
-      });
-
-    if (insertError) {
-      setStudentError('Failed to add student.');
+    if (error || !data) {
+      setErrorMessage('Failed to fetch classroom details.');
     } else {
-      setStudentEmail('');
-      const { data: updatedStudents } = await supabase
-        .from('temp_classroomstudents')
-        .select(`
-          uaid_child,
-          invitation_status,
-          user_account (
-            username,
-            fullname
-          )
-        `)
-        .eq('crid', crid);
-
-      if (updatedStudents) {
-        const formatted = updatedStudents.map((item: any) => ({
-          uaid_child: item.uaid_child,
-          invitation_status: item.invitation_status,
-          user_account: item.user_account,
-        }));
-        setClassroomStudents(formatted);
-      }
+      setClassroom(data);
     }
+    setLoading(false);
   };
 
-  // Dismiss rejected students functionality
-  const handleDismissRejected = async () => {
-    setIsConfirmingDismissRejected(true);
+  // Function to handle tab change
+  const handleTabChange = (tab: TabType) => {
+    setActiveTab(tab);
   };
 
-  // Confirm and dismiss rejected students
-  const confirmDismissRejected = async () => {
-    if (!educatorId) {
-      setStudentError('Educator ID is not available.');
-      console.error('Educator ID is not set');
-      setIsConfirmingDismissRejected(false);
-      return;
-    }
-  
-    try {
-      // Ensure classroom ID is a number
-      const classroom_id = classroom?.crid;
-      const educator_id = educatorId;
-  
-      console.log('Dismissing rejected students for classroom_id:', classroom_id, 'educator_id:', educator_id);
-  
-      // Call the PostgreSQL function
-      const { error } = await supabase
-        .rpc('delete_rejected_classroom_students_v2', { 
-          classroom_id: classroom_id,
-          educator_id: educator_id
-        });
-  
-      if (error) {
-        setStudentError('Failed to dismiss rejected students.');
-        console.error('Error dismissing rejected students:', error);
-      } else {
-        console.log('Successfully dismissed rejected students');
-        fetchClassroomStudents();
-        setShowRejected(false);
-        setRejectedStudents([]);
-      }
-    } catch (error) {
-      console.error('Error:', error);
-      setStudentError('An error occurred while dismissing students.');
-    } finally {
-      // Hide confirmation UI
-      setIsConfirmingDismissRejected(false);
-    }
+  // Function to start editing classroom details
+  const handleEdit = () => {
+    setIsEditing(true);
+    setEditedName(classroom?.name || '');
+    setEditedDescription(classroom?.description || '');
+    setNameError('');
   };
 
-  const handleRemoveStudent = async (uaid_child: string | null) => {
-    if (!uaid_child) return;
-  
-    // Remove the student from the classroom
-    const { error } = await supabase
-      .from('temp_classroomstudents')
-      .delete()
-      .eq('crid', crid)
-      .eq('uaid_child', uaid_child);
-  
-    if (error) {
-      setStudentError('Failed to remove student.');
-    } else {
-      // Reload classroom students after removal
-      const { data } = await supabase
-        .from('temp_classroomstudents')
-        .select(`
-          uaid_child,
-          invitation_status,
-          user_account (
-            username,
-            fullname
-          )
-        `)
-        .eq('crid', crid);
-  
-      if (data) {
-        const formattedData: ClassroomStudent[] = data.map((item: any) => ({
-          uaid_child: item.uaid_child,
-          invitation_status: item.invitation_status as InvitationStatus, // Cast to the enum
-          user_account: item.user_account,
-        }));
-        setClassroomStudents(formattedData);
-      }
-    }
-
-    setShowConfirmModal(false);
-  };
-  
-  const handleDelete = async () => {
-    if (!classroom) return;
-    const { error } = await supabase
-      .from('temp_classroom')
-      .delete()
-      .eq('crid', classroom.crid);
-
-    if (error) {
-      setStudentError('Failed to delete classroom.');
-    } else {
-      router.back();
-    }
-  };
-
-  const handleSave = async () => {
-    if (!name || !description) {
-      setErrorMessage('Please fill in both the name and description.');
+  // Function to save classroom details changes
+  const handleSaveChanges = async () => {
+    if (!editedName.trim()) {
+      setNameError('Classroom name cannot be empty');
       return;
     }
 
-    const { error } = await supabase
-      .from('temp_classroom')
-      .update({ name, description })
-      .eq('crid', classroom?.crid);
-
-    if (error) {
-      setStudentError('Failed to update classroom details.');
-    } else {
-      setClassroom({ crid: classroom!.crid, name, description });
-      setIsEditing(false);
-    }
-  };
-
-  const handleNameChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newName = e.target.value;
-    setName(newName);
-
+    // Check if name already exists
     const { data } = await supabase
       .from('temp_classroom')
       .select('crid')
-      .eq('name', newName)
+      .eq('name', editedName)
       .neq('crid', classroom?.crid);
 
     if (data && data.length > 0) {
-      setErrorMessage('A classroom with this name already exists.');
-    } else {
-      setErrorMessage('');
+      setNameError('A classroom with this name already exists.');
+      return;
     }
+
+    if (classroom) {
+      const { error } = await supabase
+        .from('temp_classroom')
+        .update({ 
+          name: editedName,
+          description: editedDescription
+        })
+        .eq('crid', classroom.crid);
+
+      if (error) {
+        setErrorMessage('Failed to update classroom details.');
+      } else {
+        setClassroom({
+          ...classroom,
+          name: editedName,
+          description: editedDescription
+        });
+        setIsEditing(false);
+      }
+    }
+  };
+
+  // Cancel editing function
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setNameError('');
   };
 
   if (loading) return <p className="text-gray-600">Loading...</p>;
@@ -431,249 +165,134 @@ export default function ClassroomDetails() {
       <main className="p-6 mt-20">
         {classroom ? (
           <div className="bg-white rounded-lg shadow-md p-4 border border-gray-200">
-            <h1 className="text-2xl font-bold mb-4 text-black">
-              {isEditing ? 'Edit Classroom' : classroom.name}
-            </h1>
-
-            {isEditing ? (
-              <>
-                <div className="mb-4">
-                  <label className="block text-gray-700 font-bold">Classroom Name</label>
-                  <input
-                    type="text"
-                    className="w-full p-2 border rounded text-black"
-                    value={name}
-                    onChange={handleNameChange}
-                  />
-                  {errorMessage && <p className="text-red-600">{errorMessage}</p>}
-                </div>
-                <div className="mb-4">
-                  <label className="block text-gray-700 font-bold">Description</label>
-                  <textarea
-                    className="w-full p-2 border rounded text-black"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                  />
-                </div>
-                <div className="flex gap-4">
-                  <button
-                    onClick={() => {
-                      setIsEditing(false);
-                      setName(classroom.name);
-                      setDescription(classroom.description);
-                      setErrorMessage('');
-                    }}
-                    className="bg-gray-500 text-white px-4 py-2 rounded"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleSave}
-                    className="bg-blue-500 text-white px-4 py-2 rounded"
-                  >
-                    Save
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <p className="text-gray-700 mb-4">{classroom.description}</p>
-                <button
-                  onClick={() => setIsEditing(true)}
-                  className="bg-yellow-500 text-white px-4 py-2 rounded"
-                >
-                  Edit Classroom
-                </button>
-              </>
-            )}
-
-            {!isEditing && (
-              <>
-                <button
-                  onClick={() => setIsConfirmingDelete(true)}
-                  className="bg-red-500 text-white px-4 py-2 rounded mt-4"
-                >
-                  Delete Classroom
-                </button>
-
-                <button
-                  onClick={() => router.back()}
-                  className="bg-gray-500 text-white px-4 py-2 rounded mt-4 ml-4"
-                >
-                  Back
-                </button>
-              </>
-            )}
-
-            {/* Add student section */}
-            <div className="flex gap-2 items-center">
-              <input
-                type="email"
-                value={studentEmail}
-                onChange={handleEmailChange}
-                placeholder="Enter student email"
-                className="p-2 border rounded text-black"
-              />
-              <button
-                onClick={handleAddStudent}
-                className="bg-green-500 text-white px-4 py-2 rounded"
-              >
-                Add Student
-              </button>
-              {studentError && (
-                <div style={{ color: 'red', marginTop: '10px' }}>
-                  {studentError}
-                </div>
-              )}
-            </div>
-
-          {/* Validates whether student accounts have been created in web application */}
-          <div>
-            {allChildren.length === 0 && (
-              <h2 style={{ color: 'red' }}>There are no student accounts created yet. Please ask your students to register for an account.</h2>
-            )}
-          </div>
-  
-          {/* Student list */}
-          <div className="mt-6 border-t pt-4">
-            <h2 className="text-lg font-semibold text-black mb-2">Students in Classroom</h2>
-            {classroomStudents.length > 0 ? (
-              <ul className="list-disc pl-5 text-black">
-                {classroomStudents.map((student) => (
-                  <li key={student.uaid_child} className="flex justify-between items-center">
-                    <div>
-                      {student.user_account.fullname} ({student.user_account.username}) - Status:{' '}
-                      <span className="font-medium">
-                        {statusLabels[student.invitation_status] || 'Unknown'}
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => {
-                        setStudentToRemove(student);
-                        setShowConfirmModal(true);
-                      }}
-                      className="bg-red-500 text-white px-2 py-1 rounded ml-4"
-                    >
-                      Remove
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p style={{ color: 'gray' }}>No students have been added to your classroom yet. Please add students to get started.</p> // Message for no students
-            )}
-          </div>
-
-              {/* Rejected students section */}
-              <div className="mt-6 border-t pt-4">
-              {showRejected && rejectedStudents.length > 0 && (
-              <div className="rejected-students mt-6 relative">
-              <div className="flex justify-between items-center mb-2">
-                <h2 className="font-bold text-black">Rejected Students</h2>
-                <span
-                  onClick={handleDismissRejected}
-                  className="text-red-600 hover:text-red-800 hover:underline cursor-pointer text-sm"
-                >
-                  Dismiss All Rejected Students
-                </span>
-              </div>
-                  <ul>
-                    {rejectedStudents.map((student) => (
-                      <li key={student.uaid_child} style={{ color: 'black' }}>
-                        {student.user_account.fullname} ({student.user_account.username})
-                      </li>
-                    ))}
-                  </ul>
+            {/* Classroom header with editable name and description */}
+            <div className="mb-4">
+              {isEditing ? (
+                <div>
+                  {/* Name input */}
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Classroom Name</label>
+                    <input
+                      type="text"
+                      value={editedName}
+                      onChange={(e) => setEditedName(e.target.value)}
+                      className="w-full text-lg font-bold text-black border-2 border-blue-500 rounded p-2 focus:outline-none"
+                      autoFocus
+                    />
+                    {nameError && <p className="text-red-600 text-sm mt-1">{nameError}</p>}
+                  </div>
                   
-                  {/* Show either the dismiss button or confirmation UI */}
-                  {isConfirmingDismissRejected && (
-                    <div className="mt-4 p-3 border border-red-300 bg-red-50 rounded">
-                      <p className="text-black mb-2">Are you sure you want to dismiss all rejected students?</p>
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={confirmDismissRejected}
-                          className="px-4 py-2 bg-red-600 text-white rounded"
-                        >
-                          Yes, Dismiss All
-                        </button>
-                        <button
-                          onClick={() => setIsConfirmingDismissRejected(false)}
-                          className="px-4 py-2 bg-gray-500 text-white rounded"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {showRejected && rejectedStudents.length === 0 && (
-                <p style={{ color: 'black' }}>No rejected students</p>
-              )}
-
-              <span
-                onClick={toggleRejected}
-                className="rejected-link"
-              >
-                {showRejected ? 'Hide Rejected Students' : 'Show Rejected Students'}
-              </span>
-
-              </div>
-
-          {/* Confirmation Modal */}
-          {showConfirmModal && (
-            <div className="fixed inset-0 flex items-center justify-center z-50 bg-opacity-50">
-              <div className="bg-white p-6 rounded-lg shadow-lg">
-                <h3 className="text-xl font-semibold mb-4 text-black">
-                  Are you sure you want to remove {' '}
-                  <span className="font-bold text-red-600">
-                    {studentToRemove!.user_account.fullname}
-                  </span> {' '}
-                  from this classroom?
-                  </h3>
-                <div className="flex justify-end space-x-4">
-                  <button
-                    onClick={() => setShowConfirmModal(false)}
-                    className="bg-gray-300 text-black px-4 py-2 rounded-md"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={() => handleRemoveStudent(studentToRemove!.uaid_child)}
-                    className="bg-green-500 text-white px-4 py-2 rounded-md"
-                  >
-                    Confirm
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-            {/* Delete confirmation modal */}
-            {isConfirmingDelete && (
-              <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
-                <div className="bg-white rounded-lg p-6 shadow-lg w-1/3">
-                  <h2 className="text-lg font-semibold text-black mb-4">
-                    Are you sure you want to delete this classroom?
-                  </h2>
-                  <div className="flex justify-end gap-4">
-                    <button
-                      onClick={handleDelete}
-                      className="bg-red-500 text-white px-4 py-2 rounded"
+                  {/* Description input */}
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                    <textarea
+                      value={editedDescription}
+                      onChange={(e) => setEditedDescription(e.target.value)}
+                      className="w-full text-gray-700 p-2 border-2 border-blue-500 rounded focus:outline-none"
+                      rows={3}
+                    />
+                  </div>
+                  
+                  {/* Save/Cancel buttons */}
+                  <div className="flex mt-2">
+                    <button 
+                      onClick={handleSaveChanges}
+                      className="flex items-center bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition-colors mr-2"
                     >
-                      Yes, Delete
+                      <Check className="h-4 w-4 mr-1" /> Save Changes
                     </button>
-                    <button
-                      onClick={() => setIsConfirmingDelete(false)}
-                      className="bg-gray-500 text-white px-4 py-2 rounded"
+                    <button 
+                      onClick={handleCancelEdit}
+                      className="flex items-center bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition-colors"
                     >
-                      Cancel
+                      <X className="h-4 w-4 mr-1" /> Cancel
                     </button>
                   </div>
                 </div>
-              </div>
-            )}
+              ) : (
+                <div>
+                  {/* Display mode with single edit button */}
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h1 className="text-2xl font-bold text-black mb-2">{classroom.name}</h1>
+                      <p className="text-gray-700">{classroom.description}</p>
+                    </div>
+                    <button
+                      onClick={handleEdit}
+                      className="p-2 rounded-full hover:bg-gray-200 transition-colors"
+                      aria-label="Edit classroom details"
+                    >
+                      <Pencil className="h-5 w-5 text-gray-600" />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex mb-6">
+              <DeleteClassroom classroomId={classroom.crid} classroomName={classroom.name} />
+              <button
+                onClick={() => router.back()}
+                className="bg-gray-500 text-white px-4 py-2 rounded ml-4"
+              >
+                Back
+              </button>
+            </div>
+
+            {/* Tab navigation */}
+            <div className="border-b border-gray-200 mb-4">
+              <nav className="flex -mb-px">
+                <button
+                  onClick={() => handleTabChange(TabType.STUDENTS)}
+                  className={`mr-1 py-2 px-4 text-center border-b-2 font-medium text-sm ${
+                    activeTab === TabType.STUDENTS
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  <Users className="inline-block mr-1 h-4 w-4" />
+                  Students
+                </button>
+                <button
+                  onClick={() => handleTabChange(TabType.DISCUSSIONS)}
+                  className={`mr-1 py-2 px-4 text-center border-b-2 font-medium text-sm ${
+                    activeTab === TabType.DISCUSSIONS
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  <MessageCircle className="inline-block mr-1 h-4 w-4" />
+                  Discussions
+                </button>
+                <button
+                  onClick={() => handleTabChange(TabType.ANNOUNCEMENTS)}
+                  className={`py-2 px-4 text-center border-b-2 font-medium text-sm ${
+                    activeTab === TabType.ANNOUNCEMENTS
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  <Bell className="inline-block mr-1 h-4 w-4" />
+                  Announcements
+                </button>
+              </nav>
+            </div>
+
+            {/* Content based on active tab */}
+            <div className="tab-content">
+              {activeTab === TabType.STUDENTS && (
+                <StudentsSection classroomId={classroom.crid} educatorId={educatorId} />
+              )}
+              
+              {activeTab === TabType.DISCUSSIONS && (
+                <DiscussionBoardSection classroomId={classroom.crid} educatorId={educatorId} />
+              )}
+{/*               
+              {activeTab === TabType.ANNOUNCEMENTS && (
+                <AnnouncementBoardSection classroomId={classroom.crid} educatorId={educatorId} />
+              )} */}
+            </div>
           </div>
         ) : (
           <p>Classroom not found.</p>
