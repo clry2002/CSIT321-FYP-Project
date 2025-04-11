@@ -26,50 +26,41 @@ export default function DiscussionBoardPage() {
     const fetchDiscussion = async () => {
       setLoading(true);
       try {
-        // Ensure id is treated as an integer (if crid is an integer in the DB)
         const classroomId = parseInt(id as string, 10);
         if (isNaN(classroomId)) throw new Error('Invalid classroom ID');
 
-        // Fetch classroom name and crid using the correct type
         const { data: classroomData, error: classroomError } = await supabase
           .from('temp_classroom')
-          .select('name, crid') // Fetch both name and crid
-          .eq('crid', classroomId) // Use crid to find the classroom
+          .select('name, crid')
+          .eq('crid', classroomId)
           .single();
         if (classroomError) throw classroomError;
-
-        // Set classroom name
         setClassroomName(classroomData?.name || '');
 
-        // Fetch teacher's question using the crid
         const { data: questionData, error: questionError } = await supabase
           .from('discussionboard')
           .select('question')
-          .eq('crid', classroomData?.crid) // Use crid to find the question
+          .eq('crid', classroomData?.crid)
           .order('created_at', { ascending: true })
           .limit(1)
           .single();
         if (questionError) throw questionError;
-
-        // Set teacher's question
         setTeacherQuestion(questionData?.question || '');
 
-        // Fetch responses using crid
         const { data: responsesData, error: responsesError } = await supabase
           .from('discussionboard')
-          .select('response, uaid, created_at')
-          .eq('crid', classroomData?.crid) // Use crid to fetch responses
+          .select('did, response, uaid, created_at')
+          .eq('crid', classroomData?.crid)
           .not('response', 'is', null)
           .order('created_at', { ascending: true });
         if (responsesError) throw responsesError;
 
-        // Include responses with student names
         const enriched = await Promise.all(
           (responsesData || []).map(async (entry: any) => {
             const { data: profileData } = await supabase
               .from('user_account')
               .select('fullname')
-              .eq('user_id', entry.uaid) // Use the user_id (UUID)
+              .eq('user_id', entry.uaid)
               .single();
             return {
               id: entry.id,
@@ -81,7 +72,6 @@ export default function DiscussionBoardPage() {
         );
         setResponses(enriched);
 
-        // Fetch logged-in user's child name
         const {
           data: { user },
           error: authError,
@@ -91,18 +81,61 @@ export default function DiscussionBoardPage() {
         const { data: childData, error: childError } = await supabase
           .from('user_account')
           .select('fullname')
-          .eq('user_id', user!.id) // Correctly handle `user_id` as UUID
+          .eq('user_id', user!.id)
           .single();
         if (childError) throw childError;
         setChildName(childData!.fullname);
-      } catch (error) {
-        console.error('Error loading discussion board:', error);
+      } catch (error: any) {
+        console.error('Error loading discussion board:', error.message || error); // Enhanced error logging
       } finally {
         setLoading(false);
       }
     };
 
     fetchDiscussion();
+  }, [id]);
+
+  // Realtime subscription to new responses
+  useEffect(() => {
+    const classroomId = parseInt(id as string, 10);
+    if (isNaN(classroomId)) return;
+
+    const channel = supabase
+      .channel('realtime-discussion')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'discussionboard',
+          filter: `crid=eq.${classroomId}`,
+        },
+        async (payload) => {
+          const newEntry = payload.new;
+          if (!newEntry.response) return;
+
+          const { data: profileData } = await supabase
+            .from('user_account')
+            .select('fullname')
+            .eq('user_id', newEntry.uaid)
+            .single();
+
+          setResponses((prev) => [
+            ...prev,
+            {
+              id: newEntry.id,
+              message: newEntry.response,
+              sender_name: profileData?.fullname || 'Unknown',
+              created_at: newEntry.created_at,
+            },
+          ]);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -117,23 +150,12 @@ export default function DiscussionBoardPage() {
 
       const { error } = await supabase.from('discussionboard').insert([
         {
-          crid: parseInt(id as string, 10), // Ensure crid is treated as an integer
+          crid: parseInt(id as string, 10),
           uaid: user!.id,
           response: newMessage,
         },
       ]);
       if (error) throw error;
-
-      // Add new messages
-      setResponses((prev) => [
-        ...prev,
-        {
-          id: Date.now(), // Ensure each entry has a unique id
-          message: newMessage,
-          sender_name: childName,
-          created_at: new Date().toISOString(),
-        },
-      ]);
 
       setNewMessage('');
     } catch (error) {
@@ -156,21 +178,19 @@ export default function DiscussionBoardPage() {
       <Navbar />
 
       <main className="flex flex-col flex-1 p-25 max-w-4xl mx-auto space-y-8">
-        {/* Classroom Name and Teacher's Question */}
         <div className="bg-white rounded-xl shadow p-6">
           <h2 className="text-2xl font-bold text-blue-700 mb-1">🏫 {classroomName}</h2>
           <h3 className="text-xl font-semibold text-blue-700 mb-2">📚 Teacher's Question</h3>
           <p className="text-lg text-gray-800">{teacherQuestion || 'No question available yet.'}</p>
         </div>
 
-        {/* Children's Responses */}
         <div className="bg-white rounded-xl shadow p-6">
           <h3 className="text-xl font-semibold text-blue-700 mb-4">💬 Student Responses</h3>
           {responses.length > 0 ? (
             <ul className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
               {responses.map((entry) => (
                 <li
-                  key={`${entry.id}-${entry.created_at}`} // Ensuring unique key by combining id and created_at
+                  key={`${entry.id}-${entry.created_at}`}
                   className="p-4 bg-gray-100 rounded-lg border border-gray-200"
                 >
                   <p className="text-gray-700">{entry.message}</p>
@@ -185,7 +205,6 @@ export default function DiscussionBoardPage() {
           )}
         </div>
 
-        {/* Response Form */}
         <div className="bg-white rounded-xl shadow p-6">
           <h3 className="text-xl font-semibold text-blue-700 mb-4">✍️ Your Response</h3>
           <form onSubmit={handleSubmit} className="space-y-4">
