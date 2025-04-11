@@ -38,12 +38,13 @@ export default function DiscussionBoardPage() {
         setClassroomName(classroomData?.name || '');
 
         const { data: questionData, error: questionError } = await supabase
-          .from('discussionboard')
-          .select('question')
-          .eq('crid', classroomData?.crid)
-          .order('created_at', { ascending: true })
-          .limit(1)
-          .single();
+        .from('discussionboard')
+        .select('question')
+        .eq('crid', classroomData?.crid)
+        .not('question', 'is', null)
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .single();
         if (questionError) throw questionError;
         setTeacherQuestion(questionData?.question || '');
 
