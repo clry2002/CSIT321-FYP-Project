@@ -384,7 +384,7 @@ export default function ParentHome() {
               children.map((child) => (
                 <button
                   key={child.id}
-                  className="block w-full text-left text-sm text-blue-500 mb-2"
+                  className="block w-full text-center text-md bg-blue-500 text-white mb-2 p-3 rounded"
                   onClick={() => router.push(`/parent/parentalcontrol/${child.id}`)}
                 >
                   {child.name}'s Settings
