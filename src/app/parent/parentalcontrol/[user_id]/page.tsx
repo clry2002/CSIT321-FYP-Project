@@ -22,6 +22,7 @@ export default function ParentalControlPage() {
         const fetchParentalControls = async () => {
             setLoading(true);
             try {
+                // Fetch all genres
                 const { data: genreList, error: genreListError } = await supabase
                     .from('temp_genre')
                     .select('*');
@@ -29,6 +30,7 @@ export default function ParentalControlPage() {
                 if (genreListError) throw genreListError;
                 setAllGenres(genreList || []);
 
+                // Fetch child profile
                 const { data: child, error: childError } = await supabase
                     .from('user_account')
                     .select('*')
@@ -38,16 +40,55 @@ export default function ParentalControlPage() {
                 if (childError || !child) throw childError || new Error('Child profile not found.');
                 setChildProfile(child);
 
+                // Get the logged-in user (parent) information
+                const { data: { user }, error: authError } = await supabase.auth.getUser();
+                if (authError) throw authError;
+                
+                // Look for parent-child relationship
                 const { data: relation, error: relationError } = await supabase
                     .from('isparentof')
                     .select('parent, timeLimitMinute')
                     .eq('child', child.username)
                     .single();
 
-                if (relationError || !relation) throw relationError || new Error('Parent relationship not found.');
-                setParentUsername(relation.parent);
-                setTimeLimit(relation.timeLimitMinute || 0);
+                // Handle the case where relationship might not exist yet
+                if (relationError) {
+                    console.log('No direct relationship found, checking case insensitive or creating new');
+                    
+                    // Try with case insensitive match
+                    const { data: caseInsensitiveRelation, error: caseInsensitiveError } = await supabase
+                        .from('isparentof')
+                        .select('parent, timeLimitMinute')
+                        .ilike('child', child.username)
+                        .single();
+                        
+                    if (caseInsensitiveRelation) {
+                        // Use case insensitive match if found
+                        setParentUsername(caseInsensitiveRelation.parent);
+                        setTimeLimit(caseInsensitiveRelation.timeLimitMinute || 0);
+                    } else {
+                        // Get parent username from auth
+                        const { data: parentProfile, error: parentProfileError } = await supabase
+                            .from('user_account')
+                            .select('username')
+                            .eq('user_id', user?.id)
+                            .single();
+                            
+                        if (parentProfileError || !parentProfile) {
+                            console.error('Error getting parent profile:', parentProfileError);
+                        } else {
+                            // Set parent username but no time limit yet (new relationship)
+                            setParentUsername(parentProfile.username);
+                            setTimeLimit(0); // Default to 0 for new relationships
+                        }
+                    }
+                } else if (relation) {
+                    // Use existing relationship data
+                    setParentUsername(relation.parent);
+                    setTimeLimit(relation.timeLimitMinute || 0);
+                }
 
+                // Fetch blocked genres
                 const { data: blockedGenres, error: genreError } = await supabase
                     .from('blockedgenres')
                     .select('genreid')
@@ -55,12 +96,16 @@ export default function ParentalControlPage() {
 
                 if (genreError) throw genreError;
 
-                const genreIds = blockedGenres.map((genre) => genre.genreid);
-                const banned = genreList
-                    .filter((g) => genreIds.includes(g.gid))
-                    .map((g) => g.genrename);
-
-                setBannedGenres(banned);
+                // Handle case where blockedGenres might be null or empty
+                if (blockedGenres && blockedGenres.length > 0) {
+                    const genreIds = blockedGenres.map((genre) => genre.genreid);
+                    const banned = genreList
+                        .filter((g) => genreIds.includes(g.gid))
+                        .map((g) => g.genrename);
+                    setBannedGenres(banned);
+                } else {
+                    setBannedGenres([]);
+                }
             } catch (err) {
                 console.error('Error fetching parental controls:', err);
                 setError('An error occurred while fetching parental control settings.');
@@ -90,16 +135,65 @@ export default function ParentalControlPage() {
         setLoading(true);
 
         try {
-            if (!childProfile || !parentUsername) throw new Error('Child or parent not loaded');
+            if (!childProfile) throw new Error('Child profile not loaded');
+            if (!parentUsername) throw new Error('Parent username not available');
 
-            const { error: updateParentError } = await supabase
+            // First check if relationship exists
+            const { data: existingRelation, error: checkError } = await supabase
                 .from('isparentof')
-                .update({ timeLimitMinute: timeLimit })
+                .select('*')
                 .eq('parent', parentUsername)
                 .eq('child', childProfile.username);
+                
+            if (checkError) {
+                console.error("Error checking relationship:", checkError);
+                throw checkError;
+            }
+            
+            // Update or insert relationship
+            if (existingRelation && existingRelation.length > 0) {
+                // Update existing relationship
+                const { error: updateParentError } = await supabase
+                    .from('isparentof')
+                    .update({ timeLimitMinute: timeLimit })
+                    .eq('parent', parentUsername)
+                    .eq('child', childProfile.username);
+    
+                if (updateParentError) throw updateParentError;
+            } else {
+                // Try case insensitive search as fallback
+                const { data: caseInsensitiveRelation, error: caseCheckError } = await supabase
+                    .from('isparentof')
+                    .select('*')
+                    .ilike('child', childProfile.username);
+                    
+                if (caseCheckError) {
+                    console.error("Error in case insensitive check:", caseCheckError);
+                }
+                
+                if (caseInsensitiveRelation && caseInsensitiveRelation.length > 0) {
+                    // Update with the actual case from database
+                    const { error: updateParentError } = await supabase
+                        .from('isparentof')
+                        .update({ timeLimitMinute: timeLimit })
+                        .eq('id', caseInsensitiveRelation[0].id);
+                        
+                    if (updateParentError) throw updateParentError;
+                } else {
+                    // Insert new relationship
+                    const { error: insertParentError } = await supabase
+                        .from('isparentof')
+                        .insert([{
+                            parent: parentUsername,
+                            child: childProfile.username,
+                            timeLimitMinute: timeLimit
+                        }]);
+                        
+                    if (insertParentError) throw insertParentError;
+                }
+            }
 
-            if (updateParentError) throw updateParentError;
-
+            // Handle banned genres
             const { error: deleteGenresError } = await supabase
                 .from('blockedgenres')
                 .delete()
@@ -107,20 +201,23 @@ export default function ParentalControlPage() {
 
             if (deleteGenresError) throw deleteGenresError;
 
-            const genreInserts = bannedGenres.map((genre) => {
-                const genreObj = allGenres.find((g) => g.genrename === genre);
-                return {
-                    genreid: genreObj?.gid,
-                    child_id: childProfile.user_id,
-                    genrename: genre,
-                };
-            });
+            // Only insert genres if there are some to ban
+            if (bannedGenres.length > 0) {
+                const genreInserts = bannedGenres.map((genre) => {
+                    const genreObj = allGenres.find((g) => g.genrename === genre);
+                    return {
+                        genreid: genreObj?.gid,
+                        child_id: childProfile.user_id,
+                        genrename: genre,
+                    };
+                });
 
-            const { error: insertGenresError } = await supabase
-                .from('blockedgenres')
-                .insert(genreInserts);
+                const { error: insertGenresError } = await supabase
+                    .from('blockedgenres')
+                    .insert(genreInserts);
 
-            if (insertGenresError) throw insertGenresError;
+                if (insertGenresError) throw insertGenresError;
+            }
 
             setSuccess('Parental controls updated successfully.');
         } catch (err) {
@@ -178,6 +275,9 @@ export default function ParentalControlPage() {
                                 }}
                                 className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-rose-500 text-black"
                             />
+                            <p className="text-xs text-gray-500 mt-2">
+                                {timeLimit === 0 ? 'No time limit (unlimited access)' : `${timeLimit} minutes per day`}
+                            </p>
                         </div>
 
                         {/* Banned Genres */}

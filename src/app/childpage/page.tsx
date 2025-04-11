@@ -1,9 +1,8 @@
+// childpage.tsx
 'use client';
 
 import Image from 'next/image';
 import Navbar from '../components/Navbar';
-
-// import Header from '../components/Header'; // TO REMOVE THIS LINE AND THE HEADER SECTION IF DONT NEED
 
 import BookCard from '../components/BookCard';
 import ReadingCalendar from '../components/ReadingCalendar';
@@ -13,6 +12,11 @@ import { useVideos } from '../../hooks/useVideos';
 import { useSession } from '@/contexts/SessionContext';
 import { supabase } from '@/lib/supabase';
 import { useEffect, useState } from 'react';
+
+// Import the updated screen time components
+import ScreenTimeTracker from '../components/child/ScreenTimeTracker';
+import ScreenTimeLimit from '../components/child/ScreenTimeLimit';
+import ScreenTimeIndicator from '../components/child/ScreenTimeIndicator';
 
 export default function ChildPage() {
   const { popularBooks } = useBooks();
@@ -170,6 +174,9 @@ export default function ChildPage() {
   return (
     <div className="flex flex-col h-screen bg-white">
       <Navbar/>
+      <ScreenTimeLimit />
+      <ScreenTimeTracker />
+      <ScreenTimeIndicator />
       {/* Main Content */}
       <div className="flex flex-1 overflow-hidden">
         {/* Left Section */}
@@ -196,14 +203,14 @@ export default function ChildPage() {
           </div>
 
           {/* Popular Books Now Section */}
-          <div className="mb-8">
+          {/* <div className="mb-8">
             <h2 className="text-lg font-serif mb-3 text-black">Popular Books Now</h2>
             <div className="grid grid-cols-4 gap-2">
               {popularBooks.map((book, index) => (
                 <BookCard key={index} {...book} />
               ))}
             </div>
-          </div>
+          </div> */}
 
           {/* Videos for You Section */}
           <div>
