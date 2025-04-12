@@ -40,6 +40,12 @@ export default function ChildViewProfile() {
   const [showGenreSelector, setShowGenreSelector] = useState(false);
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
+  const [accountId, setAccountId] = useState<string | null>(null);
+  const [userInteractions, setUserInteractions] = useState<Array<{
+    genreid: number;
+    genrename: string;
+    score: number;
+  }>>([]);
 
   useEffect(() => {
     const initializeProfile = async () => {
@@ -64,7 +70,7 @@ export default function ChildViewProfile() {
         // Get the user's account data
         const { data: userData, error: userError } = await supabase
           .from('user_account')
-          .select('fullname, username, age')
+          .select('id, fullname, username, age')
           .eq('user_id', userId)
           .single();
 
@@ -72,16 +78,22 @@ export default function ChildViewProfile() {
           throw userError;
         }
 
+        // Store the account ID for later use
+        setAccountId(userData.id);
+
         // Get the child's profile data including favourite genres
+        // Modified to handle multiple rows, one per genre
         const { data: profileData, error: profileError } = await supabase
           .from('child_profile')
           .select('favourite_genres')
-          .eq('child_id', userId)
-          .single();
+          .eq('child_id', userData.id);
 
         if (profileError) {
           throw profileError;
         }
+
+        // Extract genres from multiple rows into a single array
+        const favouriteGenres = profileData ? profileData.map(item => item.favourite_genres) : [];
 
         // Get available genres
         const { data: genres, error: genresError } = await supabase
@@ -92,17 +104,29 @@ export default function ChildViewProfile() {
           throw genresError;
         }
 
+        // Fetch existing user interactions
+        const { data: interactions, error: interactionsError } = await supabase
+          .from('userInteractions2')
+          .select('genreid, genrename, score')
+          .eq('child_id', userData.id);
+
+        if (!interactionsError && interactions) {
+          setUserInteractions(interactions);
+        } else {
+          console.log('No existing interactions found or error:', interactionsError);
+        }
+
         // Set the profile data
         setProfileData({
           full_name: userData.fullname,
           username: userData.username,
           age: userData.age,
-          favourite_genres: profileData.favourite_genres || []
+          favourite_genres: favouriteGenres || []
         });
 
         // Set available genres and selected genres
         setAvailableGenres(genres.map(g => g.genrename));
-        setSelectedGenres(profileData.favourite_genres || []);
+        setSelectedGenres(favouriteGenres || []);
 
       } catch (err) {
         console.error('Error loading profile:', err);
@@ -120,14 +144,12 @@ export default function ChildViewProfile() {
       setLoading(true);
       setSaveMessage(null);
 
-      if (!profileData) return;
+      if (!profileData || !accountId) return;
 
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         throw new Error('No active session');
       }
-
-      const userId = session.user.id;
 
       // Update user_account table
       const { error: userError } = await supabase
@@ -137,78 +159,143 @@ export default function ChildViewProfile() {
           username: profileData.username,
           age: profileData.age
         })
-        .eq('user_id', userId);
+        .eq('id', accountId);
 
       if (userError) throw userError;
 
-      // Update child_profile table
-      const { error: profileError } = await supabase
+      // Update child_profile table - first delete existing entries
+      const { error: deleteError } = await supabase
         .from('child_profile')
-        .update({
-          favourite_genres: selectedGenres
-        })
-        .eq('child_id', userId);
+        .delete()
+        .eq('child_id', accountId);
+        
+      if (deleteError) throw deleteError;
+      
+      // Then insert new entries - one row per genre
+      if (selectedGenres.length > 0) {
+        const genreRows = selectedGenres.map(genre => ({
+          child_id: accountId,
+          favourite_genres: genre
+        }));
+        
+        const { error: insertError } = await supabase
+          .from('child_profile')
+          .insert(genreRows);
+          
+        if (insertError) throw insertError;
+      }
 
-      if (profileError) throw profileError;
-
-      // Get current genres from userInteractions2
-      const { data: currentInteractions, error: currentError } = await supabase
-        .from('userInteractions2')
-        .select('genreid')
-        .eq('child_id', userId);
-
-      if (currentError) throw currentError;
-
-      const currentGenreIds = currentInteractions?.map(interaction => interaction.genreid) || [];
-
-      // Get all genre IDs and names
+      // Get all genre IDs and names for scoring logic
       const { data: allGenres, error: genresError } = await supabase
         .from('temp_genre')
         .select('gid, genrename');
 
       if (genresError) throw genresError;
 
-      // Find genres to remove (set score to 0)
-      const genresToRemove = currentGenreIds.filter(id => 
-        !selectedGenres.includes(allGenres.find(g => g.gid === id)?.genrename || '')
-      );
+      // First, get current user interactions
+      const { data: currentInteractions, error: interactionsError } = await supabase
+        .from('userInteractions2')
+        .select('*')
+        .eq('child_id', accountId);
 
-      // Find genres to add (set score to 20)
-      const genresToAdd = selectedGenres.filter(genre => 
-        !currentGenreIds.includes(allGenres.find(g => g.genrename === genre)?.gid || 0)
-      );
-
-      // Update removed genres to score 0
-      if (genresToRemove.length > 0) {
-        const { error: removeError } = await supabase
-          .from('userInteractions2')
-          .update({ score: 0 })
-          .eq('child_id', userId)
-          .in('genreid', genresToRemove);
-
-        if (removeError) throw removeError;
+      if (interactionsError) {
+        console.error('Error fetching current interactions:', interactionsError);
       }
 
-      // Add new genres with score 20
-      if (genresToAdd.length > 0) {
-        const newInteractions = genresToAdd.map(genre => ({
-          child_id: userId,
-          genreid: allGenres.find(g => g.genrename === genre)?.gid,
-          genrename: genre,
-          score: 20
-        }));
-
-        const { error: addError } = await supabase
+      // Track which genres to update and which to insert
+      const genresToUpdate = [];
+      const genresToInsert = [];
+      
+      // Map of genre names to genre IDs
+      const genreMap: Record<string, number> = allGenres.reduce((map, genre) => {
+        map[genre.genrename] = genre.gid;
+        return map;
+      }, {} as Record<string, number>);
+      
+      // Process selected genres
+      for (const genreName of selectedGenres) {
+        const genreId = genreMap[genreName];
+        if (!genreId) continue;
+        
+        // Check if this genre exists in current interactions
+        const existingInteraction = currentInteractions?.find(
+          interaction => interaction.genreid === genreId
+        );
+        
+        if (existingInteraction) {
+          // Genre exists, update score to 20 if it's not already
+          if (existingInteraction.score !== 20) {
+            genresToUpdate.push({
+              id: existingInteraction.id,
+              score: 20
+            });
+          }
+        } else {
+          // Genre doesn't exist, insert new row
+          genresToInsert.push({
+            child_id: accountId,
+            genreid: genreId,
+            genrename: genreName,
+            score: 20
+          });
+        }
+      }
+      
+      // Process unselected genres (set score to 0)
+      if (currentInteractions) {
+        for (const interaction of currentInteractions) {
+          const genreName = allGenres.find(g => g.gid === interaction.genreid)?.genrename;
+          if (!genreName || selectedGenres.includes(genreName)) continue;
+          
+          // This genre is in current interactions but not in selected genres
+          // Update score to 0
+          if (interaction.score !== 0) {
+            genresToUpdate.push({
+              id: interaction.id,
+              score: 0
+            });
+          }
+        }
+      }
+      
+      // Perform updates
+      for (const update of genresToUpdate) {
+        const { error } = await supabase
           .from('userInteractions2')
-          .insert(newInteractions);
-
-        if (addError) throw addError;
+          .update({ score: update.score })
+          .eq('id', update.id);
+        
+        if (error) {
+          console.error(`Error updating interaction ${update.id}:`, error);
+        }
+      }
+      
+      // Perform inserts
+      if (genresToInsert.length > 0) {
+        const { error } = await supabase
+          .from('userInteractions2')
+          .insert(genresToInsert);
+        
+        if (error) {
+          console.error('Error inserting new interactions:', error);
+        }
       }
 
       setSaveMessage({ type: 'success', text: 'Profile updated successfully!' });
       setHasChanges(false);
       setEditingField(null);
       setShowGenreSelector(false);
+      
+      // Refresh user interactions after save
+      const { data: refreshedInteractions } = await supabase
+        .from('userInteractions2')
+        .select('genreid, genrename, score')
+        .eq('child_id', accountId);
+        
+      if (refreshedInteractions) {
+        setUserInteractions(refreshedInteractions);
+      }
+      
     } catch (err) {
       console.error('Error saving profile:', err);
       setSaveMessage({ 
@@ -439,4 +526,4 @@ export default function ChildViewProfile() {
       </div>
     </ErrorBoundary>
   );
-} 
+}
