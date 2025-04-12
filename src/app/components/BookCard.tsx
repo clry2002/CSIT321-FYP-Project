@@ -10,30 +10,45 @@ interface BookCardProps {
   description: string;
   cfid: number;
   status: string;
-  genre?: string[]; // Make genre optional since it might not be available immediately
+  genre?: string[]; // genre is optional
 }
 
 const BookCard = (props: BookCardProps) => {
-  const { title, credit, coverimage, genre = [], minimumage } = props; // Provide default empty array
+  const { title, credit, coverimage, genre = [], minimumage, cid } = props; // Provide default empty array
   const [imgError, setImgError] = useState(false);
+
+  // Function to handle navigation
+  const navigateToDetail = () => {
+    window.location.href = `/bookdetail/${cid}`;
+  };
   
   return (
     <div className="border rounded-lg overflow-hidden">
-      <div className="relative">
-        {!imgError && coverimage ? (
-          <img 
-            src={coverimage}
-            alt={`Cover for ${title}`}
-            className="w-full aspect-[3/4] object-cover"
-            onError={() => setImgError(true)}
-          />
-        ) : (
-          <div className="w-full aspect-[3/4] bg-gray-100 flex items-center justify-center">
-            <span className="text-gray-400 text-xs">No Cover</span>
-          </div>
-        )}
+    <div className="relative group cursor-pointer" onClick={navigateToDetail} role="button"
+      tabIndex={0} aria-label={`View details for ${title}`} 
+      onKeyDown={(e) => e.key === 'Enter' && navigateToDetail()}
+    >
+
+    {!imgError && coverimage ? (
+        <img 
+          src={coverimage}
+          alt={`Cover for ${title}`}
+          className="w-full aspect-[3/4] object-cover"
+          onError={() => setImgError(true)}
+        />
+      ) : (
+        <div className="w-full aspect-[3/4] bg-gray-200 flex items-center justify-center text-gray-500">
+          No Image
+        </div>
+      )}
+
+      {/* Tooltip overlay */}
+      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
+        <span className="text-white text-sm font-medium">View book details</span>
+      </div>
+
         {minimumage > 0 && (
-          <div className="absolute top-1 right-1 bg-white/80 rounded-full w-6 h-6 flex items-center justify-center">
+          <div className="absolute top-1 right-1 bg-blue-900 text-white rounded-full px-2 h-6 flex items-center justify-center">
             <span className="text-xs font-medium">{minimumage}+</span>
           </div>
         )}
@@ -45,12 +60,12 @@ const BookCard = (props: BookCardProps) => {
         {genre && genre.length > 0 && (
           <div className="flex flex-wrap gap-1 mt-1">
             {genre.slice(0, 2).map((genreName, idx) => (
-              <span key={idx} className="text-[10px] bg-gray-100 px-1.5 py-0.5 rounded">
+              <span key={idx} className="text-black text-[10px] bg-gray-100 px-1.5 py-0.5 rounded">
                 {genreName}
               </span>
             ))}
             {genre.length > 2 && (
-              <span className="text-[10px] bg-gray-100 px-1.5 py-0.5 rounded">
+              <span className="text-black text-[10px] bg-gray-100 px-1.5 py-0.5 rounded">
                 +{genre.length - 2}
               </span>
             )}

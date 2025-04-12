@@ -20,11 +20,21 @@ import { useEffect, useState } from 'react';
 
 export default function ChildPage() {
   const [recommendedBooks, setRecommendedBooks] = useState<any[]>([]);
-  const { popularBooks } = useBooks();
+  const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(true); // Added loading state for recommendations
+  const { availableBooks, recommendedForYouBooks } = useBooks();
   const { videos } = useVideos();
   const { userProfile, loading } = useSession();
   const [userFullName, setUserFullName] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Combine genre component display with recommended books 
+  const recommendedBooksWithGenre = recommendedBooks.map((book) => {
+    const matchingBook = availableBooks.find((b) => b.cid === book.cid);
+    return {
+    ...book,
+    genre: matchingBook?.genre || [],
+  };
+});
 
   useEffect(() => {
     const fetchUserFullName = async () => {
@@ -56,9 +66,13 @@ export default function ChildPage() {
 
   useEffect(() => {
     const recommendedForYou = async () => {
+      setIsLoadingRecommendations(true); // Set loading to true when starting to fetch recommendations
       try {
         const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
+        if (!user) {
+          setIsLoadingRecommendations(false);
+          return;
+        }
   
         // Get uaid
         const { data: userAccount, error: userAccountError } = await supabase
@@ -68,6 +82,7 @@ export default function ChildPage() {
           .single();
         if (userAccountError || !userAccount) {
           console.error('Error fetching user account info:', userAccountError);
+          setIsLoadingRecommendations(false);
           return;
         }
         const uaid = userAccount.id;
@@ -83,6 +98,7 @@ export default function ChildPage() {
           .limit(5);
         if (genreError || !topGenres) {
           console.error('Error fetching getTop5Genres:', genreError);
+          setIsLoadingRecommendations(false);
           return;
         }
         const topGenreIds = topGenres.map(g => g.gid);
@@ -96,11 +112,13 @@ export default function ChildPage() {
           .neq('uaid', uaid);
         if (similarUsersError || !similarUsers) {
           console.error('Error fetching similar users:', similarUsersError);
+          setIsLoadingRecommendations(false);
           return;
         }
         const similarUaidList = [...new Set(similarUsers.map(u => u.uaid))];
         if (similarUaidList.length === 0) {
           console.log("0 similar users");
+          setIsLoadingRecommendations(false);
           return; // Fallback to trending could go here
         }
         console.log('similarUaidList:', similarUaidList); //delete after debugging
@@ -112,6 +130,7 @@ export default function ChildPage() {
           .in('uaid', similarUaidList);
         if (bookmarksError || !similarBookmarks) {
           console.error('Error fetching similar user bookmark:', bookmarksError);
+          setIsLoadingRecommendations(false);
           return;
         }
         console.log('similarBookmarks:', similarBookmarks); //delete after debugging
@@ -124,6 +143,7 @@ export default function ChildPage() {
           .in('cid', bookIds);
         if (bookAgesError) {
           console.error('Failed to fetch book minimum ages:', bookAgesError);
+          setIsLoadingRecommendations(false);
           return;
         }
         const allowedBookIds = bookAges
@@ -172,6 +192,7 @@ export default function ChildPage() {
   
         if (finalFilteredContentIds.length === 0) {
           console.log('0 content with similar genres');
+          setIsLoadingRecommendations(false);
           return;
         }
   
@@ -183,6 +204,7 @@ export default function ChildPage() {
           .limit(10);
         if (bookDetailsError) {
           console.error('Error fetching recommended books:', bookDetailsError);
+          setIsLoadingRecommendations(false);
           return;
         }
   
@@ -190,10 +212,14 @@ export default function ChildPage() {
         setRecommendedBooks(recommendedBooks || []);
       } catch (error) {
         console.error('Error in recommendedForYou:', error);
+      } finally {
+        setIsLoadingRecommendations(false); // Always set loading to false when done
       }
+
     };
-  
+
     recommendedForYou();
+    
   }, []);
 
   return (
@@ -227,34 +253,70 @@ export default function ChildPage() {
             </button>
           </div>
 
-          {/* Popular Books Now Section */}
-          {/* <div className="mb-8">
-            <h2 className="text-lg font-serif mb-3 text-black">Popular Books Now</h2>
+          {/* Available Books Section */}
+          <div className="mb-8">
+            <h2 className="text-lg font-serif mb-3 text-black">Available Books</h2>
+            {isLoadingRecommendations ? (
+              <div className="grid grid-cols-4 gap-2">
+                {Array.from({ length: 4 }).map((_, index) => (
+                  <div key={index} className="border rounded-lg overflow-hidden">
+                    <div className="w-full aspect-[3/4] bg-gray-200 animate-pulse" />
+                    <div className="p-2 space-y-2">
+                      <div className="h-3 bg-gray-200 rounded animate-pulse w-3/4" />
+                      <div className="h-2 bg-gray-200 rounded animate-pulse w-1/2" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : 
             <div className="grid grid-cols-4 gap-2">
-              {popularBooks.map((book, index) => (
+              {availableBooks.slice(0,8).map((book, index) => (
                 <BookCard key={index} {...book} />
               ))}
             </div>
-          </div> */}
+          }
+          </div>
+        
+          {/* Explore More Books */}
+          <div className="mt-4 text-right">
+            <a
+              href="/search"
+              className="text-blue-600 hover:underline text-sm font-medium"
+            >
+              Explore more books →
+            </a>
+          </div>
 
-          {recommendedBooks.length > 0 && (
-            <div className="mb-8">
-              <h2 className="text-lg font-serif mb-3 text-black">Recommended For You!</h2>
+          {/* Recommended Books Section with Loading State */}
+          <div className="mb-8">
+            <h2 className="text-lg font-serif mb-3 text-black">Recommended For You!</h2>
+
+            {isLoadingRecommendations ? (
               <div className="grid grid-cols-4 gap-2">
-                {recommendedBooks.map((book, index) => (
+                {Array.from({ length: 4 }).map((_, index) => (
+                  <div key={index} className="border rounded-lg overflow-hidden">
+                    <div className="w-full aspect-[3/4] bg-gray-200 animate-pulse" />
+                    <div className="p-2 space-y-2">
+                      <div className="h-3 bg-gray-200 rounded animate-pulse w-3/4" />
+                      <div className="h-2 bg-gray-200 rounded animate-pulse w-1/2" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : recommendedBooksWithGenre.length > 0 ? (
+              <div className="grid grid-cols-4 gap-2">
+                {recommendedBooksWithGenre.map((book, index) => (
                   <BookCard key={index} {...book} />
                 ))}
               </div>
-            </div>
-          )}
-          {recommendedBooks.length == 0 && (
-            <div className="mb-8">
-              <h2 className="text-lg font-serif mb-3 text-black">Recommended For You!</h2>
+            ) : (
               <div className="grid grid-cols-4 gap-2">
-                <p className="text-lg font-serif mb-3 text-black font-sm">We currently have no books to recommend...</p>
+                <p className="text-lg col-span-4 font-serif text-black font-sm">
+                  We currently have no books to recommend...
+                </p>
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
           {/* Videos for You Section */}
           <div>
@@ -303,8 +365,18 @@ export default function ChildPage() {
               )}
             </div>
           </div>
-        </div>
 
+           {/* Explore More Videos */}
+           <div className="mt-4 text-right">
+            <a
+              href="/search"
+              className="text-blue-600 hover:underline text-sm font-medium"
+            >
+              Explore more videos →
+            </a>
+          </div>
+        </div>
+      
         {/* Right Section */}
         <div className="w-1/2 overflow-y-auto p-6">
           <div className="h-full flex flex-col">

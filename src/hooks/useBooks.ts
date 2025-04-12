@@ -5,18 +5,18 @@ import { supabase } from '@/lib/supabase';
 import { Book } from '@/types/database.types';
 
 export const useBooks = () => {
-  const [popularBooks, setPopularBooks] = useState<Book[]>([]);
+  const [availableBooks, setAvailableBooks] = useState<Book[]>([]);
+  const [recommendedForYouBooks, setRecommendedForYouBooks] = useState<Book[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchBooks = async () => {
       try {
-        // First, fetch the books without trying to get genre directly
         const { data: books, error: booksError } = await supabase
           .from('temp_content')
           .select('cid, title, credit, coverimage, minimumage, description, cfid, status, contenturl, createddate, decisiondate')
-          .eq('cfid', 2); // Only fetch books (PDF, assuming cfid 2 is for books)
+          .eq('cfid', 2); // Only fetch books
 
         if (booksError) {
           console.error('Error fetching books:', booksError);
@@ -89,7 +89,7 @@ export const useBooks = () => {
           genre: book.genre || [] // Ensure genre is always defined
         }));
 
-        setPopularBooks(formattedBooks);
+        setAvailableBooks(formattedBooks);
       } catch (err) {
         console.error('Unexpected error fetching books:', err);
         setError('An unexpected error occurred. Please try again later.');
@@ -102,7 +102,8 @@ export const useBooks = () => {
   }, []);
 
   return {
-    popularBooks,
+    availableBooks,
+    recommendedForYouBooks,
     error,
     loading
   };
