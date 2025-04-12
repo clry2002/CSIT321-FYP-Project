@@ -1,30 +1,64 @@
-import Image from 'next/image';
+// components/BookCard.tsx
+import { useState } from 'react';
 
 interface BookCardProps {
   title: string;
-  author: string;
-  cover_image: string;
+  credit: string;
+  coverimage?: string | null;
+  cid: number;
+  minimumage: number;
+  description: string;
+  cfid: number;
+  status: string;
+  genre?: string[]; // Make genre optional since it might not be available immediately
 }
 
-const BookCard: React.FC<BookCardProps> = ({ title, author, cover_image }) => {
+const BookCard = (props: BookCardProps) => {
+  const { title, credit, coverimage, genre = [], minimumage } = props; // Provide default empty array
+  const [imgError, setImgError] = useState(false);
+  
   return (
-    <div className="space-y-2">
-      <div className="relative aspect-[3/4] rounded-lg overflow-hidden bg-gray-100">
-        <Image
-          src={cover_image}
-          alt={title}
-          fill
-          className="object-cover"
-          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+    <div className="border rounded-lg overflow-hidden">
+      <div className="relative">
+        {!imgError && coverimage ? (
+          <img 
+            src={coverimage}
+            alt={`Cover for ${title}`}
+            className="w-full aspect-[3/4] object-cover"
+            onError={() => setImgError(true)}
+          />
+        ) : (
+          <div className="w-full aspect-[3/4] bg-gray-100 flex items-center justify-center">
+            <span className="text-gray-400 text-xs">No Cover</span>
+          </div>
+        )}
+        {minimumage > 0 && (
+          <div className="absolute top-1 right-1 bg-white/80 rounded-full w-6 h-6 flex items-center justify-center">
+            <span className="text-xs font-medium">{minimumage}+</span>
+          </div>
+        )}
       </div>
-      <div>
-        <h3 className="font-medium text-xs text-black leading-tight line-clamp-2">{title}</h3>
-        <p className="text-xs text-gray-600">{author}</p>
+
+      <div className="p-2">
+        <h3 className="font-medium text-xs text-black leading-tight">{title}</h3>
+        <p className="text-xs text-gray-500">{credit}</p>
+        {genre && genre.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-1">
+            {genre.slice(0, 2).map((genreName, idx) => (
+              <span key={idx} className="text-[10px] bg-gray-100 px-1.5 py-0.5 rounded">
+                {genreName}
+              </span>
+            ))}
+            {genre.length > 2 && (
+              <span className="text-[10px] bg-gray-100 px-1.5 py-0.5 rounded">
+                +{genre.length - 2}
+              </span>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
-}
+};
 
-export default BookCard; 
+export default BookCard;

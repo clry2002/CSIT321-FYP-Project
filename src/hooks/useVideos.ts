@@ -5,8 +5,8 @@ import { supabase } from '../lib/supabase';
 
 interface Video {
   title: string;
-  embeddedLink: string;
-  link: string;
+  contenturl: string;
+  coverimage: string;
 }
 
 export const useVideos = () => {
@@ -16,14 +16,16 @@ export const useVideos = () => {
   useEffect(() => {
     const fetchVideos = async () => {
       try {
-        // Fetch all videos and randomly select 4
+        // Fetch videos from Temp_content where cfid = 1 (videos)
         const { data, error } = await supabase
-          .from('videos')
-          .select('title, embeddedLink, link');
+          .from('temp_content')
+          .select('title, contenturl, coverimage')
+          .eq('cfid', 1)
+          .eq('status', 'approved');
 
         if (error) throw error;
 
-        // Randomly select 4 videos
+        // Shuffle and pick 4 random videos
         const shuffled = data.sort(() => 0.5 - Math.random());
         const selectedVideos = shuffled.slice(0, 4);
 
@@ -42,4 +44,4 @@ export const useVideos = () => {
     videos,
     loading
   };
-}; 
+};

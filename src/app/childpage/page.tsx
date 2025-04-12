@@ -14,11 +14,12 @@ import { supabase } from '@/lib/supabase';
 import { useEffect, useState } from 'react';
 
 // Import the updated screen time components
-import ScreenTimeTracker from '../components/child/ScreenTimeTracker';
-import ScreenTimeLimit from '../components/child/ScreenTimeLimit';
-import ScreenTimeIndicator from '../components/child/ScreenTimeIndicator';
+// import ScreenTimeTracker from '../components/child/ScreenTimeTracker';
+// import ScreenTimeLimit from '../components/child/ScreenTimeLimit';
+// import ScreenTimeIndicator from '../components/child/ScreenTimeIndicator';
 
 export default function ChildPage() {
+  const [recommendedBooks, setRecommendedBooks] = useState<any[]>([]);
   const { popularBooks } = useBooks();
   const { videos } = useVideos();
   const { userProfile, loading } = useSession();
@@ -58,19 +59,22 @@ export default function ChildPage() {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
+  
+        // Get uaid
         const { data: userAccount, error: userAccountError } = await supabase
           .from('user_account')
-          .select('id')
+          .select('id, age')
           .eq('user_id', user.id)
           .single();
         if (userAccountError || !userAccount) {
-          console.error('Error fetching uaid:', userAccountError);
+          console.error('Error fetching user account info:', userAccountError);
           return;
         }
         const uaid = userAccount.id;
+        const userAge = userAccount.age;
         console.log('uaid:', uaid); //delete after debugging
-
-        //getTop5Genres
+  
+        // Get top 5 genres
         const { data: topGenres, error: genreError } = await supabase
           .from('userInteractions')
           .select('gid')
@@ -83,8 +87,8 @@ export default function ChildPage() {
         }
         const topGenreIds = topGenres.map(g => g.gid);
         console.log('topGenreIds:', topGenreIds); //delete after debugging
-
-        //getSimilarUsers
+  
+        // Get similar users
         const { data: similarUsers, error: similarUsersError } = await supabase
           .from('userInteractions')
           .select('uaid')
@@ -97,11 +101,11 @@ export default function ChildPage() {
         const similarUaidList = [...new Set(similarUsers.map(u => u.uaid))];
         if (similarUaidList.length === 0) {
           console.log("0 similar users");
-          //if none, show currently trending
-          return;
+          return; // Fallback to trending could go here
         }
         console.log('similarUaidList:', similarUaidList); //delete after debugging
-
+  
+        // Get similar user bookmarks
         const { data: similarBookmarks, error: bookmarksError } = await supabase
           .from('temp_bookmark')
           .select('cid')
@@ -111,18 +115,37 @@ export default function ChildPage() {
           return;
         }
         console.log('similarBookmarks:', similarBookmarks); //delete after debugging
-
+  
+        // Age-based filtering
+        const bookIds = similarBookmarks.map(b => b.cid);
+        const { data: bookAges, error: bookAgesError } = await supabase
+          .from('temp_content')
+          .select('cid, minimumage')
+          .in('cid', bookIds);
+        if (bookAgesError) {
+          console.error('Failed to fetch book minimum ages:', bookAgesError);
+          return;
+        }
+        const allowedBookIds = bookAges
+          .filter(book => book.minimumage <= userAge)
+          .map(book => book.cid);
+        const ageFilteredBookmarks = similarBookmarks.filter(b =>
+          allowedBookIds.includes(b.cid)
+        );
+  
+        // Get user bookmarks
         const { data: userBookmarks, error: userBookmarksError } = await supabase
           .from('temp_bookmark')
           .select('cid')
           .eq('uaid', uaid);
         const userCid = userBookmarks?.map(b => b.cid) || [];
-        //filtering similarBookmarks
-        const filteredCids = similarBookmarks
+  
+        // Filter out books the user already bookmarked
+        const filteredCids = ageFilteredBookmarks
           .map(b => b.cid)
           .filter(bookId => !userCid.includes(bookId));
   
-        //ranking by content frequency
+        // Rank by frequency
         const contentFrequency: Record<string, number> = {};
         filteredCids.forEach((bookId: string) => {
           contentFrequency[bookId] = (contentFrequency[bookId] || 0) + 1;
@@ -130,8 +153,8 @@ export default function ChildPage() {
         const rankedContentIds = Object.entries(contentFrequency)
           .sort((a: [string, number], b: [string, number]) => b[1] - a[1])
           .map(([bookId]) => bookId);
-
-        //check if at least 1 of 5 genres are present
+  
+        // Genre relevance filtering
         const filteredRecommendedBooks = await Promise.all(
           rankedContentIds.map(async (bookId) => {
             const { data: bookGenres, error: genreError } = await supabase
@@ -142,18 +165,17 @@ export default function ChildPage() {
               console.error('Error fetching genre(s) for content:', genreError);
               return false;
             }
-            //check if at least 1 of 5 genres are present
             return bookGenres.some(genre => topGenreIds.includes(genre.gid));
           })
         );
-        //remove content(s) with 0 genres present
         const finalFilteredContentIds = rankedContentIds.filter((bookId, index) => filteredRecommendedBooks[index]);
-
-        //get content infomation (unused)
+  
         if (finalFilteredContentIds.length === 0) {
           console.log('0 content with similar genres');
           return;
         }
+  
+        // Fetch content details
         const { data: recommendedBooks, error: bookDetailsError } = await supabase
           .from('temp_content')
           .select('*')
@@ -163,20 +185,23 @@ export default function ChildPage() {
           console.error('Error fetching recommended books:', bookDetailsError);
           return;
         }
+  
         console.log("recommendedBooks:", recommendedBooks); //delete after debugging
+        setRecommendedBooks(recommendedBooks || []);
       } catch (error) {
         console.error('Error in recommendedForYou:', error);
       }
     };
+  
     recommendedForYou();
   }, []);
 
   return (
     <div className="flex flex-col h-screen bg-white">
       <Navbar/>
-      <ScreenTimeLimit />
+      {/* <ScreenTimeLimit />
       <ScreenTimeTracker />
-      <ScreenTimeIndicator />
+      <ScreenTimeIndicator /> */}
       {/* Main Content */}
       <div className="flex flex-1 overflow-hidden">
         {/* Left Section */}
@@ -212,6 +237,25 @@ export default function ChildPage() {
             </div>
           </div> */}
 
+          {recommendedBooks.length > 0 && (
+            <div className="mb-8">
+              <h2 className="text-lg font-serif mb-3 text-black">Recommended For You!</h2>
+              <div className="grid grid-cols-4 gap-2">
+                {recommendedBooks.map((book, index) => (
+                  <BookCard key={index} {...book} />
+                ))}
+              </div>
+            </div>
+          )}
+          {recommendedBooks.length == 0 && (
+            <div className="mb-8">
+              <h2 className="text-lg font-serif mb-3 text-black">Recommended For You!</h2>
+              <div className="grid grid-cols-4 gap-2">
+                <p className="text-lg font-serif mb-3 text-black font-sm">We currently have no books to recommend...</p>
+              </div>
+            </div>
+          )}
+
           {/* Videos for You Section */}
           <div>
             <h2 className="text-lg font-serif mb-3 text-black">Videos for You</h2>
@@ -226,8 +270,8 @@ export default function ChildPage() {
                 ))
               ) : videos.length > 0 ? (
                 videos.map((video) => {
-                  const videoId = video.link.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/)?.[1];
-                  
+                  const videoId = video.contenturl?.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/)?.[1];
+                
                   return (
                     <div key={video.title} className="border rounded-lg overflow-hidden">
                       <div className="aspect-video relative">
@@ -251,6 +295,7 @@ export default function ChildPage() {
                     </div>
                   );
                 })
+                
               ) : (
                 <div className="col-span-4 text-center text-gray-500 py-4">
                   No videos available at the moment
