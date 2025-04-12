@@ -1,3 +1,4 @@
+// parent / viewchild.tsx
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -102,24 +103,28 @@ const [selectedFavoriteGenres, setSelectedFavoriteGenres] = useState<string[]>([
 
       console.log('User account data:', userData);
       setChildName(userData.fullname);
-      setAccountId(userData.id);
+      //setAccountId(userData.id);
+      setAccountId(childId);
 
       // Get child profile data with specific columns
       // First check if the child profile exists using the account ID (not user_id)
       const { data: profileExists, error: existsError } = await supabase
         .from('child_profile')
         .select('child_id')
-        .eq('child_id', userData.id);
+        //.eq('child_id', userData.id);
+        .eq('child_id', childId);
 
       if (existsError) throw existsError;
 
       // If profile doesn't exist, create it using the account ID
       if (!profileExists || profileExists.length === 0) {
-        console.log('Creating new child profile for account ID:', userData.id);
+        //console.log('Creating new child profile for account ID:', userData.id);
+        console.log('Creating new child profile for account ID:', childId);
         const { error: createError } = await supabase
           .from('child_profile')
           .insert({
-            child_id: userData.id, // Use the account ID, not the auth user_id
+           // child_id: userData.id, // Use the account ID, not the auth user_id
+           child_id: childId,
             favourite_genres: [],
             blocked_genres: [],
             classrooms: []
@@ -132,7 +137,8 @@ const [selectedFavoriteGenres, setSelectedFavoriteGenres] = useState<string[]>([
       const { data: profileData, error: profileError } = await supabase
         .from('child_profile')
         .select('favourite_genres, blocked_genres, classrooms')
-        .eq('child_id', userData.id)
+        //.eq('child_id', userData.id)
+        .eq('child_id', childId)
         .single();
 
       if (profileError) throw profileError;
@@ -149,7 +155,8 @@ const [selectedFavoriteGenres, setSelectedFavoriteGenres] = useState<string[]>([
       const { data: bookmarks, error: bookmarksError } = await supabase
         .from('temp_bookmark')
         .select('cid')
-        .eq('uaid', userData.id);
+        //.eq('uaid', userData.id);
+        .eq('uaid', childId);
 
       if (bookmarksError) throw bookmarksError;
       console.log('Bookmarks found:', bookmarks);
