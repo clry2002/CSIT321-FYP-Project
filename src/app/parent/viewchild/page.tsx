@@ -3,24 +3,10 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import Image from 'next/image';
+import ViewChildBookmark from '../../components/parent/view_child_bookmark';
+import { fetchBookmarkedContent, ContentWithGenres } from './fetchChildBookmark';
 
-// Define interfaces for proper typing
-interface Content {
-  cid: number;
-  title: string;
-  coverimage?: string;
-  contenturl?: string;
-  credit?: string;
-  description?: string;
-  cfid: number;
-}
-
-interface ContentWithGenres extends Content {
-  genres: string[];
-}
-
-interface ChildDetails {
+interface ChildProfile {
   favourite_genres: string[];
   blocked_genres: string[];
   classrooms: string[];
@@ -28,31 +14,21 @@ interface ChildDetails {
   videos_bookmark?: ContentWithGenres[];
 }
 
-interface UserAccount {
-  fullname: string;
-  id: string;
-}
-
-interface PostgrestResponse<T> {
-  data: T | null;
-  error: any;
-}
-
 export default function ViewChild() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [childDetails, setChildDetails] = useState<ChildDetails | null>(null);
+  const [childProfile, setChildProfile] = useState<ChildProfile | null>(null);
   const [childName, setChildName] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showGenreModal, setShowGenreModal] = useState(false);
+  const [showFavoriteGenreModal, setShowFavoriteGenreModal] = useState(false);
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
+  const [selectedFavoriteGenres, setSelectedFavoriteGenres] = useState<string[]>([]);
   const [availableGenres, setAvailableGenres] = useState<string[]>([]);
   const [accountId, setAccountId] = useState<string>('');
-  const [userAccountId, setUserAccountId] = useState<string>('');
-
-  const [showFavoriteGenreModal, setShowFavoriteGenreModal] = useState(false);
-  const [selectedFavoriteGenres, setSelectedFavoriteGenres] = useState<string[]>([]);
+  const [bookmarkedBooks, setBookmarkedBooks] = useState<ContentWithGenres[]>([]);
+  const [bookmarkedVideos, setBookmarkedVideos] = useState<ContentWithGenres[]>([]);
 
   useEffect(() => {
     const childId = searchParams.get('childId');
@@ -88,18 +64,6 @@ export default function ViewChild() {
 
       console.log('Fetching data for child ID:', childId);
 
-      // Check if the user exists in user_account
-      const { data: userExists, error: userExistsError } = await supabase
-        .from('user_account')
-        .select('id')
-        .eq('user_id', childId);
-
-      if (userExistsError) throw userExistsError;
-      
-      if (!userExists || userExists.length === 0) {
-        throw new Error(`User with ID ${childId} does not exist in the user_account table`);
-      }
-
       // Get child's account details from user_account
       const { data: userData, error: userError } = await supabase
         .from('user_account')
@@ -112,27 +76,23 @@ export default function ViewChild() {
 
       console.log('User account data:', userData);
       setChildName(userData.fullname);
-      setAccountId(childId);
-      
-      // Store the user_account.id value for use in child_details queries
-      const userAccountId = userData.id;
-      setUserAccountId(userAccountId);
+      setAccountId(userData.id);
 
-      // Get child details data with specific columns
-      const { data: detailsExists, error: existsError } = await supabase
+ 
+      const { data: profileExists, error: existsError } = await supabase
         .from('child_details')
         .select('child_id')
-        .eq('child_id', userAccountId); 
+        .eq('child_id', userData.id);
 
       if (existsError) throw existsError;
 
-      // If details don't exist, create it using the account ID
-      if (!detailsExists || detailsExists.length === 0) {
-        console.log('Creating new child details for account ID:', userAccountId);
+      // If profile doesn't exist, create it using the account ID
+      if (!profileExists || profileExists.length === 0) {
+        console.log('Creating new child profile for account ID:', userData.id);
         const { error: createError } = await supabase
           .from('child_details')
           .insert({
-            child_id: userAccountId,
+            child_id: userData.id, 
             favourite_genres: [],
             blocked_genres: [],
             classrooms: []
@@ -141,116 +101,36 @@ export default function ViewChild() {
         if (createError) throw createError;
       }
 
-      // Now fetch the details data using the account ID
-      const { data: detailsData, error: detailsError } = await supabase
+      const { data: profileData, error: profileError } = await supabase
         .from('child_details')
         .select('favourite_genres, blocked_genres, classrooms')
-        .eq('child_id', userAccountId)
+        .eq('child_id', userData.id)
         .single();
 
-      if (detailsError) throw detailsError;
-      if (!detailsData) throw new Error('No details found');
+      if (profileError) throw profileError;
+      if (!profileData) throw new Error('No profile found');
 
       // Initialize arrays if they're null
-      const processedDetailsData = {
-        favourite_genres: detailsData.favourite_genres || [],
-        blocked_genres: detailsData.blocked_genres || [],
-        classrooms: detailsData.classrooms || []
+      const processedProfileData = {
+        favourite_genres: profileData.favourite_genres || [],
+        blocked_genres: profileData.blocked_genres || [],
+        classrooms: profileData.classrooms || []
       };
 
-      // Get bookmarked content from temp_bookmark using the user_id
-      const { data: bookmarks, error: bookmarksError } = await supabase
-        .from('temp_bookmark')
-        .select('cid')
-        .eq('uaid', childId);
+      const bookmarkedContent = await fetchBookmarkedContent(userData.id);
+      setBookmarkedBooks(bookmarkedContent.books);
+      setBookmarkedVideos(bookmarkedContent.videos);
 
-      if (bookmarksError) throw bookmarksError;
-      console.log('Bookmarks found:', bookmarks);
-
-      // Get bookmarked books and videos
-      const bookmarkedCids = bookmarks?.map(b => b.cid) || [];
-      console.log('Bookmarked CIDs:', bookmarkedCids);
+      const combinedProfile: ChildProfile = {
+        ...processedProfileData,
+        books_bookmark: bookmarkedContent.books,
+        videos_bookmark: bookmarkedContent.videos
+      };
       
-      let booksRes: PostgrestResponse<Content[]> = { data: [], error: null };
-      let videosRes: PostgrestResponse<Content[]> = { data: [], error: null };
-
-      if (bookmarkedCids.length > 0) {
-        booksRes = await supabase
-          .from('temp_content')
-          .select('*')
-          .in('cid', bookmarkedCids)
-          .eq('cfid', 2); // Books (cfid = 2)
-          
-        videosRes = await supabase
-          .from('temp_content')
-          .select('*')
-          .in('cid', bookmarkedCids)
-          .eq('cfid', 1); // Videos (cfid = 1)
-
-        if (booksRes.error) throw booksRes.error;
-        if (videosRes.error) throw videosRes.error;
-        console.log('Bookmarked Books:', booksRes.data);
-        console.log('Bookmarked Videos:', videosRes.data);
-      }
-
-      // Fetch genres for all bookmarked content
-      let genresData: any[] = [];
-      let genresError = null;
-
-      if (bookmarkedCids.length > 0) {
-        const genresResponse = await supabase
-          .from('temp_contentgenres')
-          .select('cid, temp_genre(genrename)')
-          .in('cid', bookmarkedCids);
-        
-        genresData = genresResponse.data || [];
-        genresError = genresResponse.error;
-      }
-
-      if (genresError) throw genresError;
-
-      // Process genres into a map
-      const genresMap: Record<number, string[]> = {};
-      if (genresData && genresData.length > 0) {
-        genresData.forEach((item: any) => {
-          if (!genresMap[item.cid]) {
-            genresMap[item.cid] = [];
-          }
-          const genreField = item.temp_genre;
-          if (Array.isArray(genreField)) {
-            genreField.forEach((g: any) => {
-              if (g && g.genrename) {
-                genresMap[item.cid].push(g.genrename);
-              }
-            });
-          } else if (genreField && genreField.genrename) {
-            genresMap[item.cid].push(genreField.genrename);
-          }
-        });
-      }
-
-      // Add genres to books and videos
-      const booksWithGenres = (booksRes.data || []).map(book => ({
-        ...book,
-        genres: genresMap[book.cid] || []
-      }));
-
-      const videosWithGenres = (videosRes.data || []).map(video => ({
-        ...video,
-        genres: genresMap[video.cid] || []
-      }));
-
-      // Combine all the data
-      const combinedDetails: ChildDetails = {
-        ...processedDetailsData,
-        books_bookmark: booksWithGenres,
-        videos_bookmark: videosWithGenres
-      };
-
-      setChildDetails(combinedDetails);
-    
-      setSelectedGenres(processedDetailsData.blocked_genres || []);
-      setSelectedFavoriteGenres(processedDetailsData.favourite_genres || []);
+      console.log('Combined Profile:', combinedProfile);
+      setChildProfile(combinedProfile);
+      setSelectedGenres(processedProfileData.blocked_genres || []);
+      setSelectedFavoriteGenres(processedProfileData.favourite_genres || []);
 
     } catch (err) {
       console.error('Error fetching child data:', err);
@@ -263,27 +143,27 @@ export default function ViewChild() {
   const handleAddFavoriteGenres = async () => {
     try {
       const childId = searchParams.get('childId');
-      if (!childId || !userAccountId) return;
+      if (!childId || !accountId) return;
   
       // Get current blocked genres using account ID
-      const { data: currentDetails } = await supabase
+      const { data: currentProfile } = await supabase
         .from('child_details')
         .select('blocked_genres')
-        .eq('child_id', userAccountId)
+        .eq('child_id', accountId)
         .single();
   
-      if (!currentDetails) throw new Error('Details not found');
+      if (!currentProfile) throw new Error('Profile not found');
   
       // Remove any favorite genres that are in blocked genres
       const filteredFavoriteGenres = selectedFavoriteGenres.filter(
-        (genre) => !(currentDetails.blocked_genres || []).includes(genre)
+        (genre) => !(currentProfile.blocked_genres || []).includes(genre)
       );
   
       // Update favorite genres in child_details
       const { error } = await supabase
         .from('child_details')
         .update({ favourite_genres: filteredFavoriteGenres })
-        .eq('child_id', userAccountId);
+        .eq('child_id', accountId);
   
       if (error) throw error;
   
@@ -299,19 +179,19 @@ export default function ViewChild() {
   const handleAddBlockedGenres = async () => {
     try {
       const childId = searchParams.get('childId');
-      if (!childId || !userAccountId) return;
+      if (!childId || !accountId) return;
 
       // Get current favourite genres using account ID
-      const { data: currentDetails } = await supabase
+      const { data: currentProfile } = await supabase
         .from('child_details')
         .select('favourite_genres')
-        .eq('child_id', userAccountId)
+        .eq('child_id', accountId)
         .single();
 
-      if (!currentDetails) throw new Error('Details not found');
+      if (!currentProfile) throw new Error('Profile not found');
 
       // Remove any blocked genres from favourite genres
-      const updatedFavouriteGenres = (currentDetails.favourite_genres || []).filter(
+      const updatedFavouriteGenres = (currentProfile.favourite_genres || []).filter(
         (genre: string) => !selectedGenres.includes(genre)
       );
 
@@ -322,7 +202,7 @@ export default function ViewChild() {
           blocked_genres: selectedGenres,
           favourite_genres: updatedFavouriteGenres
         })
-        .eq('child_id', userAccountId);
+        .eq('child_id', accountId);
 
       if (error) throw error;
 
@@ -368,11 +248,13 @@ export default function ViewChild() {
 
           if (scoreError) console.warn('Could not update userInteractions2 scores:', scoreError.message);
         } catch (err) {
+          // Gracefully handle if userInteractions2 table doesn't exist or other errors
           console.warn('Note: userInteractions2 table might not exist or other issue updating scores');
         }
       }
 
       setShowGenreModal(false);
+
       // Refresh the data
       fetchChildData(childId);
     } catch (err) {
@@ -402,7 +284,7 @@ export default function ViewChild() {
           <div className="overflow-x-auto">
             <table className="min-w-full bg-white">
               <tbody className="divide-y divide-gray-200">
-                {childDetails && Object.entries(childDetails).map(([key, value]) => {
+                {childProfile && Object.entries(childProfile).map(([key, value]) => {
                   // Skip books_bookmark and videos_bookmark from the table
                   if (key === 'books_bookmark' || key === 'videos_bookmark') {
                     return null;
@@ -458,92 +340,11 @@ export default function ViewChild() {
             </table>
           </div>
 
-          {/* Bookmarked Content Section */}
-          <div className="mt-12">
-            <h2 className="text-2xl font-bold mb-6 text-black">Bookmarked Content</h2>
-            
-            {/* Bookmarked Books */}
-            <div className="space-y-6">
-              <h3 className="text-xl font-semibold text-blue-900">Books</h3>
-              {childDetails?.books_bookmark?.length ? (
-                childDetails.books_bookmark.map((book) => (
-                  <div key={book.cid} className="flex items-start space-x-6 p-6 bg-white rounded-lg shadow-md hover:bg-gray-50">
-                    <div className="flex-shrink-0 w-32 h-48 relative">
-                      {book.coverimage ? (
-                        <Image src={book.coverimage} alt={book.title} fill className="object-cover rounded-md" />
-                      ) : (
-                        <div className="w-full h-full bg-gray-200 flex items-center justify-center rounded-md">
-                          <span className="text-gray-400">No cover</span>
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex-grow">
-                      <h3 className="text-2xl font-semibold text-gray-900 mb-2">
-                        <a href={`/bookdetail/${book.cid}`} className="hover:text-rose-500">
-                          {book.title}
-                        </a>
-                      </h3>
-                      <p className="text-md text-gray-600 mb-2">{book.credit}</p>
-                      {book.genres && (
-                        <div className="flex flex-wrap gap-2 mt-2">
-                          {book.genres.map((genre: string) => (
-                            <span key={genre} className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
-                              {genre}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="text-gray-500">No books bookmarked</div>
-              )}
-            </div>
-
-            {/* Bookmarked Videos */}
-            <div className="space-y-6 mt-12">
-              <h3 className="text-xl font-semibold text-blue-900">Videos</h3>
-              {childDetails?.videos_bookmark?.length ? (
-                childDetails.videos_bookmark.map((video) => (
-                  <div key={video.cid} className="flex items-start space-x-6 p-6 bg-white rounded-lg shadow-md hover:bg-gray-50">
-                    <div className="flex-shrink-0" style={{ width: '300px', height: '170px' }}>
-                      {video.contenturl && (
-                        <div className="relative" style={{ width: '300px', height: '170px' }}>
-                          <iframe
-                            className="absolute top-0 left-0 w-full h-full"
-                            src={`https://www.youtube.com/embed/${video.contenturl.match(/(?:youtube\.com\/(?:[^/]+\/[^/]+|(?:v|e(?:mbed)?)\/|.*[?&]v=)([\w-]+))|(?:youtu\.be\/([\w-]+))/i)?.[1] || ''}`}
-                            frameBorder="0"
-                            allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
-                            allowFullScreen
-                          />
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex-grow">
-                      <h3 className="text-2xl font-semibold text-gray-900 mb-2">
-                        <a href={`/videodetail/${video.cid}`} className="hover:text-rose-500">
-                          {video.title}
-                        </a>
-                      </h3>
-                      <p className="text-md text-gray-600 mb-2">{video.description}</p>
-                      {video.genres && (
-                        <div className="flex flex-wrap gap-2 mt-2">
-                          {video.genres.map((genre: string) => (
-                            <span key={genre} className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
-                              {genre}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="text-gray-500">No videos bookmarked</div>
-              )}
-            </div>
-          </div>
+          {/* ViewChildBookmark Component */}
+          <ViewChildBookmark 
+            books={bookmarkedBooks} 
+            videos={bookmarkedVideos} 
+          />
 
           {/* Genre Selection Modal */}
           {showGenreModal && (
@@ -593,28 +394,26 @@ export default function ViewChild() {
               <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
                 <h3 className="text-lg font-semibold mb-4 text-black">Select Favorite Genres</h3>
                 <div className="space-y-2 mb-4">
-                  {availableGenres.map((genre) => (
+                  {availableGenres
+                    .filter(genre => !childProfile?.blocked_genres.includes(genre))
+                    .map((genre) => (
                     <label key={genre} className="flex items-center space-x-2">
                       <input
                         type="checkbox"
                         checked={selectedFavoriteGenres.includes(genre)}
                         onChange={(e) => {
                           if (e.target.checked) {
-                            if (selectedFavoriteGenres.length < 3) {
-                              setSelectedFavoriteGenres([...selectedFavoriteGenres, genre]);
-                            }
+                            setSelectedFavoriteGenres([...selectedFavoriteGenres, genre]);
                           } else {
                             setSelectedFavoriteGenres(selectedFavoriteGenres.filter(g => g !== genre));
                           }
                         }}
-                        disabled={!selectedFavoriteGenres.includes(genre) && selectedFavoriteGenres.length >= 3}
                         className="rounded text-green-500"
                       />
                       <span className="text-black">{genre}</span>
                     </label>
                   ))}
                 </div>
-                <div className="text-sm text-gray-500 mb-4">You can select up to 3 favorite genres.</div>
                 <div className="flex justify-end space-x-4">
                   <button
                     onClick={() => setShowFavoriteGenreModal(false)}
