@@ -7,7 +7,8 @@ import { supabase } from '@/lib/supabase';
 export default function ParentalControlPage() {
     const router = useRouter();
     const params = useParams();
-    const childUserId = params?.user_id as string;
+    const childUserId = params?.id as string;
+    //const parentUserId = params?.id as string;
 
     const [timeLimit, setTimeLimit] = useState(0);
     const [bannedGenres, setBannedGenres] = useState<string[]>([]);
@@ -15,8 +16,9 @@ export default function ParentalControlPage() {
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
-    const [parentUsername, setParentUsername] = useState<string | null>(null);
+    //const [parentId, setParentId] = useState<string | null>(null);
     const [childProfile, setChildProfile] = useState<any>(null);
+    const [parentProfile, setParentProfile] = useState<any>(null);
 
     useEffect(() => {
         const fetchParentalControls = async () => {
@@ -34,7 +36,7 @@ export default function ParentalControlPage() {
                 const { data: child, error: childError } = await supabase
                     .from('user_account')
                     .select('*')
-                    .eq('user_id', childUserId)
+                    .eq('id', childUserId)
                     .single();
 
                 if (childError || !child) throw childError || new Error('Child profile not found.');
@@ -43,81 +45,84 @@ export default function ParentalControlPage() {
                 // Get the logged-in user (parent) information
                 const { data: { user }, error: authError } = await supabase.auth.getUser();
                 if (authError) throw authError;
+
+                 // Get parent profile info
+                 const { data: parent, error: parentProfileError } = await supabase
+                 .from('user_account')
+                 .select('*')
+                 .eq('user_id', user?.id)
+                 .single();
+
+                 if (parentProfileError || !parent) {
+                    console.error('Error getting parent profile:', parentProfileError);
+                    throw parentProfileError || new Error('Parent profile not found.');
+                }
                 
-                // Look for parent-child relationship
-                const { data: relation, error: relationError } = await supabase
-                    .from('isparentof')
-                    .select('parent, timeLimitMinute')
-                    .eq('child', child.username)
-                    .single();
-
-                // Handle the case where relationship might not exist yet
-                if (relationError) {
-                    console.log('No direct relationship found, checking case insensitive or creating new');
-                    
-                    // Try with case insensitive match
-                    const { data: caseInsensitiveRelation, error: caseInsensitiveError } = await supabase
-                        .from('isparentof')
-                        .select('parent, timeLimitMinute')
-                        .ilike('child', child.username)
-                        .single();
-                        
-                    if (caseInsensitiveRelation) {
-                        // Use case insensitive match if found
-                        setParentUsername(caseInsensitiveRelation.parent);
-                        setTimeLimit(caseInsensitiveRelation.timeLimitMinute || 0);
-                    } else {
-                        // Get parent username from auth
-                        const { data: parentProfile, error: parentProfileError } = await supabase
-                            .from('user_account')
-                            .select('username')
-                            .eq('user_id', user?.id)
-                            .single();
+                setParentProfile(parent);
+                
+                         // Check if both parent and child have valid IDs
+                         if (parent.id && child.id) {
+                            // Look for parent-child relationship
+                            const { data: relation, error: relationError } = await supabase
+                                .from('isparentof')
+                                .select('*')
+                                .eq('parent_id', parent.id)
+                                .eq('child_id', child.id)
+                                .single();
+        
+                            if (relationError) {
+                                console.log('No direct relationship found, checking case insensitive or creating new');
+                                
+                                // Try with case insensitive match
+                                const { data: caseInsensitiveRelation, error: caseInsensitiveError } = await supabase
+                                    .from('isparentof')
+                                    .select('parent_id, timeLimitMinute')
+                                    .ilike('child_id', child.id)
+                                    .single();
+                                    
+                                if (caseInsensitiveRelation) {
+                                    // Use case insensitive match if found
+                                    setTimeLimit(caseInsensitiveRelation.timeLimitMinute || 0);
+                                } else {
+                                    // No relation found, set default values
+                                    setTimeLimit(0); // Default to 0 for new relationships
+                                }
+                            } else if (relation) {
+                                // Use existing relationship data
+                                setTimeLimit(relation.timeLimitMinute || 0);
+                            }
                             
-                        if (parentProfileError || !parentProfile) {
-                            console.error('Error getting parent profile:', parentProfileError);
-                        } else {
-                            // Set parent username but no time limit yet (new relationship)
-                            setParentUsername(parentProfile.username);
-                            setTimeLimit(0); // Default to 0 for new relationships
+                            // Fetch blocked genres
+                            const { data: blockedGenres, error: genreError } = await supabase
+                                .from('blockedgenres')
+                                .select('genreid')
+                                .eq('child_id', child.id);
+        
+                            if (genreError) throw genreError;
+        
+                            // Handle case where blockedGenres might be null or empty
+                            if (blockedGenres && blockedGenres.length > 0) {
+                                const genreIds = blockedGenres.map((genre) => genre.genreid);
+                                const banned = genreList
+                                    .filter((g) => genreIds.includes(g.gid))
+                                    .map((g) => g.genrename);
+                                setBannedGenres(banned);
+                            } else {
+                                setBannedGenres([]);
+                            }
                         }
+                    } catch (err) {
+                        console.error('Error fetching parental controls:', err);
+                        setError('An error occurred while fetching parental control settings.');
+                    } finally {
+                        setLoading(false);
                     }
-                } else if (relation) {
-                    // Use existing relationship data
-                    setParentUsername(relation.parent);
-                    setTimeLimit(relation.timeLimitMinute || 0);
+                };
+        
+                if (childUserId) {
+                    fetchParentalControls();
                 }
-
-                // Fetch blocked genres - Updated to use child.id instead of child.user_id
-                const { data: blockedGenres, error: genreError } = await supabase
-                    .from('blockedgenres')
-                    .select('genreid')
-                    .eq('child_id', child.id); // Changed from child.user_id to child.id
-
-                if (genreError) throw genreError;
-
-                // Handle case where blockedGenres might be null or empty
-                if (blockedGenres && blockedGenres.length > 0) {
-                    const genreIds = blockedGenres.map((genre) => genre.genreid);
-                    const banned = genreList
-                        .filter((g) => genreIds.includes(g.gid))
-                        .map((g) => g.genrename);
-                    setBannedGenres(banned);
-                } else {
-                    setBannedGenres([]);
-                }
-            } catch (err) {
-                console.error('Error fetching parental controls:', err);
-                setError('An error occurred while fetching parental control settings.');
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        if (childUserId) {
-            fetchParentalControls();
-        }
-    }, [childUserId]);
+            }, [childUserId]);
 
     const handleGenreToggle = (genre: string) => {
         setBannedGenres((prev) => {
@@ -135,15 +140,15 @@ export default function ParentalControlPage() {
         setLoading(true);
 
         try {
-            if (!childProfile) throw new Error('Child profile not loaded');
-            if (!parentUsername) throw new Error('Parent username not available');
+            if (!childProfile?.id) throw new Error('Child profile ID not loaded');
+            if (!parentProfile?.id) throw new Error('Parent profile ID not available');
 
             // First check if relationship exists
             const { data: existingRelation, error: checkError } = await supabase
                 .from('isparentof')
                 .select('*')
-                .eq('parent', parentUsername)
-                .eq('child', childProfile.username);
+                .eq('parent_id', parentProfile.id)
+                .eq('child_id', childProfile.id);
                 
             if (checkError) {
                 console.error("Error checking relationship:", checkError);
@@ -156,8 +161,8 @@ export default function ParentalControlPage() {
                 const { error: updateParentError } = await supabase
                     .from('isparentof')
                     .update({ timeLimitMinute: timeLimit })
-                    .eq('parent', parentUsername)
-                    .eq('child', childProfile.username);
+                    .eq('parent_id', parentProfile.id)
+                    .eq('child_id', childProfile.id);
     
                 if (updateParentError) throw updateParentError;
             } else {
@@ -165,7 +170,7 @@ export default function ParentalControlPage() {
                 const { data: caseInsensitiveRelation, error: caseCheckError } = await supabase
                     .from('isparentof')
                     .select('*')
-                    .ilike('child', childProfile.username);
+                    .ilike('child_id', childProfile.id);
                     
                 if (caseCheckError) {
                     console.error("Error in case insensitive check:", caseCheckError);
@@ -184,8 +189,8 @@ export default function ParentalControlPage() {
                     const { error: insertParentError } = await supabase
                         .from('isparentof')
                         .insert([{
-                            parent: parentUsername,
-                            child: childProfile.username,
+                            parent_id: parentProfile.id,
+                            child_id: childProfile.id,
                             timeLimitMinute: timeLimit
                         }]);
                         
@@ -193,11 +198,11 @@ export default function ParentalControlPage() {
                 }
             }
 
-            // Handle banned genres - Updated to use child.id and removed genrename field
+            // Handle banned genres
             const { error: deleteGenresError } = await supabase
                 .from('blockedgenres')
                 .delete()
-                .eq('child_id', childProfile.id); // Changed from childProfile.user_id to childProfile.id
+                .eq('child_id', childProfile.id);
 
             if (deleteGenresError) throw deleteGenresError;
 
@@ -207,7 +212,7 @@ export default function ParentalControlPage() {
                     const genreObj = allGenres.find((g) => g.genrename === genre);
                     return {
                         genreid: genreObj?.gid,
-                        child_id: childProfile.id, // Changed from childProfile.user_id to childProfile.id
+                        child_id: childProfile.id,
                     };
                 });
 

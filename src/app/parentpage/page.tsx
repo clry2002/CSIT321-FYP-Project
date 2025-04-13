@@ -9,7 +9,7 @@ export default function ParentHome() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [parentName, setParentName] = useState<string | null>(null);
-  const [parentUsername, setParentUsername] = useState<string | null>(null);
+  const [parentId, setParentId] = useState<string | null>(null);
   const [children, setChildren] = useState<Array<{
     id: string;
     name: string;
@@ -68,9 +68,9 @@ export default function ParentHome() {
       // Fetch parent's full name from user_account
       const { data: parentData, error: parentError } = await supabase
         .from('user_account')
-        .select('fullname, username')
+        .select('id, fullname, username')
         .eq('user_id', user.id)
-        .eq('upid', 2) // upid for parent
+        .eq('upid', 2)
         .single();
 
       if (parentError) {
@@ -87,13 +87,13 @@ export default function ParentHome() {
 
       console.log("Parent data fetched:", parentData);
       setParentName(parentData.fullname || 'Parent');
-      setParentUsername(parentData.username);
+      setParentId(parentData.id);
 
       // Fetch children through isparentof relationship
       const { data: childrenRelations, error: relationsError } = await supabase
         .from('isparentof')
-        .select('child')
-        .eq('parent', parentData.username);
+        .select('child_id')
+        .eq('parent_id', parentData.id);
 
       if (relationsError) {
         console.error('Error fetching children relations:', relationsError);
@@ -104,21 +104,22 @@ export default function ParentHome() {
       console.log("Children relations fetched:", childrenRelations);
 
       if (!childrenRelations || childrenRelations.length === 0) {
-        console.log("No children found for parent:", parentData.username);
+        console.log("No children found for parent:", parentData.id);
         setChildren([]);
+        setLoading(false);
         return;
       }
 
       // Get child usernames from the relations
-      const childUsernames = childrenRelations.map(relation => relation.child);
-      console.log("Child usernames:", childUsernames);
+      const childIds = childrenRelations.map(relation => relation.child_id);
+      console.log("Child IDs:", childIds);
 
       // Fetch children data from user_account
       const { data: childrenData, error: childrenError } = await supabase
         .from('user_account')
-        .select('user_id, username, fullname, age')
-        .in('username', childUsernames)
-        .eq('upid', 3); // upid for child
+        .select('id, user_id, username, fullname, age')
+        .in('id', childIds)
+        .eq('upid', 3);
 
       if (childrenError) {
         console.error('Error fetching children:', childrenError);
@@ -130,10 +131,11 @@ export default function ParentHome() {
 
       // Map the data to match the expected type
       const mappedChildren = (childrenData || []).map(child => ({
-        id: child.user_id,
+        id: child.id,
+        user_id: child.user_id,
         name: child.fullname || 'Child',
         age: child.age || 0,
-        history: [] // We'll fetch history separately if needed
+        history: []
       }));
 
       setChildren(mappedChildren);
@@ -171,19 +173,8 @@ export default function ParentHome() {
       setLoading(true);
       setError(null);
 
-      // First get the child's username
-      const { data: childData, error: childError } = await supabase
-        .from('user_account')
-        .select('username')
-        .eq('user_id', id)
-        .single();
-
-      if (childError) {
-        console.error('Error fetching child data:', childError);
-        throw childError;
-      }
-      if (!childData) {
-        console.error('Child not found');
+      const childToRemove = children.find(child => child.id === id);
+      if (!childToRemove) {
         throw new Error('Child not found');
       }
 
@@ -191,7 +182,7 @@ export default function ParentHome() {
       const { error: relationError } = await supabase
         .from('isparentof')
         .delete()
-        .eq('child', childData.username);
+        .eq('child_id', id);
 
       if (relationError) {
         console.error('Error deleting from isparentof:', relationError);
@@ -200,20 +191,25 @@ export default function ParentHome() {
 
       // Delete from child_profile
       const { error: profileError } = await supabase
-        .from('child_profile')
+        .from('child_details')
         .delete()
-        .eq('child_id', id);
+        .eq('child_id', childToRemove.id);
 
       if (profileError) {
         console.error('Error deleting from child_profile:', profileError);
         throw profileError;
       }
 
-      // Finally delete from user_account
+      // Finally delete from user_account - DOES NOT WORK (PLEASE ACTION!)
+      //  
+      //
+      //
       const { error: accountError } = await supabase
         .from('user_account')
         .delete()
-        .eq('user_id', id);
+        .eq('id', id);
+
+        
 
       if (accountError) {
         console.error('Error deleting from user_account:', accountError);
@@ -315,7 +311,7 @@ export default function ParentHome() {
             <h2 className="text-lg font-serif mb-3 text-black">Child Profiles</h2>
             {children.length > 0 ? (
               children.map((child) => (
-                <div key={child.id} className="flex items-center justify-between mb-3">
+                <div key={child.id} className="flex items-center justify-between mb-3 p-2 border border-gray-200 rounded">
                   <div>
                     <h3
                       className="font-medium text-black text-sm cursor-pointer hover:text-blue-500"
@@ -327,7 +323,13 @@ export default function ParentHome() {
                   </div>
                   <div className="flex space-x-2">
                     <button
-                      className="text-red-500 text-xs underline"
+                      className="bg-blue-500 text-white px-2 py-1 rounded text-xs"
+                      onClick={() => router.push(`/parent/viewchild?childId=${child.id}`)}
+                    >
+                      View
+                    </button>
+                    <button
+                      className="bg-red-500 text-white px-2 py-1 rounded text-xs"
                       onClick={() => handleDeleteClick(child.id)}
                     >
                       Delete
@@ -336,7 +338,7 @@ export default function ParentHome() {
                 </div>
               ))
             ) : (
-              <p className="text-gray-500 text-sm">No child profiles available.</p>
+              <p className="text-gray-500 text-sm p-3">No child profiles available. Add a child below.</p>
             )}
             <button
               className="bg-green-500 text-white px-4 py-2 rounded-lg w-full mt-4"
@@ -351,7 +353,7 @@ export default function ParentHome() {
             <h2 className="text-lg font-serif mb-3 text-black">Child ChatBot History</h2>
             {children.length > 0 ? (
               children.map((child) => (
-                <div key={child.id} className="mb-3">
+                <div key={child.id} className="mb-3 p-2 border border-gray-200 rounded">
                   <div className="flex justify-between items-center">
                     <div>
                       <h3 className="font-medium text-sm text-black">{child.name}'s History</h3>
@@ -364,8 +366,8 @@ export default function ParentHome() {
                       </ul>
                     </div>
                     <button
-                      className="text-blue-500 text-xs underline ml-4"
-                      onClick={() => router.push('/parent/chathistory')}
+                      className="bg-blue-500 text-white px-2 py-1 rounded text-xs"
+                      onClick={() => router.push(`/parent/chathistory?childId=${child.id}`)}
                     >
                       View History
                     </button>
@@ -373,7 +375,7 @@ export default function ParentHome() {
                 </div>
               ))
             ) : (
-              <p className="text-gray-500 text-sm">No chatbot history available.</p>
+              <p className="text-gray-500 text-sm p-3">No chatbot history available. Add a child first.</p>
             )}
           </div>
 
@@ -391,7 +393,7 @@ export default function ParentHome() {
                 </button>
               ))
             ) : (
-              <p className="text-gray-500 text-sm">No settings available for children.</p>
+              <p className="text-gray-500 text-sm p-3">No settings available. Add a child first.</p>
             )}
           </div>
         </div>

@@ -68,7 +68,10 @@ export default function ViewChild() {
       const { data: userData, error: userError } = await supabase
         .from('user_account')
         .select('fullname, id')
-        .eq('user_id', childId)
+
+        
+        //.eq('user_id', childId)
+        .eq('id', childId)
         .single();
   
       if (userError) throw userError;

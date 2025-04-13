@@ -70,7 +70,7 @@ export default function CreateChildAccount() {
 
       const { data: parentData, error: parentDataError } = await supabase
         .from('user_account')
-        .select('username, fullname')
+        .select('id, user_id')
         .eq('user_id', parentUser.id)
         .eq('upid', 2)
         .single();
@@ -81,7 +81,7 @@ export default function CreateChildAccount() {
 
       const childUser = signUpData.user;
       
-      // First, create user_account entry
+      // Create user_account
       const { data: userAccountData, error: userAccountError } = await supabase
       .from('user_account')
       .insert({
@@ -91,13 +91,15 @@ export default function CreateChildAccount() {
         age: parseInt(age),
         upid: 3,
       })
-      .select('id')
+      .select('*')
       .single();
       
-      if (userAccountError || !userAccountData) throw new Error('Failed to create user account record.');
+      if (userAccountError || !userAccountData)
+      {
+        console.error('User account error:', userAccountError);
+        throw new Error('Failed to create user account record.');
+      }
 
-
-      // Then, create child_details entry using user_account.id as reference
       await supabase.from('child_details').insert({
         child_id: userAccountData.id,
         favourite_genres: selectedGenres
@@ -106,7 +108,7 @@ export default function CreateChildAccount() {
       const genreInteractions = genres
         .filter(genre => selectedGenres.includes(genre.genrename))
         .map(genre => ({
-          child_id: childUser.id,
+          child_id: userAccountData.id,
           genreid: genre.gid,
           score: 20
         }));
@@ -114,8 +116,9 @@ export default function CreateChildAccount() {
       await supabase.from('userInteractions2').insert(genreInteractions);
 
       await supabase.from('isparentof').insert({
-        parent: parentData.username,
-        child: username
+        parent_id: parentData.id,
+        child_id: userAccountData.id,
+        timeLimitMinute: 60  // Set a default time limit if needed
       });
 
       setShowReauthModal(true);
