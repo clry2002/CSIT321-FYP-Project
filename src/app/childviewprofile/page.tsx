@@ -65,7 +65,7 @@ export default function ChildViewProfile() {
         // Get the user's account data
         const { data: userData, error: userError } = await supabase
           .from('user_account')
-          .select('fullname, username, age')
+          .select('id, fullname, username, age')
           .eq('user_id', userId)
           .single();
 
@@ -75,9 +75,9 @@ export default function ChildViewProfile() {
 
         // Get the child's profile data including favourite genres
         const { data: profileData, error: profileError } = await supabase
-          .from('child_profile')
+          .from('child_details')
           .select('favourite_genres')
-          .eq('child_id', userId)
+          .eq('child_id', userData.id)
           .single();
 
         if (profileError) {
@@ -142,13 +142,22 @@ export default function ChildViewProfile() {
 
       if (userError) throw userError;
 
+      // Get the user_account.id
+      const { data: userData, error: userDataError } = await supabase
+      .from('user_account')
+      .select('id')
+      .eq('user_id', userId)
+      .single();
+
+      if (userDataError || !userData) throw new Error('Failed to retrieve user account');
+
       // Update child_profile table
       const { error: profileError } = await supabase
-        .from('child_profile')
+        .from('child_details')
         .update({
           favourite_genres: selectedGenres
         })
-        .eq('child_id', userId);
+        .eq('child_id', userData.id);
 
       if (profileError) throw profileError;
 

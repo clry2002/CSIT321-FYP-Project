@@ -1,4 +1,3 @@
-// parent / viewchild.tsx
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -15,14 +14,13 @@ interface Content {
   credit?: string;
   description?: string;
   cfid: number;
-  // Add other fields as needed
 }
 
 interface ContentWithGenres extends Content {
   genres: string[];
 }
 
-interface ChildProfile {
+interface ChildDetails {
   favourite_genres: string[];
   blocked_genres: string[];
   classrooms: string[];
@@ -35,7 +33,6 @@ interface UserAccount {
   id: string;
 }
 
-// Define PostgrestResponse types
 interface PostgrestResponse<T> {
   data: T | null;
   error: any;
@@ -44,7 +41,7 @@ interface PostgrestResponse<T> {
 export default function ViewChild() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [childProfile, setChildProfile] = useState<ChildProfile | null>(null);
+  const [childDetails, setChildDetails] = useState<ChildDetails | null>(null);
   const [childName, setChildName] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -52,10 +49,10 @@ export default function ViewChild() {
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
   const [availableGenres, setAvailableGenres] = useState<string[]>([]);
   const [accountId, setAccountId] = useState<string>('');
+  const [userAccountId, setUserAccountId] = useState<string>('');
 
-  // Add this state variable at the top with your other state variables
-const [showFavoriteGenreModal, setShowFavoriteGenreModal] = useState(false);
-const [selectedFavoriteGenres, setSelectedFavoriteGenres] = useState<string[]>([]);
+  const [showFavoriteGenreModal, setShowFavoriteGenreModal] = useState(false);
+  const [selectedFavoriteGenres, setSelectedFavoriteGenres] = useState<string[]>([]);
 
   useEffect(() => {
     const childId = searchParams.get('childId');
@@ -91,6 +88,18 @@ const [selectedFavoriteGenres, setSelectedFavoriteGenres] = useState<string[]>([
 
       console.log('Fetching data for child ID:', childId);
 
+      // Check if the user exists in user_account
+      const { data: userExists, error: userExistsError } = await supabase
+        .from('user_account')
+        .select('id')
+        .eq('user_id', childId);
+
+      if (userExistsError) throw userExistsError;
+      
+      if (!userExists || userExists.length === 0) {
+        throw new Error(`User with ID ${childId} does not exist in the user_account table`);
+      }
+
       // Get child's account details from user_account
       const { data: userData, error: userError } = await supabase
         .from('user_account')
@@ -103,28 +112,27 @@ const [selectedFavoriteGenres, setSelectedFavoriteGenres] = useState<string[]>([
 
       console.log('User account data:', userData);
       setChildName(userData.fullname);
-      //setAccountId(userData.id);
       setAccountId(childId);
+      
+      // Store the user_account.id value for use in child_details queries
+      const userAccountId = userData.id;
+      setUserAccountId(userAccountId);
 
-      // Get child profile data with specific columns
-      // First check if the child profile exists using the account ID (not user_id)
-      const { data: profileExists, error: existsError } = await supabase
-        .from('child_profile')
+      // Get child details data with specific columns
+      const { data: detailsExists, error: existsError } = await supabase
+        .from('child_details')
         .select('child_id')
-        //.eq('child_id', userData.id);
-        .eq('child_id', childId);
+        .eq('child_id', userAccountId); 
 
       if (existsError) throw existsError;
 
-      // If profile doesn't exist, create it using the account ID
-      if (!profileExists || profileExists.length === 0) {
-        //console.log('Creating new child profile for account ID:', userData.id);
-        console.log('Creating new child profile for account ID:', childId);
+      // If details don't exist, create it using the account ID
+      if (!detailsExists || detailsExists.length === 0) {
+        console.log('Creating new child details for account ID:', userAccountId);
         const { error: createError } = await supabase
-          .from('child_profile')
+          .from('child_details')
           .insert({
-           // child_id: userData.id, // Use the account ID, not the auth user_id
-           child_id: childId,
+            child_id: userAccountId,
             favourite_genres: [],
             blocked_genres: [],
             classrooms: []
@@ -133,29 +141,27 @@ const [selectedFavoriteGenres, setSelectedFavoriteGenres] = useState<string[]>([
         if (createError) throw createError;
       }
 
-      // Now fetch the profile data using the account ID
-      const { data: profileData, error: profileError } = await supabase
-        .from('child_profile')
+      // Now fetch the details data using the account ID
+      const { data: detailsData, error: detailsError } = await supabase
+        .from('child_details')
         .select('favourite_genres, blocked_genres, classrooms')
-        //.eq('child_id', userData.id)
-        .eq('child_id', childId)
+        .eq('child_id', userAccountId)
         .single();
 
-      if (profileError) throw profileError;
-      if (!profileData) throw new Error('No profile found');
+      if (detailsError) throw detailsError;
+      if (!detailsData) throw new Error('No details found');
 
       // Initialize arrays if they're null
-      const processedProfileData = {
-        favourite_genres: profileData.favourite_genres || [],
-        blocked_genres: profileData.blocked_genres || [],
-        classrooms: profileData.classrooms || []
+      const processedDetailsData = {
+        favourite_genres: detailsData.favourite_genres || [],
+        blocked_genres: detailsData.blocked_genres || [],
+        classrooms: detailsData.classrooms || []
       };
 
-      // Get bookmarked content from temp_bookmark using the user_account.id
+      // Get bookmarked content from temp_bookmark using the user_id
       const { data: bookmarks, error: bookmarksError } = await supabase
         .from('temp_bookmark')
         .select('cid')
-        //.eq('uaid', userData.id);
         .eq('uaid', childId);
 
       if (bookmarksError) throw bookmarksError;
@@ -235,18 +241,16 @@ const [selectedFavoriteGenres, setSelectedFavoriteGenres] = useState<string[]>([
       }));
 
       // Combine all the data
-      const combinedProfile: ChildProfile = {
-        ...processedProfileData,
+      const combinedDetails: ChildDetails = {
+        ...processedDetailsData,
         books_bookmark: booksWithGenres,
         videos_bookmark: videosWithGenres
       };
-      console.log('Combined Profile:', combinedProfile);
 
-      setChildProfile(combinedProfile);
+      setChildDetails(combinedDetails);
     
-
-      setSelectedGenres(processedProfileData.blocked_genres || []);
-      setSelectedFavoriteGenres(processedProfileData.favourite_genres || []);
+      setSelectedGenres(processedDetailsData.blocked_genres || []);
+      setSelectedFavoriteGenres(processedDetailsData.favourite_genres || []);
 
     } catch (err) {
       console.error('Error fetching child data:', err);
@@ -259,27 +263,27 @@ const [selectedFavoriteGenres, setSelectedFavoriteGenres] = useState<string[]>([
   const handleAddFavoriteGenres = async () => {
     try {
       const childId = searchParams.get('childId');
-      if (!childId || !accountId) return;
+      if (!childId || !userAccountId) return;
   
       // Get current blocked genres using account ID
-      const { data: currentProfile } = await supabase
-        .from('child_profile')
+      const { data: currentDetails } = await supabase
+        .from('child_details')
         .select('blocked_genres')
-        .eq('child_id', accountId)
+        .eq('child_id', userAccountId)
         .single();
   
-      if (!currentProfile) throw new Error('Profile not found');
+      if (!currentDetails) throw new Error('Details not found');
   
       // Remove any favorite genres that are in blocked genres
       const filteredFavoriteGenres = selectedFavoriteGenres.filter(
-        (genre) => !(currentProfile.blocked_genres || []).includes(genre)
+        (genre) => !(currentDetails.blocked_genres || []).includes(genre)
       );
   
-      // Update favorite genres in child_profile
+      // Update favorite genres in child_details
       const { error } = await supabase
-        .from('child_profile')
+        .from('child_details')
         .update({ favourite_genres: filteredFavoriteGenres })
-        .eq('child_id', accountId);
+        .eq('child_id', userAccountId);
   
       if (error) throw error;
   
@@ -295,30 +299,30 @@ const [selectedFavoriteGenres, setSelectedFavoriteGenres] = useState<string[]>([
   const handleAddBlockedGenres = async () => {
     try {
       const childId = searchParams.get('childId');
-      if (!childId || !accountId) return;
+      if (!childId || !userAccountId) return;
 
       // Get current favourite genres using account ID
-      const { data: currentProfile } = await supabase
-        .from('child_profile')
+      const { data: currentDetails } = await supabase
+        .from('child_details')
         .select('favourite_genres')
-        .eq('child_id', accountId)
+        .eq('child_id', userAccountId)
         .single();
 
-      if (!currentProfile) throw new Error('Profile not found');
+      if (!currentDetails) throw new Error('Details not found');
 
       // Remove any blocked genres from favourite genres
-      const updatedFavouriteGenres = (currentProfile.favourite_genres || []).filter(
+      const updatedFavouriteGenres = (currentDetails.favourite_genres || []).filter(
         (genre: string) => !selectedGenres.includes(genre)
       );
 
-      // Update both blocked and favourite genres in child_profile
+      // Update both blocked and favourite genres in child_details
       const { error } = await supabase
-        .from('child_profile')
+        .from('child_details')
         .update({ 
           blocked_genres: selectedGenres,
           favourite_genres: updatedFavouriteGenres
         })
-        .eq('child_id', accountId);
+        .eq('child_id', userAccountId);
 
       if (error) throw error;
 
@@ -364,7 +368,6 @@ const [selectedFavoriteGenres, setSelectedFavoriteGenres] = useState<string[]>([
 
           if (scoreError) console.warn('Could not update userInteractions2 scores:', scoreError.message);
         } catch (err) {
-          // Gracefully handle if userInteractions2 table doesn't exist or other errors
           console.warn('Note: userInteractions2 table might not exist or other issue updating scores');
         }
       }
@@ -399,7 +402,7 @@ const [selectedFavoriteGenres, setSelectedFavoriteGenres] = useState<string[]>([
           <div className="overflow-x-auto">
             <table className="min-w-full bg-white">
               <tbody className="divide-y divide-gray-200">
-                {childProfile && Object.entries(childProfile).map(([key, value]) => {
+                {childDetails && Object.entries(childDetails).map(([key, value]) => {
                   // Skip books_bookmark and videos_bookmark from the table
                   if (key === 'books_bookmark' || key === 'videos_bookmark') {
                     return null;
@@ -438,6 +441,16 @@ const [selectedFavoriteGenres, setSelectedFavoriteGenres] = useState<string[]>([
                           </button>
                         </td>
                       )}
+                      {key === 'favourite_genres' && (
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          <button
+                            onClick={() => setShowFavoriteGenreModal(true)}
+                            className="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600"
+                          >
+                            Edit
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   );
                 })}
@@ -452,8 +465,8 @@ const [selectedFavoriteGenres, setSelectedFavoriteGenres] = useState<string[]>([
             {/* Bookmarked Books */}
             <div className="space-y-6">
               <h3 className="text-xl font-semibold text-blue-900">Books</h3>
-              {childProfile?.books_bookmark?.length ? (
-                childProfile.books_bookmark.map((book) => (
+              {childDetails?.books_bookmark?.length ? (
+                childDetails.books_bookmark.map((book) => (
                   <div key={book.cid} className="flex items-start space-x-6 p-6 bg-white rounded-lg shadow-md hover:bg-gray-50">
                     <div className="flex-shrink-0 w-32 h-48 relative">
                       {book.coverimage ? (
@@ -491,8 +504,8 @@ const [selectedFavoriteGenres, setSelectedFavoriteGenres] = useState<string[]>([
             {/* Bookmarked Videos */}
             <div className="space-y-6 mt-12">
               <h3 className="text-xl font-semibold text-blue-900">Videos</h3>
-              {childProfile?.videos_bookmark?.length ? (
-                childProfile.videos_bookmark.map((video) => (
+              {childDetails?.videos_bookmark?.length ? (
+                childDetails.videos_bookmark.map((video) => (
                   <div key={video.cid} className="flex items-start space-x-6 p-6 bg-white rounded-lg shadow-md hover:bg-gray-50">
                     <div className="flex-shrink-0" style={{ width: '300px', height: '170px' }}>
                       {video.contenturl && (
@@ -566,6 +579,52 @@ const [selectedFavoriteGenres, setSelectedFavoriteGenres] = useState<string[]>([
                   <button
                     onClick={handleAddBlockedGenres}
                     className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                  >
+                    Save
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Favorite Genre Selection Modal */}
+          {showFavoriteGenreModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
+                <h3 className="text-lg font-semibold mb-4 text-black">Select Favorite Genres</h3>
+                <div className="space-y-2 mb-4">
+                  {availableGenres.map((genre) => (
+                    <label key={genre} className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        checked={selectedFavoriteGenres.includes(genre)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            if (selectedFavoriteGenres.length < 3) {
+                              setSelectedFavoriteGenres([...selectedFavoriteGenres, genre]);
+                            }
+                          } else {
+                            setSelectedFavoriteGenres(selectedFavoriteGenres.filter(g => g !== genre));
+                          }
+                        }}
+                        disabled={!selectedFavoriteGenres.includes(genre) && selectedFavoriteGenres.length >= 3}
+                        className="rounded text-green-500"
+                      />
+                      <span className="text-black">{genre}</span>
+                    </label>
+                  ))}
+                </div>
+                <div className="text-sm text-gray-500 mb-4">You can select up to 3 favorite genres.</div>
+                <div className="flex justify-end space-x-4">
+                  <button
+                    onClick={() => setShowFavoriteGenreModal(false)}
+                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleAddFavoriteGenres}
+                    className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
                   >
                     Save
                   </button>

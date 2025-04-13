@@ -80,16 +80,26 @@ export default function CreateChildAccount() {
       if (signUpError || !signUpData.user) throw new Error('Failed to create child account.');
 
       const childUser = signUpData.user;
-      await supabase.from('user_account').insert({
+      
+      // First, create user_account entry
+      const { data: userAccountData, error: userAccountError } = await supabase
+      .from('user_account')
+      .insert({
         user_id: childUser.id,
         username,
         fullname: fullName,
         age: parseInt(age),
         upid: 3,
-      });
+      })
+      .select('id')
+      .single();
+      
+      if (userAccountError || !userAccountData) throw new Error('Failed to create user account record.');
 
-      await supabase.from('child_profile').insert({
-        child_id: childUser.id,
+
+      // Then, create child_details entry using user_account.id as reference
+      await supabase.from('child_details').insert({
+        child_id: userAccountData.id,
         favourite_genres: selectedGenres
       });
 
