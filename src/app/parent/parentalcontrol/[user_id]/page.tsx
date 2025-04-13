@@ -88,11 +88,11 @@ export default function ParentalControlPage() {
                     setTimeLimit(relation.timeLimitMinute || 0);
                 }
 
-                // Fetch blocked genres
+                // Fetch blocked genres - Updated to use child.id instead of child.user_id
                 const { data: blockedGenres, error: genreError } = await supabase
                     .from('blockedgenres')
                     .select('genreid')
-                    .eq('child_id', child.user_id); 
+                    .eq('child_id', child.id); // Changed from child.user_id to child.id
 
                 if (genreError) throw genreError;
 
@@ -193,11 +193,11 @@ export default function ParentalControlPage() {
                 }
             }
 
-            // Handle banned genres
+            // Handle banned genres - Updated to use child.id and removed genrename field
             const { error: deleteGenresError } = await supabase
                 .from('blockedgenres')
                 .delete()
-                .eq('child_id', childProfile.user_id);
+                .eq('child_id', childProfile.id); // Changed from childProfile.user_id to childProfile.id
 
             if (deleteGenresError) throw deleteGenresError;
 
@@ -207,8 +207,7 @@ export default function ParentalControlPage() {
                     const genreObj = allGenres.find((g) => g.genrename === genre);
                     return {
                         genreid: genreObj?.gid,
-                        child_id: childProfile.user_id,
-                        genrename: genre,
+                        child_id: childProfile.id, // Changed from childProfile.user_id to childProfile.id
                     };
                 });
 
