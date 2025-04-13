@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Home as HomeIcon, Search, BookOpen, PlayCircle, Settings, LogOut } from 'lucide-react';
+import { Home as HomeIcon, Search, BookOpen, Presentation, Settings, LogOut } from 'lucide-react';
 
 export default function Navbar() {
   return (
@@ -20,7 +20,7 @@ export default function Navbar() {
       </Link>
 
       <Link href="/classroom" className="flex flex-col items-center p-2.5 rounded-lg hover:bg-gray-200">
-        <PlayCircle className="w-5 h-5 text-gray-800" />
+        <Presentation className="w-5 h-5 text-gray-800" />
         <b><span className="text-xs text-gray-800 mt-1">My Classroom</span></b>
       </Link>
 

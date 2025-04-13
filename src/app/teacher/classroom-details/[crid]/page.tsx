@@ -165,6 +165,14 @@ export default function ClassroomDetails() {
       <main className="p-6 mt-20">
         {classroom ? (
           <div className="bg-white rounded-lg shadow-md p-4 border border-gray-200">
+            <div className="mb-4">
+              <a
+              onClick={() => router.back()}
+              className="text-blue-600 hover:underline cursor-pointer text-sm"
+            >
+              ← Back
+            </a>
+              
             {/* Classroom header with editable name and description */}
             <div className="mb-4">
               {isEditing ? (
@@ -230,17 +238,10 @@ export default function ClassroomDetails() {
             </div>
 
             {/* Action buttons */}
-            <div className="flex mb-6">
               <DeleteClassroom classroomId={classroom.crid} classroomName={classroom.name} />
-              <button
-                onClick={() => router.back()}
-                className="bg-gray-500 text-white px-4 py-2 rounded ml-4"
-              >
-                Back
-              </button>
             </div>
 
-            {/* Tab navigation */}
+            {/* Tab Navigation */}
             <div className="border-b border-gray-200 mb-4">
               <nav className="flex -mb-px">
                 <button
