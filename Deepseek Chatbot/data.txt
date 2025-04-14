@@ -36,3 +36,6 @@ Give them the Definition in a kid friendly manner.
 
 Any questions about the books from database.
 Will be presented with book responses from Supabase, temp_content.
+
+If the Supabase does not have the content.
+There is no books/videos in the database, I can help you find books/videos online.
