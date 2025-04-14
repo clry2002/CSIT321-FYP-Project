@@ -35,6 +35,28 @@ export default function ViewChild() {
     if (childId) {
       fetchChildData(childId);
       fetchAvailableGenres();
+
+      // Set up real-time subscription for child_details changes
+      const subscription = supabase
+        .channel('child_details_changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'child_details',
+            filter: `child_id=eq.${childId}`
+          },
+          (payload) => {
+            console.log('Real-time update received:', payload);
+            fetchChildData(childId);
+          }
+        )
+        .subscribe();
+
+      return () => {
+        subscription.unsubscribe();
+      };
     } else {
       setError('No child ID provided');
       setLoading(false);
@@ -62,15 +84,20 @@ export default function ViewChild() {
       setLoading(true);
       setError(null);
   
+      // Add mutex to prevent concurrent updates
+      const mutexKey = `child_update_${childId}`;
+      if (localStorage.getItem(mutexKey)) {
+        console.log('Another update in progress, waiting...');
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      localStorage.setItem(mutexKey, 'true');
+  
       console.log('Fetching data for child ID:', childId);
   
       // Get child's account details from user_account
       const { data: userData, error: userError } = await supabase
         .from('user_account')
         .select('fullname, id')
-
-        
-        //.eq('user_id', childId)
         .eq('id', childId)
         .single();
   
@@ -114,34 +141,10 @@ export default function ViewChild() {
       if (profileError) throw profileError;
       if (!profileData) throw new Error('No profile found');
   
-      // Fetch blocked genres from blockedgenres table
-      const { data: blockedGenresData, error: blockedGenresError } = await supabase
-        .from('blockedgenres')
-        .select('genreid')
-        .eq('child_id', userData.id);
-  
-      if (blockedGenresError) throw blockedGenresError;
-  
-
-      // Extract genre names from blockedgenres.id
-      let blockedGenreNames: string[] = [];
-      if (blockedGenresData && blockedGenresData.length > 0) {
-        const genreIds = blockedGenresData.map(item => item.genreid);
-        const { data: genreData, error: genreError } = await supabase
-        .from('temp_genre')
-        .select('genrename')
-        .in('gid', genreIds);
-
-        if (genreError) throw genreError;
-        blockedGenreNames = genreData?.map(item => item.genrename) || [];
-      }
-      
-
       // Initialize arrays if they're null
       const processedProfileData = {
         favourite_genres: profileData.favourite_genres || [],
-        // Replace blocked_genres from child_details with what we got from blockedgenres table
-        blocked_genres: blockedGenreNames,
+        blocked_genres: profileData.blocked_genres || [],
         classrooms: profileData.classrooms || []
       };
   
@@ -157,137 +160,165 @@ export default function ViewChild() {
       
       console.log('Combined Profile:', combinedProfile);
       setChildProfile(combinedProfile);
-      setSelectedGenres(blockedGenreNames);
-      setSelectedFavoriteGenres(processedProfileData.favourite_genres || []);
+      setSelectedGenres(processedProfileData.blocked_genres);
+      setSelectedFavoriteGenres(processedProfileData.favourite_genres);
   
     } catch (err) {
       console.error('Error fetching child data:', err);
       setError(err instanceof Error ? err.message : 'Error fetching data');
     } finally {
       setLoading(false);
+      localStorage.removeItem(`child_update_${childId}`);
     }
   };
 
   const handleAddFavoriteGenres = async () => {
+    const mutexKey = `child_update_${accountId}`;
+    let mutexAcquired = false;
+
     try {
       const childId = searchParams.get('childId');
       if (!childId || !accountId) return;
-  
-      // Get current blocked genres using account ID
-      const { data: currentProfile } = await supabase
+
+      // Try to acquire mutex with timeout
+      let attempts = 0;
+      while (!mutexAcquired && attempts < 5) {
+        if (!localStorage.getItem(mutexKey)) {
+          localStorage.setItem(mutexKey, Date.now().toString());
+          mutexAcquired = true;
+        } else {
+          // Check if the mutex is stale (older than 10 seconds)
+          const mutexTime = parseInt(localStorage.getItem(mutexKey) || '0');
+          if (Date.now() - mutexTime > 10000) {
+            localStorage.setItem(mutexKey, Date.now().toString());
+            mutexAcquired = true;
+          } else {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            attempts++;
+          }
+        }
+      }
+
+      if (!mutexAcquired) {
+        throw new Error('Unable to save changes - another update is in progress. Please try again.');
+      }
+
+      // Get latest data before updating
+      const { data: latestProfile } = await supabase
         .from('child_details')
-        .select('blocked_genres')
+        .select('blocked_genres, favourite_genres')
         .eq('child_id', accountId)
         .single();
-  
-      if (!currentProfile) throw new Error('Profile not found');
-  
+
+      if (!latestProfile) throw new Error('Profile not found');
+
+      // Check for concurrent modifications
+      if (JSON.stringify(latestProfile.favourite_genres) !== JSON.stringify(childProfile?.favourite_genres)) {
+        throw new Error('Profile was modified elsewhere. Please refresh and try again.');
+      }
+
       // Remove any favorite genres that are in blocked genres
       const filteredFavoriteGenres = selectedFavoriteGenres.filter(
-        (genre) => !(currentProfile.blocked_genres || []).includes(genre)
+        (genre) => !(latestProfile.blocked_genres || []).includes(genre)
       );
-  
+
       // Update favorite genres in child_details
       const { error } = await supabase
         .from('child_details')
         .update({ favourite_genres: filteredFavoriteGenres })
         .eq('child_id', accountId);
-  
+
       if (error) throw error;
-  
+
       setShowFavoriteGenreModal(false);
       // Refresh the data
-      fetchChildData(childId);
+      await fetchChildData(childId);
     } catch (err) {
       console.error('Error updating favorite genres:', err);
       setError('Failed to update favorite genres: ' + (err instanceof Error ? err.message : String(err)));
+    } finally {
+      if (mutexAcquired) {
+        localStorage.removeItem(mutexKey);
+      }
     }
   };
 
   const handleAddBlockedGenres = async () => {
+    const mutexKey = `child_update_${accountId}`;
+    let mutexAcquired = false;
+
     try {
       const childId = searchParams.get('childId');
       if (!childId || !accountId) return;
-  
-      // Get current favourite genres using account ID
-      const { data: currentProfile } = await supabase
-        .from('child_details')
-        .select('favourite_genres')
-        .eq('child_id', accountId)
-        .single();
-  
-      if (!currentProfile) throw new Error('Profile not found');
-  
-      // Remove any blocked genres from favourite genres
-      const updatedFavouriteGenres = (currentProfile.favourite_genres || []).filter(
-        (genre: string) => !selectedGenres.includes(genre)
-      );
-  
-      // Update favourite genres in child_details
-      const { error: updateFavoritesError } = await supabase
-        .from('child_details')
-        .update({ 
-          favourite_genres: updatedFavouriteGenres
-        })
-        .eq('child_id', accountId);
-  
-      if (updateFavoritesError) throw updateFavoritesError;
-  
-      // Get genre IDs for selected blocked genres
-      const { data: genreData, error: genreError } = await supabase
-        .from('temp_genre')
-        .select('gid, genrename')
-        .in('genrename', selectedGenres);
-  
-      if (genreError) throw genreError;
-  
-      // Delete existing blocked genres for this child
-      const { error: deleteError } = await supabase
-        .from('blockedgenres')
-        .delete()
-        .eq('child_id', accountId);
-  
-      if (deleteError) {
-        console.warn('Warning: Could not delete existing blockedgenres. This might be ok if none existed.');
-      }
-  
-      // Insert new blocked genres if there are any
-      if (selectedGenres.length > 0 && genreData && genreData.length > 0) {
-        const blockedGenreRecords = genreData.map(genre => ({
-          child_id: accountId,
-          genreid: genre.gid,
-        }));
-        
-  
-        const { error: insertError } = await supabase
-          .from('blockedgenres')
-          .insert(blockedGenreRecords);
-  
-        if (insertError) throw insertError;
-  
-        // Try to update scores in userInteractions2 for blocked genres
-        try {
-          const { error: scoreError } = await supabase
-            .from('userInteractions2')
-            .update({ score: 0 })
-            .eq('child_id', accountId)
-            .in('genreid', genreData.map(genre => genre.gid));
-  
-          if (scoreError) console.warn('Could not update userInteractions2 scores:', scoreError.message);
-        } catch (err) {
-          // Gracefully handle if userInteractions2 table doesn't exist or other errors
-          console.warn('Note: userInteractions2 table might not exist or other issue updating scores');
+
+      // Try to acquire mutex with timeout
+      let attempts = 0;
+      while (!mutexAcquired && attempts < 5) {
+        if (!localStorage.getItem(mutexKey)) {
+          localStorage.setItem(mutexKey, Date.now().toString());
+          mutexAcquired = true;
+        } else {
+          // Check if the mutex is stale (older than 10 seconds)
+          const mutexTime = parseInt(localStorage.getItem(mutexKey) || '0');
+          if (Date.now() - mutexTime > 10000) {
+            localStorage.setItem(mutexKey, Date.now().toString());
+            mutexAcquired = true;
+          } else {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            attempts++;
+          }
         }
       }
-  
+
+      if (!mutexAcquired) {
+        throw new Error('Unable to save changes - another update is in progress. Please try again.');
+      }
+
+      // Get latest data before updating
+      const { data: latestProfile } = await supabase
+        .from('child_details')
+        .select('favourite_genres, blocked_genres')
+        .eq('child_id', accountId)
+        .single();
+
+      if (!latestProfile) throw new Error('Profile not found');
+
+      // Check for concurrent modifications
+      if (JSON.stringify(latestProfile.blocked_genres) !== JSON.stringify(selectedGenres)) {
+        throw new Error('Profile was modified elsewhere. Please refresh and try again.');
+      }
+
+      // Remove any blocked genres from favourite genres
+      const updatedFavouriteGenres = (latestProfile.favourite_genres || []).filter(
+        (genre: string) => !selectedGenres.includes(genre)
+      );
+
+      // Update child_details with both favourite and blocked genres
+      const { error: updateError } = await supabase
+        .from('child_details')
+        .update({ 
+          favourite_genres: updatedFavouriteGenres,
+          blocked_genres: selectedGenres
+        })
+        .eq('child_id', accountId);
+
+      if (updateError) throw updateError;
+
       setShowGenreModal(false);
-  
       // Refresh the data
-      fetchChildData(childId);
+      await fetchChildData(childId);
     } catch (err) {
       console.error('Error updating genres:', err);
       setError('Failed to update genres: ' + (err instanceof Error ? err.message : String(err)));
+    } finally {
+      if (mutexAcquired) {
+        localStorage.removeItem(mutexKey);
+      }
     }
+  };
+
+  const handleBack = () => {
+    router.push('/parentpage');
   };
 
   if (loading) {
@@ -296,8 +327,20 @@ export default function ViewChild() {
 
   if (error) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-red-500">{error}</div>
+      <div className="flex flex-col items-center justify-center h-screen">
+        <div className="text-red-500 mb-4">{error}</div>
+        <button
+          onClick={() => {
+            setError(null);
+            const childId = searchParams.get('childId');
+            if (childId) {
+              fetchChildData(childId);
+            }
+          }}
+          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+        >
+          Retry
+        </button>
       </div>
     );
   }
@@ -461,7 +504,7 @@ export default function ViewChild() {
 
           <div className="mt-6">
             <button
-              onClick={() => router.push('/parentpage')}
+              onClick={handleBack}
               className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600"
             >
               Back
