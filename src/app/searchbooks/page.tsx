@@ -8,19 +8,23 @@ import Image from 'next/image';
 import type { Book } from '@/types/database.types';
 import ChatBot from '../components/ChatBot';
 
+interface BookWithGenres extends Book {
+  genreNames?: string[];
+}
+
 export default function SearchBooksPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const query = searchParams.get('q') || '';
   const [searchQuery, setSearchQuery] = useState(query);
-  const [books, setBooks] = useState<Book[]>([]);
+  const [books, setBooks] = useState<BookWithGenres[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [bookmarkedBooks, setBookmarkedBooks] = useState<Set<string>>(new Set());
   const [notification, setNotification] = useState<{ message: string; show: boolean }>({ message: '', show: false });
   const [childId, setChildId] = useState<string | null>(null);
+  const [blockedGenreIds, setBlockedGenreIds] = useState<number[]>([]);
 
-  // Fetch child profile ID (uaid)
   useEffect(() => {
     const fetchChildProfile = async () => {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -48,7 +52,26 @@ export default function SearchBooksPage() {
     fetchChildProfile();
   }, []);
 
-  // Fetch bookmarked books for childId
+  useEffect(() => {
+    const fetchBlockedGenres = async () => {
+      if (!childId) return;
+
+      const { data, error } = await supabase
+        .from('blockedgenres')
+        .select('genreid')
+        .eq('child_id', childId);
+
+      if (error) {
+        console.error('Error fetching blocked genres:', error);
+        return;
+      }
+
+      setBlockedGenreIds(data.map((row) => row.genreid));
+    };
+
+    fetchBlockedGenres();
+  }, [childId]);
+
   useEffect(() => {
     const fetchBookmarks = async () => {
       if (!childId) return;
@@ -70,22 +93,82 @@ export default function SearchBooksPage() {
     fetchBookmarks();
   }, [childId]);
 
-  // Fetch search results
   useEffect(() => {
     const searchBooks = async () => {
-      if (!query) {
+      if (!query || childId === null) {
         setIsLoading(false);
         return;
       }
 
       try {
-        const { data, error } = await supabase.rpc('search_books', { searchquery: query });
+        const { data: rawBooks, error } = await supabase.rpc('search_books', { searchquery: query });
+
         if (error) {
           console.error('Error from search_books function:', error);
           setError(`Error: ${error.message}`);
           return;
         }
-        setBooks(data || []);
+
+        const bookCids = rawBooks.map((book: { cid: any; }) => book.cid);
+        const { data: genresMap, error: genreError } = await supabase
+          .from('temp_contentgenres')
+          .select('cid, gid')
+          .in('cid', bookCids);
+
+        if (genreError) {
+          console.error('Error fetching genres:', genreError);
+          setBooks([]);
+          return;
+        }
+
+        const { data: allGenres } = await supabase.from('temp_genre').select('gid, genrename');
+
+        const genreLookup: Record<number, number[]> = {};
+        genresMap.forEach(({ cid, gid }) => {
+          if (!genreLookup[cid]) genreLookup[cid] = [];
+          genreLookup[cid].push(gid);
+        });
+
+        const genreMap: Record<number, string> = {};
+        allGenres?.forEach(({ gid, genrename }) => {
+          genreMap[gid] = genrename;
+        });
+
+        const blockedGenreNames = Object.entries(genreMap)
+          .filter(([gid]) => blockedGenreIds.includes(Number(gid)))
+          .map(([, name]) => name.toLowerCase());
+
+        const filteredBooks: BookWithGenres[] = rawBooks
+          .filter((book: { cid: number; title: string; description: string; }) => {
+            const genreIds = genreLookup[book.cid] || [];
+
+            const lowerTitle = book.title?.toLowerCase() || '';
+            const lowerDescription = book.description?.toLowerCase() || '';
+
+            const mentionsBlockedGenreText = blockedGenreNames.some((genre) =>
+              lowerTitle.includes(genre) || lowerDescription.includes(genre)
+            );
+
+            const hasBlockedGenreId = genreIds.some((gid) => blockedGenreIds.includes(gid));
+
+            return !mentionsBlockedGenreText && !hasBlockedGenreId;
+          })
+          .map((book: { cid: number; }) => {
+            const genreIds = genreLookup[book.cid] || [];
+            const allowedGenreNames = genreIds
+              .filter((gid) => !blockedGenreIds.includes(gid))
+              .map((gid) => genreMap[gid])
+              .filter(Boolean);
+            return { ...book, genreNames: allowedGenreNames };
+          });
+
+        if (filteredBooks.length === 0) {
+          setError('This genre has been blocked, please search another genre.');
+        } else {
+          setError(null);
+        }
+
+        setBooks(filteredBooks);
       } catch (err) {
         console.error('Error searching books:', err);
         setError('Failed to search books');
@@ -95,10 +178,9 @@ export default function SearchBooksPage() {
     };
 
     searchBooks();
-  }, [query]);
+  }, [query, childId, blockedGenreIds]);
 
-  // Bookmark handler
-  const handleBookmark = async (book: Book) => {
+  const handleBookmark = async (book: BookWithGenres) => {
     if (!childId) {
       setNotification({ message: 'No child profile found', show: true });
       setTimeout(() => setNotification({ message: '', show: false }), 3000);
@@ -110,7 +192,6 @@ export default function SearchBooksPage() {
     const updatedBookmarks = new Set(bookmarkedBooks);
 
     if (isBookmarked) {
-      // Remove bookmark
       updatedBookmarks.delete(cidStr);
       await supabase
         .from('temp_bookmark')
@@ -118,7 +199,6 @@ export default function SearchBooksPage() {
         .eq('uaid', childId)
         .eq('cid', book.cid);
     } else {
-      // Add bookmark
       updatedBookmarks.add(cidStr);
       await supabase
         .from('temp_bookmark')
@@ -136,11 +216,8 @@ export default function SearchBooksPage() {
 
   const handleSearch = (type: 'books' | 'videos') => {
     if (!searchQuery.trim()) return;
-    if (type === 'books') {
-      router.push(`/searchbooks?q=${encodeURIComponent(searchQuery.trim())}`);
-    } else {
-      router.push(`/searchvideos?q=${encodeURIComponent(searchQuery.trim())}`);
-    }
+    const path = type === 'books' ? '/searchbooks' : '/searchvideos';
+    router.push(`${path}?q=${encodeURIComponent(searchQuery.trim())}`);
   };
 
   return (
@@ -148,7 +225,6 @@ export default function SearchBooksPage() {
       <Navbar />
       <div className="flex-1 overflow-y-auto pt-16 px-6">
         <div className="max-w-7xl mx-auto">
-          {/* Search Interface */}
           <div className="mt-20 mb-8">
             <div className="max-w-2xl mx-auto">
               <div className="relative mb-4">
@@ -224,6 +300,11 @@ export default function SearchBooksPage() {
                       </a>
                     </h3>
                     <p className="text-sm text-gray-600">{book.credit}</p>
+                    {book.genreNames && (
+                      <div className="text-xs text-gray-500 mt-1">
+                        {book.genreNames.join(', ')}
+                      </div>
+                    )}
                   </div>
                   <button
                     className={`flex-shrink-0 ml-4 p-2 rounded-full hover:bg-gray-100 transition-colors ${
@@ -232,17 +313,21 @@ export default function SearchBooksPage() {
                     onClick={() => handleBookmark(book)}
                     aria-label="Toggle bookmark"
                   >
-                    <svg className="w-6 h-6" fill="currentColor" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-                    </svg>
+                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                        </svg>
                   </button>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="text-center py-8 text-gray-500">No books found</div>
+            <div className="text-center py-8">No results found</div>
           )}
         </div>
+      </div>
+
+      {/* Chatbot */}
+      <div className="absolute bottom-0 right-0 m-4">
         <ChatBot />
       </div>
     </div>
