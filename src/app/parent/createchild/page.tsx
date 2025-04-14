@@ -202,8 +202,8 @@ export default function CreateChildAccount() {
       {showReauthModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg shadow-lg space-y-4 max-w-sm w-full">
-            <h3 className="text-lg font-semibold">Re-enter Parent Password</h3>
-            <input type="password" value={parentPassword} onChange={(e) => setParentPassword(e.target.value)} placeholder="Parent Password" className="w-full px-3 py-2 border border-gray-300 rounded" />
+            <h3 className="text-lg font-semibold text-black">Re-enter Parent Password</h3>
+            <input type="password" value={parentPassword} onChange={(e) => setParentPassword(e.target.value)} placeholder="Parent Password" className="w-full px-3 py-2 border border-gray-300 rounded text-black" />
             <button onClick={handleParentReauth} className="w-full bg-rose-500 text-white py-2 rounded hover:bg-rose-600">Continue as Parent</button>
           </div>
         </div>

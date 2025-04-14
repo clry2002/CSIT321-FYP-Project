@@ -189,27 +189,22 @@ export default function ParentHome() {
         throw relationError;
       }
 
-      // Delete from child_profile
+      // Delete from child_details
       const { error: profileError } = await supabase
         .from('child_details')
         .delete()
         .eq('child_id', childToRemove.id);
 
       if (profileError) {
-        console.error('Error deleting from child_profile:', profileError);
+        console.error('Error deleting from child_details:', profileError);
         throw profileError;
       }
 
-      // Finally delete from user_account - DOES NOT WORK (PLEASE ACTION!)
-      //  
-      //
-      //
+      // Delete from user_account
       const { error: accountError } = await supabase
         .from('user_account')
         .delete()
         .eq('id', id);
-
-        
 
       if (accountError) {
         console.error('Error deleting from user_account:', accountError);

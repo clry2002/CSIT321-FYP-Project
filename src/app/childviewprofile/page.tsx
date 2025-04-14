@@ -29,16 +29,18 @@ export default function ChildViewProfile() {
   const { userProfile, refreshProfile } = useSession();
   const [profileData, setProfileData] = useState<{
     full_name: string;
-    username: string;
     age: number;
     favourite_genres: string[];
+    blocked_genres: string[];
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editingField, setEditingField] = useState<string | null>(null);
   const [availableGenres, setAvailableGenres] = useState<string[]>([]);
-  const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
-  const [showGenreSelector, setShowGenreSelector] = useState(false);
+  const [selectedFavouriteGenres, setSelectedFavouriteGenres] = useState<string[]>([]);
+  const [selectedBlockedGenres, setSelectedBlockedGenres] = useState<string[]>([]);
+  const [showFavouriteGenreSelector, setShowFavouriteGenreSelector] = useState(false);
+  const [showBlockedGenreSelector, setShowBlockedGenreSelector] = useState(false);
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
 
@@ -46,67 +48,117 @@ export default function ChildViewProfile() {
     const initializeProfile = async () => {
       try {
         setLoading(true);
+        setError(null);
         
         // Check if user is authenticated
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
         if (sessionError) {
-          throw sessionError;
+          console.error('Session error:', sessionError);
+          throw new Error('Authentication error. Please try logging in again.');
         }
 
         if (!session) {
+          console.log('No active session, redirecting to login');
           router.push('/auth/login');
           return;
         }
 
         // Get the current user's ID
         const userId = session.user.id;
+        console.log('User ID:', userId);
+
+        // Set up real-time subscription for child_details changes
+        const subscription = supabase
+          .channel('child_details_changes')
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'child_details'
+            },
+            (payload) => {
+              console.log('Real-time update received:', payload);
+              initializeProfile();
+            }
+          )
+          .subscribe();
 
         // Get the user's account data
         const { data: userData, error: userError } = await supabase
           .from('user_account')
-          .select('id, fullname, username, age')
+          .select('id, fullname, age')
           .eq('user_id', userId)
           .single();
 
         if (userError) {
-          throw userError;
+          console.error('User account error:', userError);
+          throw new Error('Failed to load user account information');
         }
 
-        // Get the child's profile data including favourite genres
-        const { data: profileData, error: profileError } = await supabase
-          .from('child_details')
-          .select('favourite_genres')
-          .eq('child_id', userData.id)
-          .single();
-
-        if (profileError) {
-          throw profileError;
+        if (!userData) {
+          throw new Error('User account not found');
         }
 
-        // Get available genres
-        const { data: genres, error: genresError } = await supabase
-          .from('temp_genre')
-          .select('genrename');
+        // Add mutex to prevent concurrent updates
+        const mutexKey = `child_update_${userData.id}`;
+        if (localStorage.getItem(mutexKey)) {
+          console.log('Another update in progress, waiting...');
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        localStorage.setItem(mutexKey, 'true');
 
-        if (genresError) {
-          throw genresError;
+        try {
+          console.log('User data:', userData);
+
+          // Get the child's profile data including favourite and blocked genres
+          const { data: profileData, error: profileError } = await supabase
+            .from('child_details')
+            .select('favourite_genres, blocked_genres')
+            .eq('child_id', userData.id)
+            .single();
+
+          if (profileError) {
+            console.error('Child details error:', profileError);
+            throw new Error('Failed to load child profile information');
+          }
+
+          console.log('Profile data:', profileData);
+
+          // Set the profile data with existing values
+          setProfileData({
+            full_name: userData.fullname,
+            age: userData.age,
+            favourite_genres: profileData?.favourite_genres || [],
+            blocked_genres: profileData?.blocked_genres || []
+          });
+
+          // Set selected genres
+          setSelectedFavouriteGenres(profileData?.favourite_genres || []);
+          setSelectedBlockedGenres(profileData?.blocked_genres || []);
+
+          // Get available genres
+          const { data: genres, error: genresError } = await supabase
+            .from('temp_genre')
+            .select('genrename');
+
+          if (genresError) {
+            console.error('Genres error:', genresError);
+            throw new Error('Failed to load available genres');
+          }
+
+          setAvailableGenres(genres?.map(g => g.genrename) || []);
+        } finally {
+          localStorage.removeItem(mutexKey);
         }
 
-        // Set the profile data
-        setProfileData({
-          full_name: userData.fullname,
-          username: userData.username,
-          age: userData.age,
-          favourite_genres: profileData.favourite_genres || []
-        });
-
-        // Set available genres and selected genres
-        setAvailableGenres(genres.map(g => g.genrename));
-        setSelectedGenres(profileData.favourite_genres || []);
+        return () => {
+          subscription.unsubscribe();
+        };
 
       } catch (err) {
-        console.error('Error loading profile:', err);
+        console.error('Error in initializeProfile:', err);
         setError(err instanceof Error ? err.message : 'An error occurred while loading your profile');
       } finally {
         setLoading(false);
@@ -117,11 +169,37 @@ export default function ChildViewProfile() {
   }, [router]);
 
   const handleSave = async () => {
+    const mutexKey = `child_update_${userProfile?.id}`;
+    let mutexAcquired = false;
+    
     try {
       setLoading(true);
       setSaveMessage(null);
 
       if (!profileData) return;
+
+      // Try to acquire mutex with timeout
+      let attempts = 0;
+      while (!mutexAcquired && attempts < 5) {
+        if (!localStorage.getItem(mutexKey)) {
+          localStorage.setItem(mutexKey, Date.now().toString());
+          mutexAcquired = true;
+        } else {
+          // Check if the mutex is stale (older than 10 seconds)
+          const mutexTime = parseInt(localStorage.getItem(mutexKey) || '0');
+          if (Date.now() - mutexTime > 10000) {
+            localStorage.setItem(mutexKey, Date.now().toString());
+            mutexAcquired = true;
+          } else {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            attempts++;
+          }
+        }
+      }
+
+      if (!mutexAcquired) {
+        throw new Error('Unable to save changes - another update is in progress. Please try again.');
+      }
 
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
@@ -130,12 +208,26 @@ export default function ChildViewProfile() {
 
       const userId = session.user.id;
 
+      // Get latest data before updating
+      const { data: latestData, error: latestDataError } = await supabase
+        .from('child_details')
+        .select('favourite_genres, blocked_genres')
+        .eq('child_id', userProfile?.id)
+        .single();
+
+      if (latestDataError) throw latestDataError;
+
+      // Check for concurrent modifications
+      if (JSON.stringify(latestData?.favourite_genres) !== JSON.stringify(profileData.favourite_genres) ||
+          JSON.stringify(latestData?.blocked_genres) !== JSON.stringify(profileData.blocked_genres)) {
+        throw new Error('Profile was modified elsewhere. Please refresh and try again.');
+      }
+
       // Update user_account table
       const { error: userError } = await supabase
         .from('user_account')
         .update({
           fullname: profileData.full_name,
-          username: profileData.username,
           age: profileData.age
         })
         .eq('user_id', userId);
@@ -144,81 +236,45 @@ export default function ChildViewProfile() {
 
       // Get the user_account.id
       const { data: userData, error: userDataError } = await supabase
-      .from('user_account')
-      .select('id')
-      .eq('user_id', userId)
-      .single();
+        .from('user_account')
+        .select('id')
+        .eq('user_id', userId)
+        .single();
 
       if (userDataError || !userData) throw new Error('Failed to retrieve user account');
 
-      // Update child_profile table
+      // Update child_details table
       const { error: profileError } = await supabase
         .from('child_details')
         .update({
-          favourite_genres: selectedGenres
+          favourite_genres: selectedFavouriteGenres,
+          blocked_genres: selectedBlockedGenres
         })
         .eq('child_id', userData.id);
 
       if (profileError) throw profileError;
 
-      // Get current genres from userInteractions2
-      const { data: currentInteractions, error: currentError } = await supabase
-        .from('userInteractions2')
-        .select('genreid')
-        .eq('child_id', userId);
-
-      if (currentError) throw currentError;
-
-      const currentGenreIds = currentInteractions?.map(interaction => interaction.genreid) || [];
-
-      // Get all genre IDs and names
-      const { data: allGenres, error: genresError } = await supabase
-        .from('temp_genre')
-        .select('gid, genrename');
-
-      if (genresError) throw genresError;
-
-      // Find genres to remove (set score to 0)
-      const genresToRemove = currentGenreIds.filter(id => 
-        !selectedGenres.includes(allGenres.find(g => g.gid === id)?.genrename || '')
-      );
-
-      // Find genres to add (set score to 20)
-      const genresToAdd = selectedGenres.filter(genre => 
-        !currentGenreIds.includes(allGenres.find(g => g.genrename === genre)?.gid || 0)
-      );
-
-      // Update removed genres to score 0
-      if (genresToRemove.length > 0) {
-        const { error: removeError } = await supabase
-          .from('userInteractions2')
-          .update({ score: 0 })
-          .eq('child_id', userId)
-          .in('genreid', genresToRemove);
-
-        if (removeError) throw removeError;
-      }
-
-      // Add new genres with score 20
-      if (genresToAdd.length > 0) {
-        const newInteractions = genresToAdd.map(genre => ({
-          child_id: userId,
-          genreid: allGenres.find(g => g.genrename === genre)?.gid,
-          genrename: genre,
-          score: 20
-        }));
-
-        const { error: addError } = await supabase
-          .from('userInteractions2')
-          .insert(newInteractions);
-
-        if (addError) throw addError;
-      }
-
       setSaveMessage({ type: 'success', text: 'Profile updated successfully!' });
       setHasChanges(false);
       setEditingField(null);
-      setShowGenreSelector(false);
+      setShowFavouriteGenreSelector(false);
+      setShowBlockedGenreSelector(false);
+
+      // Refresh the profile data after successful update
+      const { data: refreshedData, error: refreshError } = await supabase
+        .from('child_details')
+        .select('favourite_genres, blocked_genres')
+        .eq('child_id', userData.id)
+        .single();
+
+      if (!refreshError && refreshedData) {
+        setProfileData(prev => ({
+          ...prev!,
+          favourite_genres: refreshedData.favourite_genres || [],
+          blocked_genres: refreshedData.blocked_genres || []
+        }));
+      }
+
     } catch (err) {
       console.error('Error saving profile:', err);
       setSaveMessage({ 
@@ -226,22 +282,40 @@ export default function ChildViewProfile() {
         text: err instanceof Error ? err.message : 'An error occurred while saving your profile'
       });
     } finally {
+      if (mutexAcquired) {
+        localStorage.removeItem(mutexKey);
+      }
       setLoading(false);
     }
   };
 
-  const handleGenreClick = () => {
-    setShowGenreSelector(!showGenreSelector);
+  const handleFavouriteGenreClick = () => {
+    setShowFavouriteGenreSelector(!showFavouriteGenreSelector);
   };
 
-  const handleGenreToggle = (genre: string) => {
-    setSelectedGenres(prev => {
+  const handleBlockedGenreClick = () => {
+    setShowBlockedGenreSelector(!showBlockedGenreSelector);
+  };
+
+  const handleFavouriteGenreToggle = (genre: string) => {
+    setSelectedFavouriteGenres(prev => {
       if (prev.includes(genre)) {
         return prev.filter(g => g !== genre);
       } else if (prev.length < 3) {
         return [...prev, genre];
       }
       return prev;
+    });
+    setHasChanges(true);
+  };
+
+  const handleBlockedGenreToggle = (genre: string) => {
+    setSelectedBlockedGenres(prev => {
+      if (prev.includes(genre)) {
+        return prev.filter(g => g !== genre);
+      } else {
+        return [...prev, genre];
+      }
     });
     setHasChanges(true);
   };
@@ -336,27 +410,6 @@ export default function ChildViewProfile() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">Username</label>
-                      {editingField === 'username' ? (
-                        <input
-                          type="text"
-                          value={profileData?.username || ''}
-                          onChange={(e) => handleFieldChange('username', e.target.value)}
-                          onBlur={handleFieldBlur}
-                          autoFocus
-                          className="mt-1 block w-full text-lg text-gray-900 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                        />
-                      ) : (
-                        <div 
-                          onClick={() => handleFieldClick('username')}
-                          className="mt-1 text-lg text-gray-900 cursor-pointer hover:bg-gray-50 p-2 rounded"
-                        >
-                          {profileData?.username}
-                        </div>
-                      )}
-                    </div>
-
-                    <div>
                       <label className="block text-sm font-medium text-gray-700">Age</label>
                       {editingField === 'age' ? (
                         <input
@@ -380,20 +433,20 @@ export default function ChildViewProfile() {
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Favorite Genres</label>
                       <div className="mt-2">
-                        {!showGenreSelector ? (
+                        {!showFavouriteGenreSelector ? (
                           <div className="flex flex-wrap gap-2">
-                            {selectedGenres.length === 0 ? (
+                            {selectedFavouriteGenres.length === 0 ? (
                               <button
-                                onClick={handleGenreClick}
+                                onClick={handleFavouriteGenreClick}
                                 className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800 cursor-pointer hover:bg-gray-200"
                               >
                                 Add
                               </button>
                             ) : (
-                              selectedGenres.map((genre) => (
+                              selectedFavouriteGenres.map((genre) => (
                                 <button
                                   key={genre}
-                                  onClick={handleGenreClick}
+                                  onClick={handleFavouriteGenreClick}
                                   className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-rose-100 text-rose-800 cursor-pointer hover:bg-rose-200"
                                 >
                                   {genre}
@@ -406,9 +459,9 @@ export default function ChildViewProfile() {
                             {availableGenres.map((genre) => (
                               <button
                                 key={genre}
-                                onClick={() => handleGenreToggle(genre)}
+                                onClick={() => handleFavouriteGenreToggle(genre)}
                                 className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                                  selectedGenres.includes(genre)
+                                  selectedFavouriteGenres.includes(genre)
                                     ? 'bg-rose-100 text-rose-800'
                                     : 'bg-gray-100 text-gray-800'
                                 } cursor-pointer hover:bg-rose-200`}
@@ -418,6 +471,26 @@ export default function ChildViewProfile() {
                             ))}
                           </div>
                         )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Blocked Genres</label>
+                      <div className="mt-2">
+                        <div className="flex flex-wrap gap-2">
+                          {profileData?.blocked_genres && profileData.blocked_genres.length > 0 ? (
+                            profileData.blocked_genres.map((genre) => (
+                              <div
+                                key={genre}
+                                className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800"
+                              >
+                                {genre}
+                              </div>
+                            ))
+                          ) : (
+                            <div className="text-gray-500">No blocked genres</div>
+                          )}
+                        </div>
                       </div>
                     </div>
 
