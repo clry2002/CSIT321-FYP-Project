@@ -289,14 +289,11 @@ export default function ParentHome() {
               Settings
             </button>
             <button
-              className="bg-red-600 text-white px-4 py-2 rounded-lg"
-              onClick={async () => {
-                await supabase.auth.signOut();
-                router.push('/landing');
-              }}
-            >
-              Logout
-            </button>
+            className="bg-red-600 text-white px-4 py-2 rounded-lg"
+            onClick={() => router.push('/logout')} // Navigate to the logout page
+          >
+            Logout
+          </button>
           </div>
         </div>
 
