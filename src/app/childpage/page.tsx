@@ -23,7 +23,7 @@ export default function ChildPage() {
   const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(true); // Added loading state for recommendations
   const { availableBooks, recommendedForYouBooks } = useBooks();
   const { videos } = useVideos();
-  const { userProfile, loading } = useSession();
+  const { userAccount, userProfile, loading } = useSession();
   const [userFullName, setUserFullName] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -174,7 +174,7 @@ export default function ChildPage() {
           .sort((a: [string, number], b: [string, number]) => b[1] - a[1])
           .map(([bookId]) => bookId);
   
-        // Genre relevance filtering
+        // Genre relevance filtering - won't include books from bookmark, if book genre is not in user's top 5
         const filteredRecommendedBooks = await Promise.all(
           rankedContentIds.map(async (bookId) => {
             const { data: bookGenres, error: genreError } = await supabase
@@ -229,7 +229,7 @@ export default function ChildPage() {
       <ScreenTimeTracker />
       <ScreenTimeIndicator /> */}
       {/* Main Content */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden pt-16">
         {/* Left Section */}
         <div className="w-1/2 overflow-y-auto p-6 border-r">
           {/* Happy Reading Section */}
@@ -238,12 +238,12 @@ export default function ChildPage() {
               Happy reading,<br />
               {isLoading ? '...' : userFullName ? userFullName.split(' ')[0] : 'User'}
             </h1>
-            <p className="text-gray-800 mb-2 text-xs">
+            {/* <p className="text-gray-800 mb-2 text-xs">
               {userProfile?.favorite_genres?.length ? 
                 `Time to dive into some ${userProfile.favorite_genres.join(', ')}! Ready to discover your next favorite book?` :
                 'Ready to discover your next favorite book?'
               }
-            </p>
+            </p> */}
             <p className="text-gray-800 mb-2 text-sm">
               Welcome, {isLoading ? '...' : userFullName || 'User'}!
             </p>

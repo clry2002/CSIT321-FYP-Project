@@ -23,7 +23,7 @@ function ErrorBoundary({ children }: { children: React.ReactNode }) {
 }
 
 export default function ProfilePage() {
-  const { userProfile, refreshProfile } = useSession();
+  const { userAccount, userProfile, refreshProfile } = useSession();
   const [profileData, setProfileData] = useState<{
     full_name: string;
     username: string;
@@ -34,31 +34,36 @@ export default function ProfilePage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchProfileData();
-  }, [userProfile]);
+    if (userAccount){ // only attempt to fetch if userAccount exists
+      fetchProfileData();
+    } else {
+      setLoading(false);
+      setError("You must logged in to view this page");
+    }
+  }, [userAccount, userProfile]);
 
   const fetchProfileData = async () => {
     try {
       setLoading(true);
       
-      if (!userProfile) {
-        throw new Error('No user profile found');
+      if (!userAccount) {
+        throw new Error('No user account found');
       }
 
-      // Get the user's account data
+      // Retrieve user account data
       const { data: userData, error: userError } = await supabase
         .from('user_account')
         .select('fullname, username, age')
-        .eq('user_id', userProfile.id)
+        .eq('user_id', userAccount.user_id)
         .single();
 
       if (userError) throw userError;
 
-      // Get the child's profile data including favourite genres
+      // Retrieve child profile data including favourite genres
       const { data: profileData, error: profileError } = await supabase
         .from('child_profile')
         .select('favourite_genres')
-        .eq('child_id', userProfile.id)
+        .eq('child_id', userAccount.user_id)
         .single();
 
       if (profileError) throw profileError;
@@ -77,37 +82,8 @@ export default function ProfilePage() {
       setLoading(false);
     }
   };
-
-  if (loading) {
-    return (
-      <ErrorBoundary>
-        <div className="flex h-screen bg-white overflow-hidden">
-          <Navbar />
-          <div className="flex-1 overflow-y-auto pt-16">
-            <div className="flex items-center justify-center h-full">
-              <div className="text-lg">Loading...</div>
-            </div>
-          </div>
-        </div>
-      </ErrorBoundary>
-    );
-  }
-
-  if (error) {
-    return (
-      <ErrorBoundary>
-        <div className="flex h-screen bg-white overflow-hidden">
-          <Navbar />
-          <div className="flex-1 overflow-y-auto pt-16">
-            <div className="flex items-center justify-center h-full">
-              <div className="text-red-500">{error}</div>
-            </div>
-          </div>
-        </div>
-      </ErrorBoundary>
-    );
-  }
-
+  
+  if (!userAccount && !loading) {
   return (
     <ErrorBoundary>
       <div className="flex h-screen bg-white overflow-hidden">
@@ -166,3 +142,5 @@ export default function ProfilePage() {
     </ErrorBoundary>
   );
 }
+}
+

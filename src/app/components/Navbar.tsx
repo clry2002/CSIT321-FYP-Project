@@ -3,7 +3,7 @@ import { Home as HomeIcon, Search, BookOpen, Presentation, Settings, LogOut } fr
 
 export default function Navbar() {
   return (
-    <nav className="fixed top-0 w-full bg-white border-t border-gray-200 flex justify-around py-3">
+    <nav className="fixed top-0 w-full bg-white border-t border-gray-200 flex justify-around py-3 z-50 shadow-sm">
       <Link href="/childpage" className="flex flex-col items-center p-2.5 rounded-lg hover:bg-gray-200">
         <HomeIcon className="w-5 h-5 text-gray-800" />
         <b><span className="text-xs text-gray-800 mt-1">Home</span></b>
