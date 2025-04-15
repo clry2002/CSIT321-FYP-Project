@@ -32,11 +32,11 @@ export default function SearchVideosPage() {
   const [blockedGenres, setBlockedGenres] = useState<Set<number>>(new Set());
   const [childId, setChildId] = useState<string | null>(null);
   const [isBlockedGenreSearch, setIsBlockedGenreSearch] = useState(false);
+  const [isBlockedGenresFetched, setIsBlockedGenresFetched] = useState(false); // Track when blocked genres are fetched
 
   useEffect(() => {
     const fetchChildProfile = async () => {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
-
       if (userError || !user) {
         console.error('Failed to get user:', userError);
         return;
@@ -76,6 +76,7 @@ export default function SearchVideosPage() {
 
       const blockedGenresSet = new Set(data?.map((item) => item.genreid));
       setBlockedGenres(blockedGenresSet);
+      setIsBlockedGenresFetched(true); // Set this to true once blocked genres are fetched
     };
 
     fetchBlockedGenres();
@@ -104,7 +105,7 @@ export default function SearchVideosPage() {
 
   useEffect(() => {
     const searchVideos = async () => {
-      if (!query || !childId) {
+      if (!query || !childId || !isBlockedGenresFetched) {
         setIsLoading(false);
         return;
       }
@@ -125,11 +126,27 @@ export default function SearchVideosPage() {
           genreNamesData?.map((g) => g.genrename.toLowerCase())
         );
 
-        const queryIncludesBlocked = Array.from(blockedGenreNames).some((genre) =>
-          query.toLowerCase().includes(genre)
-        );
+        const normalize = (str: string) =>
+          str.toLowerCase().replace(/[^a-z]/g, '').replace(/s$/, '');
 
-        setIsBlockedGenreSearch(queryIncludesBlocked); // <-- Set flag
+        const normalizedQuery = normalize(query);
+
+        const queryIncludesBlocked = Array.from(blockedGenreNames).some((genre) => {
+          const normalizedGenre = normalize(genre);
+          const lengthDifference = Math.abs(normalizedQuery.length - normalizedGenre.length);
+          const isExactOrNearMatch =
+            normalizedQuery === normalizedGenre ||
+            (lengthDifference <= 2 && normalizedGenre.includes(normalizedQuery));
+          return isExactOrNearMatch;
+        });
+
+        setIsBlockedGenreSearch(queryIncludesBlocked);
+
+        if (queryIncludesBlocked) {
+          setVideos([]);
+          setIsLoading(false);
+          return;
+        }
 
         const { data: rawVideos, error: videoError } = await supabase
           .rpc('search_videos', { searchquery: query });
@@ -181,7 +198,7 @@ export default function SearchVideosPage() {
     };
 
     searchVideos();
-  }, [query, blockedGenres, childId]);
+  }, [query, blockedGenres, childId, isBlockedGenresFetched]); // Added isBlockedGenresFetched as a dependency
 
   const handleBookmark = async (video: Video) => {
     if (!childId) {
