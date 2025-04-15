@@ -194,6 +194,80 @@ export default function ViewChild() {
         .eq('child_id', accountId);
   
       if (error) throw error;
+
+      // Get current genres from userInteractions
+      const { data: currentInteractions, error: currentError } = await supabase
+        .from('userInteractions')
+        .select('gid, score')
+        .eq('uaid', accountId);
+
+      if (currentError) {
+        console.error('Error fetching current interactions:', currentError);
+        throw currentError;
+      }
+
+      const currentGenreIds = currentInteractions?.map(interaction => interaction.gid) || [];
+
+      // Get all genre IDs and names
+      const { data: allGenres, error: genresError } = await supabase
+        .from('temp_genre')
+        .select('gid, genrename');
+
+      if (genresError) {
+        console.error('Error fetching genres:', genresError);
+        throw genresError;
+      }
+
+      // Find genres to update (subtract 20 from score)
+      const genresToUpdate = currentGenreIds.filter(id => 
+        !filteredFavoriteGenres.includes(allGenres.find(g => g.gid === id)?.genrename || '')
+      );
+
+      // Find genres to add (set score to 20)
+      const genresToAdd = filteredFavoriteGenres.filter(genre => 
+        !currentGenreIds.includes(allGenres.find(g => g.genrename === genre)?.gid || 0)
+      );
+
+      // Update removed genres by subtracting 20 from score
+      if (genresToUpdate.length > 0) {
+        for (const gid of genresToUpdate) {
+          const currentScore = currentInteractions?.find(i => i.gid === gid)?.score || 0;
+          const { error: updateError } = await supabase
+            .from('userInteractions')
+            .update({ score: Math.max(0, currentScore - 20) })
+            .eq('uaid', accountId)
+            .eq('gid', gid);
+
+          if (updateError) {
+            console.error('Error updating genre score:', updateError);
+            throw updateError;
+          }
+        }
+      }
+
+      // Add new genres with score 20
+      if (genresToAdd.length > 0) {
+        const newInteractions = genresToAdd.map(genre => {
+          const genreId = allGenres.find(g => g.genrename === genre)?.gid;
+          if (!genreId) {
+            throw new Error(`Could not find genre ID for genre: ${genre}`);
+          }
+          return {
+            uaid: accountId,
+            gid: genreId,
+            score: 20
+          };
+        });
+
+        const { error: addError } = await supabase
+          .from('userInteractions')
+          .insert(newInteractions);
+
+        if (addError) {
+          console.error('Error inserting new interactions:', addError);
+          throw addError;
+        }
+      }
   
       setShowFavoriteGenreModal(false);
       // Refresh the data
@@ -258,25 +332,27 @@ export default function ViewChild() {
           genreid: genre.gid,
         }));
         
-  
         const { error: insertError } = await supabase
           .from('blockedgenres')
           .insert(blockedGenreRecords);
   
         if (insertError) throw insertError;
   
-        // Try to update scores in userInteractions2 for blocked genres
+        // Delete rows from userInteractions for blocked genres
         try {
-          const { error: scoreError } = await supabase
-            .from('userInteractions2')
-            .update({ score: 0 })
-            .eq('child_id', accountId)
-            .in('genreid', genreData.map(genre => genre.gid));
-  
-          if (scoreError) console.warn('Could not update userInteractions2 scores:', scoreError.message);
+          const { error: deleteError } = await supabase
+            .from('userInteractions')
+            .delete()
+            .eq('uaid', accountId)
+            .in('gid', genreData.map(genre => genre.gid));
+
+          if (deleteError) {
+            console.error('Error deleting from userInteractions:', deleteError);
+            throw deleteError;
+          }
         } catch (err) {
-          // Gracefully handle if userInteractions2 table doesn't exist or other errors
-          console.warn('Note: userInteractions2 table might not exist or other issue updating scores');
+          console.error('Error updating userInteractions:', err);
+          throw err;
         }
       }
   

@@ -32,6 +32,7 @@ export default function ChildViewProfile() {
     username: string;
     age: number;
     favourite_genres: string[];
+    blocked_genres: string[];
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -84,6 +85,27 @@ export default function ChildViewProfile() {
           throw profileError;
         }
 
+        // Fetch blocked genres from blockedgenres table
+        const { data: blockedGenresData, error: blockedGenresError } = await supabase
+          .from('blockedgenres')
+          .select('genreid')
+          .eq('child_id', userData.id);
+
+        if (blockedGenresError) throw blockedGenresError;
+
+        // Get genre names for blocked genres
+        let blockedGenreNames: string[] = [];
+        if (blockedGenresData && blockedGenresData.length > 0) {
+          const genreIds = blockedGenresData.map(item => item.genreid);
+          const { data: genreData, error: genreError } = await supabase
+            .from('temp_genre')
+            .select('genrename')
+            .in('gid', genreIds);
+
+          if (genreError) throw genreError;
+          blockedGenreNames = genreData?.map(item => item.genrename) || [];
+        }
+
         // Get available genres
         const { data: genres, error: genresError } = await supabase
           .from('temp_genre')
@@ -98,11 +120,15 @@ export default function ChildViewProfile() {
           full_name: userData.fullname,
           username: userData.username,
           age: userData.age,
-          favourite_genres: profileData.favourite_genres || []
+          favourite_genres: profileData.favourite_genres || [],
+          blocked_genres: blockedGenreNames
         });
 
         // Set available genres and selected genres
-        setAvailableGenres(genres.map(g => g.genrename));
+        // Filter out blocked genres from available genres
+        const availableGenresList = genres.map(g => g.genrename)
+          .filter(genre => !blockedGenreNames.includes(genre));
+        setAvailableGenres(availableGenresList);
         setSelectedGenres(profileData.favourite_genres || []);
 
       } catch (err) {
@@ -142,77 +168,114 @@ export default function ChildViewProfile() {
 
       if (userError) throw userError;
 
-      // Get the user_account.id
+      // Get the user_account.id first
       const { data: userData, error: userDataError } = await supabase
-      .from('user_account')
-      .select('id')
-      .eq('user_id', userId)
-      .single();
+        .from('user_account')
+        .select('id')
+        .eq('user_id', userId)
+        .single();
 
-      if (userDataError || !userData) throw new Error('Failed to retrieve user account');
+      if (userDataError) throw new Error('Failed to retrieve user account');
+      const userAccountId = userData.id;
 
-      // Update child_profile table
+      // Update child_details table
       const { error: profileError } = await supabase
         .from('child_details')
         .update({
           favourite_genres: selectedGenres
         })
-        .eq('child_id', userData.id);
+        .eq('child_id', userAccountId);
 
       if (profileError) throw profileError;
 
-      // Get current genres from userInteractions2
-      const { data: currentInteractions, error: currentError } = await supabase
-        .from('userInteractions2')
+      // Get currently blocked genres
+      const { data: currentlyBlocked, error: blockedError } = await supabase
+        .from('blockedgenres')
         .select('genreid')
-        .eq('child_id', userId);
+        .eq('child_id', userAccountId);
 
-      if (currentError) throw currentError;
-
-      const currentGenreIds = currentInteractions?.map(interaction => interaction.genreid) || [];
+      if (blockedError) throw blockedError;
+      const currentlyBlockedIds = currentlyBlocked?.map(item => item.genreid) || [];
 
       // Get all genre IDs and names
       const { data: allGenres, error: genresError } = await supabase
         .from('temp_genre')
         .select('gid, genrename');
 
-      if (genresError) throw genresError;
-
-      // Find genres to remove (set score to 0)
-      const genresToRemove = currentGenreIds.filter(id => 
-        !selectedGenres.includes(allGenres.find(g => g.gid === id)?.genrename || '')
-      );
-
-      // Find genres to add (set score to 20)
-      const genresToAdd = selectedGenres.filter(genre => 
-        !currentGenreIds.includes(allGenres.find(g => g.genrename === genre)?.gid || 0)
-      );
-
-      // Update removed genres to score 0
-      if (genresToRemove.length > 0) {
-        const { error: removeError } = await supabase
-          .from('userInteractions2')
-          .update({ score: 0 })
-          .eq('child_id', userId)
-          .in('genreid', genresToRemove);
-
-        if (removeError) throw removeError;
+      if (genresError) {
+        console.error('Error fetching genres:', genresError);
+        throw genresError;
       }
 
-      // Add new genres with score 20
-      if (genresToAdd.length > 0) {
-        const newInteractions = genresToAdd.map(genre => ({
-          child_id: userId,
-          genreid: allGenres.find(g => g.genrename === genre)?.gid,
-          genrename: genre,
-          score: 20
-        }));
+      // Get current interactions
+      const { data: currentInteractions, error: currentError } = await supabase
+        .from('userInteractions')
+        .select('gid, score')
+        .eq('uaid', userAccountId);
 
-        const { error: addError } = await supabase
-          .from('userInteractions2')
-          .insert(newInteractions);
+      if (currentError) {
+        console.error('Error fetching current interactions:', currentError);
+        throw currentError;
+      }
 
-        if (addError) throw addError;
+      // Process each genre in the selected favorites
+      for (const genre of selectedGenres) {
+        const genreId = allGenres.find(g => g.genrename === genre)?.gid;
+        if (!genreId) {
+          throw new Error(`Could not find genre ID for genre: ${genre}`);
+        }
+
+        // Skip if genre is currently blocked
+        if (currentlyBlockedIds.includes(genreId)) continue;
+
+        // Add new row with score 20 if it doesn't exist
+        const { error: insertError } = await supabase
+          .from('userInteractions')
+          .insert({
+            uaid: userAccountId,
+            gid: genreId,
+            score: 20
+          })
+          .select();
+
+        // If row already exists, update it
+        if (insertError && insertError.code === '23505') { // Unique violation error code
+          const { error: updateError } = await supabase
+            .from('userInteractions')
+            .update({ score: 20 })
+            .eq('uaid', userAccountId)
+            .eq('gid', genreId);
+
+          if (updateError) {
+            console.error('Error updating genre score:', updateError);
+            throw updateError;
+          }
+        } else if (insertError) {
+          console.error('Error inserting new interaction:', insertError);
+          throw insertError;
+        }
+      }
+
+      // For genres that are no longer favorites, remove their rows
+      const selectedGenreIds = selectedGenres.map(genre => 
+        allGenres.find(g => g.genrename === genre)?.gid
+      ).filter(id => id !== undefined) as number[];
+
+      const genresToRemove = (currentInteractions || [])
+        .filter(interaction => !selectedGenreIds.includes(interaction.gid))
+        .map(interaction => interaction.gid);
+
+      if (genresToRemove.length > 0) {
+        const { error: deleteError } = await supabase
+          .from('userInteractions')
+          .delete()
+          .eq('uaid', userAccountId)
+          .in('gid', genresToRemove);
+
+        if (deleteError) {
+          console.error('Error removing genre interactions:', deleteError);
+          throw deleteError;
+        }
       }
 
       setSaveMessage({ type: 'success', text: 'Profile updated successfully!' });
@@ -418,6 +481,26 @@ export default function ChildViewProfile() {
                             ))}
                           </div>
                         )}
+                      </div>
+                    </div>
+
+                    <div className="mt-4">
+                      <label className="block text-sm font-medium text-gray-700">Blocked Genres</label>
+                      <div className="mt-2">
+                        <div className="flex flex-wrap gap-2">
+                          {profileData?.blocked_genres.length === 0 ? (
+                            <span className="text-sm text-gray-500">No blocked genres</span>
+                          ) : (
+                            profileData?.blocked_genres.map((genre) => (
+                              <span
+                                key={genre}
+                                className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800"
+                              >
+                                {genre}
+                              </span>
+                            ))
+                          )}
+                        </div>
                       </div>
                     </div>
 
