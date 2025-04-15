@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import Navbar from '../components/Navbar';
 import { supabase } from '@/lib/supabase';
 import ChatBot from '../components/ChatBot';
-import Link from 'next/link'; // Import Link from next/navigation
+import Link from 'next/link';
 
 interface Video {
   id: string;
@@ -29,13 +29,13 @@ export default function SearchVideosPage() {
   const [error, setError] = useState<string | null>(null);
   const [bookmarkedVideos, setBookmarkedVideos] = useState<Set<string>>(new Set());
   const [notification, setNotification] = useState<{ message: string; show: boolean }>({ message: '', show: false });
+  const [blockedGenres, setBlockedGenres] = useState<Set<number>>(new Set());
   const [childId, setChildId] = useState<string | null>(null);
+  const [isBlockedGenreSearch, setIsBlockedGenreSearch] = useState(false);
 
-  // Get child ID (uaid)
   useEffect(() => {
     const fetchChildProfile = async () => {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
-      console.log("Auth User:", user);
 
       if (userError || !user) {
         console.error('Failed to get user:', userError);
@@ -54,14 +54,33 @@ export default function SearchVideosPage() {
         return;
       }
 
-      console.log("Fetched childId (uaid):", data.id);
       setChildId(data.id);
     };
 
     fetchChildProfile();
   }, []);
 
-  // Load bookmarks
+  useEffect(() => {
+    const fetchBlockedGenres = async () => {
+      if (!childId) return;
+
+      const { data, error } = await supabase
+        .from('blockedgenres')
+        .select('genreid')
+        .eq('child_id', childId);
+
+      if (error) {
+        console.error('Error fetching blocked genres:', error);
+        return;
+      }
+
+      const blockedGenresSet = new Set(data?.map((item) => item.genreid));
+      setBlockedGenres(blockedGenresSet);
+    };
+
+    fetchBlockedGenres();
+  }, [childId]);
+
   useEffect(() => {
     const fetchBookmarks = async () => {
       if (!childId) return;
@@ -76,7 +95,6 @@ export default function SearchVideosPage() {
         return;
       }
 
-      console.log("Fetched bookmarks for childId:", childId, data);
       const bookmarkedCids = new Set(data?.map((item) => item.cid.toString()));
       setBookmarkedVideos(bookmarkedCids);
     };
@@ -84,16 +102,37 @@ export default function SearchVideosPage() {
     fetchBookmarks();
   }, [childId]);
 
-  // Run search query
   useEffect(() => {
     const searchVideos = async () => {
-      if (!query) {
+      if (!query || !childId) {
         setIsLoading(false);
         return;
       }
 
       try {
-        const { data, error: videoError } = await supabase.rpc('search_videos', { searchquery: query });
+        const { data: genreNamesData, error: genreNameError } = await supabase
+          .from('temp_genre')
+          .select('genrename, gid')
+          .in('gid', Array.from(blockedGenres));
+
+        if (genreNameError) {
+          console.error('Error fetching genre names:', genreNameError);
+          setError(`Error: ${genreNameError.message}`);
+          return;
+        }
+
+        const blockedGenreNames = new Set(
+          genreNamesData?.map((g) => g.genrename.toLowerCase())
+        );
+
+        const queryIncludesBlocked = Array.from(blockedGenreNames).some((genre) =>
+          query.toLowerCase().includes(genre)
+        );
+
+        setIsBlockedGenreSearch(queryIncludesBlocked); // <-- Set flag
+
+        const { data: rawVideos, error: videoError } = await supabase
+          .rpc('search_videos', { searchquery: query });
 
         if (videoError) {
           console.error('Error from search_videos function:', videoError);
@@ -101,8 +140,38 @@ export default function SearchVideosPage() {
           return;
         }
 
-        console.log("Search results:", data);
-        setVideos(data || []);
+        if (!rawVideos) {
+          setVideos([]);
+          return;
+        }
+
+        const filteredVideos: Video[] = [];
+
+        for (const video of rawVideos) {
+          const { data: genreData, error: genreError } = await supabase
+            .from('temp_contentgenres')
+            .select('gid')
+            .eq('cid', video.cid);
+
+          if (genreError) {
+            console.error(`Error fetching genres for cid ${video.cid}:`, genreError);
+            continue;
+          }
+
+          const hasBlockedGenre = genreData?.some((g) => blockedGenres.has(g.gid));
+
+          const titleLower = video.title.toLowerCase();
+          const descLower = video.description?.toLowerCase() || '';
+          const containsBlockedWord = Array.from(blockedGenreNames).some((genre) =>
+            titleLower.includes(genre) || descLower.includes(genre)
+          );
+
+          if (!hasBlockedGenre && !containsBlockedWord) {
+            filteredVideos.push(video);
+          }
+        }
+
+        setVideos(filteredVideos);
       } catch (err) {
         console.error('Error searching videos:', err);
         setError('Failed to search videos');
@@ -112,12 +181,10 @@ export default function SearchVideosPage() {
     };
 
     searchVideos();
-  }, [query]);
+  }, [query, blockedGenres, childId]);
 
-  // Handle Bookmark
   const handleBookmark = async (video: Video) => {
     if (!childId) {
-      console.warn('No child ID set — cannot bookmark');
       setNotification({ message: 'No child profile found', show: true });
       setTimeout(() => setNotification({ message: '', show: false }), 3000);
       return;
@@ -128,7 +195,6 @@ export default function SearchVideosPage() {
     const updatedBookmarks = new Set(bookmarkedVideos);
 
     if (isBookmarked) {
-      // DELETE bookmark
       const { error } = await supabase
         .from('temp_bookmark')
         .delete()
@@ -142,10 +208,8 @@ export default function SearchVideosPage() {
         updatedBookmarks.delete(cidStr);
         setBookmarkedVideos(updatedBookmarks);
         setNotification({ message: 'Video removed from bookmarks', show: true });
-        console.log('Bookmark removed');
       }
     } else {
-      // UPSERT bookmark
       const { error } = await supabase
         .from('temp_bookmark')
         .upsert([{ uaid: childId, cid: video.cid }], { onConflict: 'uaid,cid' });
@@ -157,7 +221,6 @@ export default function SearchVideosPage() {
         updatedBookmarks.add(cidStr);
         setBookmarkedVideos(updatedBookmarks);
         setNotification({ message: 'You saved this video', show: true });
-        console.log('Bookmark saved');
       }
     }
 
@@ -188,7 +251,6 @@ export default function SearchVideosPage() {
       <Navbar />
       <div className="flex-1 overflow-y-auto pt-16 px-6">
         <div className="max-w-7xl mx-auto">
-          {/* Search box */}
           <div className="mt-20 mb-8">
             <div className="max-w-2xl mx-auto">
               <div className="relative mb-4">
@@ -207,14 +269,22 @@ export default function SearchVideosPage() {
             </div>
           </div>
 
-          {/* Notification */}
-          {notification.show && (
+          <div className="text-2xl font-bold text-gray-900 mb-6">
+            {query && `Search Results for "${query}"`}
+          </div>
+
+          {isBlockedGenreSearch && (
+            <div className="text-center py-4 text-red-500">
+              This genre has been blocked, please search another genre.
+            </div>
+          )}
+
+          {notification.show && !isBlockedGenreSearch && (
             <div className="fixed top-4 right-4 z-50 bg-rose-500 text-white px-6 py-3 rounded-lg shadow-lg">
               {notification.message}
             </div>
           )}
 
-          {/* Results */}
           {isLoading ? (
             <div className="text-center py-8">Loading...</div>
           ) : error ? (
@@ -242,7 +312,6 @@ export default function SearchVideosPage() {
                       )}
                     </div>
                     <div className="p-4 relative">
-                      {/* Video Title as Link */}
                       <Link href={`/videodetail/${video.cid}`} passHref>
                         <h3 className="font-medium text-lg text-black cursor-pointer">{video.title}</h3>
                       </Link>
@@ -267,7 +336,9 @@ export default function SearchVideosPage() {
               })}
             </div>
           ) : (
-            <div className="text-center py-8 text-gray-500">No videos found matching your search</div>
+            !isBlockedGenreSearch && (
+              <div className="text-center py-8 text-gray-500">No videos found matching your search</div>
+            )
           )}
         </div>
         <ChatBot />
