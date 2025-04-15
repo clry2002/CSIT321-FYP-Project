@@ -201,94 +201,18 @@ export default function SetupPage() {
 
       // Handle profile creation based on user type
       if (upid === 1) { // Publisher
-        // Check if publisher profile exists
-        const { data: existingProfile, error: checkError } = await supabase
-          .from('publisher_profile')
-          .select('*')
-          .eq('publisher_id', user.id)
-          .single();
-
-        if (checkError && checkError.code !== 'PGRST116') {
-          console.error('Error checking existing publisher profile:', checkError);
-          throw checkError;
-        }
-
-        if (!existingProfile) {
-          // Create new publisher profile only if it doesn't exist
-          const { error: insertError } = await supabase
-            .from('publisher_profile')
-            .insert({ 
-              publisher_id: user.id  // This is the foreign key relation to user_account.user_id
-            });
-          
-          if (insertError) {
-            console.error('Error creating publisher profile:', insertError);
-            throw insertError;
-          }
-        }
+        // Publisher role is already set via upid in user_account table
+        router.push('/publisherpage');
       } else if (upid === 2) { // Parent
-        // Check if parent profile exists
-        const { data: existingProfile, error: checkError } = await supabase
-          .from('parent_profile')
-          .select('*')
-          .eq('parent_id', user.id)
-          .single();
-
-        if (checkError && checkError.code !== 'PGRST116') {
-          console.error('Error checking existing parent profile:', checkError);
-          throw checkError;
-        }
-
-        if (!existingProfile) {
-          // Create new parent profile only if it doesn't exist
-          const { error: insertError } = await supabase
-            .from('parent_profile')
-            .insert({ 
-              parent_id: user.id,
-              child_id: selectedChild || null
-            });
-          
-          if (insertError) {
-            console.error('Error creating parent profile:', insertError);
-            throw insertError;
-          }
-        }
+        // Parent role is already set via upid in user_account table
+        router.push('/parentpage');
       } else if (upid === 5) { // Educator
-        // Check if educator profile exists
-        const { data: existingProfile, error: checkError } = await supabase
-          .from('educator_profile')
-          .select('*')
-          .eq('educator_id', user.id)
-          .single();
-
-        if (checkError && checkError.code !== 'PGRST116') {
-          console.error('Error checking existing educator profile:', checkError);
-          throw checkError;
-        }
-
-        if (!existingProfile) {
-          // Create new educator profile only if it doesn't exist
-          const { error: insertError } = await supabase
-            .from('educator_profile')
-            .insert({ educator_id: user.id });
-          
-          if (insertError) {
-            console.error('Error creating educator profile:', insertError);
-            throw insertError;
-          }
-        }
+        // Educator role is already set via upid in user_account table
+        router.push('/teacherpage');
       }
 
       await refreshProfile();
       
-      // Redirect based on user type
-      if (upid === 2) { // Parent
-        router.push('/parentpage');
-      } else if (upid === 1) { // Publisher
-        router.push('/publisherpage');
-      } else if (upid === 5) { // Educator
-        router.push('/teacherpage');
-      }
     } catch (err) {
       console.error('Submission error:', err);
       if (err instanceof Error) {
