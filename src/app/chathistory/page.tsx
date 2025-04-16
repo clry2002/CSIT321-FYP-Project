@@ -69,3 +69,112 @@ export default function ChatHistory() {
     </div>
   );
 }
+
+// ChatHistory.tsx
+// 'use client';
+// import React, { useEffect, useState } from 'react';
+// import axios from 'axios';
+
+// interface ChatMessage {
+//   chid: number;
+//   context: string;
+//   ischatbot: boolean;
+//   createddate: string;
+//   uaid_child: string;
+// }
+
+// interface ChatHistoryProps {
+//   userId: string;
+// }
+
+// const ChatHistory: React.FC<ChatHistoryProps> = ({ userId }) => {
+//   const [history, setHistory] = useState<ChatMessage[]>([]);
+//   const [loading, setLoading] = useState<boolean>(true);
+//   const [error, setError] = useState<string | null>(null);
+  
+//   useEffect(() => {
+//     console.log("Current userId:", userId);
+//     if (!userId){
+//       console.log("No userId provided, skipping fetch");
+//       setLoading(false);
+//       return;
+//     }
+    
+//     const fetchChatHistory = async () => {
+//       const url = `/api/chat/history?user_id=${userId}`;
+//       console.log("Fetching from:", url);
+//       try {
+//         setLoading(true);
+//         const response = await axios.get(url);
+//         console.log("Response data:", response.data);
+//         setHistory(response.data.history || []);
+//         setError(null);
+//       } catch (err) {
+//         console.error("Error details:", err);
+//         setError('Failed to load chat history');
+//       } finally {
+//         setLoading(false);
+//       }
+//     };
+    
+//     fetchChatHistory();
+//   }, [userId]);
+  
+//   const clearHistory = async () => {
+//     if (!window.confirm('Are you sure you want to clear your chat history?')) return;
+    
+//     try {
+//       setLoading(true);
+//       await axios.post('/api/chat/history/clear', { user_id: userId });
+//       setHistory([]);
+//       setError(null);
+//     } catch (err) {
+//       setError('Failed to clear chat history');
+//       console.error(err);
+//     } finally {
+//       setLoading(false);
+//     }
+//   };
+  
+//   if (loading) return <div>Loading chat history...</div>;
+//   if (error) return <div className="error">{error}</div>;
+  
+//   return (
+//     <div className="chat-history">
+//       <h2>Chat History</h2>
+//       {history.length === 0 ? (
+//         <p>No chat history found</p>
+//       ) : (
+//         <>
+//           <button 
+//             onClick={clearHistory}
+//             className="clear-history-btn"
+//           >
+//             Clear History
+//           </button>
+//           <div className="messages-container">
+//             {history.map((message) => (
+//               <div 
+//                 key={message.chid}
+//                 className={`message ${message.ischatbot ? 'bot-message' : 'user-message'}`}
+//               >
+//                 <div className="message-header">
+//                   <span className="sender">{message.ischatbot ? 'Kid-Bot' : 'You'}</span>
+//                   <span className="timestamp">
+//                     {new Date(message.createddate).toLocaleString()}
+//                   </span>
+//                 </div>
+//                 <div 
+//                   className="message-content"
+//                   dangerouslySetInnerHTML={{ __html: message.context }}
+//                 />
+//               </div>
+//             ))}
+//           </div>
+//         </>
+//       )}
+//     </div>
+//   );
+// };
+
+// export default ChatHistory;

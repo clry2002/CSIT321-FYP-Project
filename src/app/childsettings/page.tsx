@@ -38,6 +38,7 @@ export default function SettingsPage() {
             </div>
 
             <Link href="/chathistory" className="block">
+            {/* <Link href="/components/child/ChatHistory" className="block"> */}
               <div className="p-6 border rounded-lg shadow hover:border-blue-300 hover:bg-blue-50 transition">
                 <div className="flex items-center space-x-3">
                   <MessageSquare className="w-6 h-6 text-gray-900" />

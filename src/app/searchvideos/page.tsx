@@ -32,12 +32,11 @@ export default function SearchVideosPage() {
   const [blockedGenres, setBlockedGenres] = useState<Set<number>>(new Set());
   const [childId, setChildId] = useState<string | null>(null);
   const [isBlockedGenreSearch, setIsBlockedGenreSearch] = useState(false);
-  const [debugInfo, setDebugInfo] = useState<string>('');
+  const [isBlockedGenresFetched, setIsBlockedGenresFetched] = useState(false); // Track when blocked genres are fetched
 
   useEffect(() => {
     const fetchChildProfile = async () => {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
-
       if (userError || !user) {
         console.error('Failed to get user:', userError);
         return;
@@ -77,6 +76,7 @@ export default function SearchVideosPage() {
 
       const blockedGenresSet = new Set(data?.map((item) => item.genreid));
       setBlockedGenres(blockedGenresSet);
+      setIsBlockedGenresFetched(true); // Set this to true once blocked genres are fetched
     };
 
     fetchBlockedGenres();
@@ -105,7 +105,7 @@ export default function SearchVideosPage() {
 
   useEffect(() => {
     const searchVideos = async () => {
-      if (!query || !childId) {
+      if (!query || !childId || !isBlockedGenresFetched) {
         setIsLoading(false);
         return;
       }
@@ -122,21 +122,31 @@ export default function SearchVideosPage() {
           return;
         }
 
-        // Debug logging
-        console.log("Blocked genre IDs:", Array.from(blockedGenres));
-        console.log("Blocked genre data:", genreNamesData);
-
         const blockedGenreNames = new Set(
           genreNamesData?.map((g) => g.genrename.toLowerCase())
         );
 
-        // Improved query check with word boundaries
-        const queryWords = query.toLowerCase().split(/\s+/);
+        const normalize = (str: string) =>
+          str.toLowerCase().replace(/[^a-z]/g, '').replace(/s$/, '');
+
+        const normalizedQuery = normalize(query);
+
         const queryIncludesBlocked = Array.from(blockedGenreNames).some((genre) => {
-          return queryWords.includes(genre);
+          const normalizedGenre = normalize(genre);
+          const lengthDifference = Math.abs(normalizedQuery.length - normalizedGenre.length);
+          const isExactOrNearMatch =
+            normalizedQuery === normalizedGenre ||
+            (lengthDifference <= 2 && normalizedGenre.includes(normalizedQuery));
+          return isExactOrNearMatch;
         });
 
         setIsBlockedGenreSearch(queryIncludesBlocked);
+
+        if (queryIncludesBlocked) {
+          setVideos([]);
+          setIsLoading(false);
+          return;
+        }
 
         const { data: rawVideos, error: videoError } = await supabase
           .rpc('search_videos', { searchquery: query });
@@ -152,12 +162,7 @@ export default function SearchVideosPage() {
           return;
         }
 
-        // Debug logging
-        console.log(`Total videos before filtering: ${rawVideos.length}`);
-        
         const filteredVideos: Video[] = [];
-        let genreFilteredCount = 0;
-        let textFilteredCount = 0;
 
         for (const video of rawVideos) {
           const { data: genreData, error: genreError } = await supabase
@@ -171,40 +176,17 @@ export default function SearchVideosPage() {
           }
 
           const hasBlockedGenre = genreData?.some((g) => blockedGenres.has(g.gid));
-          if (hasBlockedGenre) {
-            genreFilteredCount++;
-            console.log(`Video ${video.cid} filtered due to blocked genre ID`);
-            continue;
-          }
 
           const titleLower = video.title.toLowerCase();
           const descLower = video.description?.toLowerCase() || '';
-          
-          // Improved text filtering with word boundaries
-          const containsBlockedWord = Array.from(blockedGenreNames).some((genre) => {
-            if (!genre) return false;
-            const genreRegex = new RegExp(`\\b${genre}\\b`, 'i');
-            return genreRegex.test(titleLower) || genreRegex.test(descLower);
-          });
+          const containsBlockedWord = Array.from(blockedGenreNames).some((genre) =>
+            titleLower.includes(genre) || descLower.includes(genre)
+          );
 
-          if (containsBlockedWord) {
-            textFilteredCount++;
-            console.log(`Video ${video.cid} filtered due to blocked genre text`);
-            continue;
+          if (!hasBlockedGenre && !containsBlockedWord) {
+            filteredVideos.push(video);
           }
-
-          filteredVideos.push(video);
         }
-
-        // Update debug info
-        const debugLog = `
-          Total videos: ${rawVideos.length}
-          Filtered by genre ID: ${genreFilteredCount}
-          Filtered by text: ${textFilteredCount}
-          Remaining videos: ${filteredVideos.length}
-        `;
-        setDebugInfo(debugLog);
-        console.log(debugLog);
 
         setVideos(filteredVideos);
       } catch (err) {
@@ -216,7 +198,7 @@ export default function SearchVideosPage() {
     };
 
     searchVideos();
-  }, [query, blockedGenres, childId]);
+  }, [query, blockedGenres, childId, isBlockedGenresFetched]); // Added isBlockedGenresFetched as a dependency
 
   const handleBookmark = async (video: Video) => {
     if (!childId) {
@@ -281,12 +263,6 @@ export default function SearchVideosPage() {
     }
   };
 
-  const forceRefresh = () => {
-    if (query) {
-      router.refresh();
-    }
-  };
-
   return (
     <div className="flex h-screen bg-white overflow-hidden">
       <Navbar />
@@ -306,7 +282,6 @@ export default function SearchVideosPage() {
               <div className="flex justify-center space-x-4">
                 <button onClick={() => handleSearch('books')} className="px-6 py-2 bg-rose-500 text-white rounded-lg">Search Books</button>
                 <button onClick={() => handleSearch('videos')} className="px-6 py-2 bg-rose-500 text-white rounded-lg">Search Videos</button>
-                <button onClick={forceRefresh} className="px-6 py-2 bg-blue-500 text-white rounded-lg">Refresh Results</button>
               </div>
             </div>
           </div>

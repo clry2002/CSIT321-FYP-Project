@@ -22,6 +22,6 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "src/app/components/educator/ClassroomDetails"],
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "src/app/components/educator/ClassroomDetails", "src/app/components/child/ChatHistory.jsx"],
   "exclude": ["node_modules"]
 }

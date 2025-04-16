@@ -12,17 +12,17 @@ from supabase import create_client, Client
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
-# Importing regex for cleaning <think> tags and question symbols
+# Importing regex and random module
 import re
+import random
+import logging
 
 # Load environment variables
 load_dotenv()
 
 # Flask app setup
 app = Flask(__name__)
-CORS(app)  # Enable CORS to allow communication with the React frontend
-
-import logging
+CORS(app)
 
 logging.basicConfig(level=logging.INFO)
 
@@ -30,22 +30,19 @@ logging.basicConfig(level=logging.INFO)
 api_key: str = os.getenv('key')
 model: str = "deepseek-r1-distill-llama-70b"
 deepseek = ChatGroq(api_key=api_key, model_name=model)
-
-# Load Supabase credentials
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
-
-# Initialize Supabase client
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-
 parser = StrOutputParser()
 deepseek_chain = deepseek | parser
 
-# Chatbot Definition Template
+# Supabase setup
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+# Chatbot template
 template = ("""
 You are an AI-powered chatbot designed to provide 
-recommendation for books and videos for children/kids
-based on the context provided to you only.    
+recommendations for books and videos for children/kids
+based on the context provided to you only.
 Don't in any way make things up.
 Sound kid-friendly.
 Speak as if you are talking directly to a child.
@@ -55,54 +52,49 @@ Context:{context}
 Question:{question}
 """)
 
-# Cleaning of RAW Response Output, for easier readability
+# Clean AI output
 def clean_response(response):
-    # Remove <think> tags
     cleaned_response = re.sub(r"<think>.*?</think>", "", response, flags=re.DOTALL)
-    cleaned_response = re.sub(r"<think>", "", cleaned_response)
-    cleaned_response = re.sub(r"</think>", "", cleaned_response)
-
-    # Replace *text* with bold formatting
+    cleaned_response = re.sub(r"<think>|</think>", "", cleaned_response)
     cleaned_response = re.sub(r"\\(.?)\\*", r"<b>\1</b>", cleaned_response)
-
-    # Replace ### headings with <h3> tags
     cleaned_response = re.sub(r"###\s?(.*)", r"<h3>\1</h3>", cleaned_response)
-
-    # Replace numbered lists and newlines with <br> for better formatting
-    cleaned_response = re.sub("\n+", "<br>", cleaned_response)  # Replace multiple newlines with a single <br>
-    cleaned_response = re.sub(r"^\s*<br>", "", cleaned_response)  # Remove leading <br> tags
-
-    # Strip any leading or trailing whitespace (including newlines)
+    cleaned_response = re.sub("\n+", "<br>", cleaned_response)
+    cleaned_response = re.sub(r"^\s*<br>", "", cleaned_response)
     return cleaned_response.strip()
 
-# Function to fetch content by genre and format (cfid)
+# Read static context
+def read_data_from_file(file_path):
+    try:
+        with open(file_path, 'r') as file:
+            return file.read()
+    except FileNotFoundError:
+        logging.error(f"File {file_path} not found.")
+        return None
+    except Exception as e:
+        logging.error(f"Error reading file {file_path}: {e}")
+        return None
+
+# Content fetch function
 def get_content_by_genre_and_format(question):
     try:
-        # Fetch available genres from the database
         genres_query = supabase.from_("temp_genre").select("genrename").execute()
-       
         if not genres_query.data:
             return {"error": "No genres found in the database"}
 
-        # Extract the genre names from the query response
         genres = [genre["genrename"].lower() for genre in genres_query.data]
-        formats = {"videos": 1, "video": 1, "books": 2, "book": 2}
-        
-        # Normalize the question text (remove punctuation and convert to lowercase)
+        format_keywords = {
+            "read": 2, "story": 2, "watch": 1, "movie": 1,
+            "video": 1, "book": 2, "books": 2, "videos": 1
+        }
+
         normalized_question = re.sub(r'[^\w\s]', '', question).strip().lower()
-        
-        # Check if any genre matches in the normalized question text
         detected_genre = next((genre for genre in genres if genre in normalized_question), None)
-        
-        # Detect format (video or book)
-        detected_format = next((word for word in question.split() if word.lower() in formats), None)
-        
+        detected_format = next((word for word in question.split() if word.lower() in format_keywords), None)
+        cfid = format_keywords.get(detected_format.lower(), None) if detected_format else None
+
         if not detected_genre:
             return {"error": "Unable to detect genre from the question"}
-        
-        cfid = formats.get(detected_format.lower(), None) if detected_format else None
-        
-        # Fetch content filtered by genre and format (if cfid is detected)
+
         query = (
             supabase
             .from_("temp_contentgenres")
@@ -112,79 +104,82 @@ def get_content_by_genre_and_format(question):
             )
             .ilike("temp_genre.genrename", f"%{detected_genre}%")
         )
-        
+
         if cfid:
-            query = query.eq("temp_content.cfid", cfid)  # Filter by cfid if format is detected
+            query = query.eq("temp_content.cfid", cfid)
 
         response = query.execute()
-
-        logging.info(f"Filtered Supabase response: {response.data}")
-
         if not response.data:
             return {"error": "No content found for the given genre and format"}
 
-        # Separate books and videos based on cfid
         filtered_books = []
         filtered_videos = []
+
         for item in response.data:
             if "temp_content" in item and item["temp_content"]:
-                if item["temp_content"]["cfid"] == 2:  # Books
+                if item["temp_content"]["cfid"] == 2:
                     filtered_books.append(item["temp_content"])
-                elif item["temp_content"]["cfid"] == 1:  # Videos
+                elif item["temp_content"]["cfid"] == 1:
                     filtered_videos.append(item["temp_content"])
 
-        logging.info(f"Filtered books: {filtered_books}")
-        logging.info(f"Filtered videos: {filtered_videos}")
+        filtered_books = random.sample(filtered_books, min(5, len(filtered_books)))
+        filtered_videos = random.sample(filtered_videos, min(5, len(filtered_videos)))
 
-        return {"genre": detected_genre, "books": filtered_books, "videos": filtered_videos}
+        return {
+            "genre": detected_genre,
+            "books": filtered_books,
+            "videos": filtered_videos
+        }
 
     except Exception as e:
         logging.error(f"Database query failed: {e}")
         return {"error": "Database query failed"}
 
-# Function to read data from data.txt
-def read_data_from_file(file_path):
-    try:
-        with open(file_path, 'r') as file:
-            data = file.read()  # Read the entire content of the file
-        return data
-    except FileNotFoundError:
-        logging.error(f"File {file_path} not found.")
-        return None
-    except Exception as e:
-        logging.error(f"Error reading file {file_path}: {e}")
-        return None
-
+# Main chatbot route
 @app.route('/api/chat', methods=['POST'])
 def chat():
     data = request.json
     raw_question = data.get("question", "")
-    
-    # Remove punctuation/symbols and lowercase the question
     question = re.sub(r'[^\w\s]', '', raw_question).strip().lower()
 
     if not question:
         return jsonify({"error": "No question provided"}), 400
 
-    # Read data from data.txt to use as context
     context_from_file = read_data_from_file("data.txt")
     if context_from_file is None:
         return jsonify({"error": "Failed to read context from file"}), 500
 
-    # Combine context from the file with the chatbot prompt
-    template_with_file_context = template.format(context=context_from_file, question=question)
-
-    # Fetch content by genre and format
     content_response = get_content_by_genre_and_format(question)
 
-    if "error" in content_response:
-        # Fallback to AI-generated response if content not found or error occurs
+    # If no content at all, use AI
+    if "error" in content_response or (
+        not content_response.get("books") and not content_response.get("videos")
+    ):
+        template_with_context = template.format(context=context_from_file, question=question)
         try:
-            ai_answer = deepseek_chain.invoke(template_with_file_context)
+            ai_answer = deepseek_chain.invoke(template_with_context)
             return jsonify({"answer": clean_response(ai_answer)})
         except Exception as e:
             logging.error(f"AI response failed: {e}")
             return jsonify({"error": "AI response failed"}), 500
+
+    # Use AI for missing books
+    if not content_response.get("books"):
+        try:
+            ai_book_prompt = f"What are some good kid-friendly books about {content_response['genre']}?"
+            ai_books = deepseek_chain.invoke(ai_book_prompt)
+            content_response["books_ai"] = clean_response(ai_books)
+        except Exception as e:
+            logging.warning(f"AI fallback for books failed: {e}")
+
+    # Use AI for missing videos
+    if not content_response.get("videos"):
+        try:
+            ai_video_prompt = f"What are some good videos for kids related to {content_response['genre']}?"
+            ai_videos = deepseek_chain.invoke(ai_video_prompt)
+            content_response["videos_ai"] = clean_response(ai_videos)
+        except Exception as e:
+            logging.warning(f"AI fallback for videos failed: {e}")
 
     return jsonify(content_response)
 
