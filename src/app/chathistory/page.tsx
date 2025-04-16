@@ -4,12 +4,33 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
-// Define type for chat message
+// Define types for chat message
 type ChatMessage = {
   chid: number;
   context: string;
   ischatbot: boolean;
   createddate: string;
+};
+
+// Types for content response
+type Book = {
+  cid: number;
+  cfid: number;
+  title: string;
+  status: string;
+  contenturl: string;
+  coverimage: string;
+  minimumage: number;
+  description: string;
+};
+
+type ContentResponse = {
+  genre?: string;
+  books?: Book[];
+  videos?: any[];
+  books_ai?: string;
+  videos_ai?: string;
+  error?: string;
 };
 
 // Props for ChatHistory
@@ -61,6 +82,85 @@ function ChatHistory({ userId }: ChatHistoryProps) {
     fetchChatHistory();
   }, [userId]);
 
+  // Function to parse and format chatbot response content
+  const formatChatbotResponse = (content: string) => {
+    try {
+      // Check if this might be a JSON or object string
+      if (content.includes('{') && content.includes('}')) {
+        // Try to parse as object/JSON
+        const contentObj = JSON.parse(content.replace(/'/g, '"'));
+        
+        // If it's a content response object
+        if (contentObj.genre || contentObj.books || contentObj.videos) {
+          return renderContentResponse(contentObj);
+        }
+      }
+      
+      // Handle HTML content (from AI responses with <br>, <h3>, etc.)
+      if (content.includes('<br>') || content.includes('<h3>')) {
+        return <div dangerouslySetInnerHTML={{ __html: content }} />;
+      }
+      
+      // Default - return as plain text
+      return <p>{content}</p>;
+    } catch (e) {
+      // If parsing fails, just return the raw text
+      return <p>{content}</p>;
+    }
+  };
+  
+  // Render formatted content response
+  const renderContentResponse = (content: ContentResponse) => {
+    return (
+      <div className="space-y-4">
+        {content.genre && (
+          <p className="font-medium">Here are some {content.genre} recommendations for you:</p>
+        )}
+        
+        {content.books && content.books.length > 0 && (
+          <div className="space-y-3">
+            <h3 className="font-bold text-lg">Books:</h3>
+            {content.books.map((book, index) => (
+              <div key={index} className="bg-white p-3 rounded shadow-sm">
+                <h4 className="font-bold">{book.title}</h4>
+                <p className="text-sm">{book.description}</p>
+                <p className="text-xs mt-1">For ages {book.minimumage}+</p>
+              </div>
+            ))}
+          </div>
+        )}
+        
+        {content.videos && content.videos.length > 0 && (
+          <div className="space-y-3">
+            <h3 className="font-bold text-lg">Videos:</h3>
+            {content.videos.map((video, index) => (
+              <div key={index} className="bg-white p-3 rounded shadow-sm">
+                <h4 className="font-bold">{video.title}</h4>
+                <p className="text-sm">{video.description}</p>
+              </div>
+            ))}
+          </div>
+        )}
+        
+        {content.books_ai && (
+          <div className="mt-3">
+            <div dangerouslySetInnerHTML={{ __html: content.books_ai }} />
+          </div>
+        )}
+        
+        {content.videos_ai && (
+          <div className="mt-3">
+            <div dangerouslySetInnerHTML={{ __html: content.videos_ai }} />
+          </div>
+        )}
+        
+        {content.error && (
+          <p className="text-red-500">{content.error}</p>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="w-full h-screen flex flex-col items-center bg-gray-100 overflow-y-auto px-4 py-6">
       <div className="w-full max-w-4xl bg-white rounded-xl shadow-md p-6">
@@ -84,7 +184,13 @@ function ChatHistory({ userId }: ChatHistoryProps) {
                     : 'bg-rose-500 text-white self-end'
                 }`}
               >
-                <p className="mb-1 break-words whitespace-pre-wrap">{msg.context}</p>
+                {msg.ischatbot ? (
+                  <div className="break-words whitespace-pre-wrap">
+                    {formatChatbotResponse(msg.context)}
+                  </div>
+                ) : (
+                  <p className="mb-1 break-words whitespace-pre-wrap">{msg.context}</p>
+                )}
                 <span className="text-xs text-gray-600 block text-right">
                   {new Date(msg.createddate).toLocaleString("en-US", {
                     dateStyle: "short",
