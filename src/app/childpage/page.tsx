@@ -18,6 +18,53 @@ import { useEffect, useState } from 'react';
 // import ScreenTimeLimit from '../components/child/ScreenTimeLimit';
 // import ScreenTimeIndicator from '../components/child/ScreenTimeIndicator';
 
+const fetchChildData = async (
+  setUserFullName: (name: string | null) => void,
+  setIsLoading: (value: boolean) => void,
+  router: any
+) => {
+  setIsLoading(true);
+  console.log("Fetching child data...");
+
+  try {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+    if (userError) {
+      console.error("Error getting auth user:", userError);
+      router.push('/landing');
+      return;
+    }
+
+    if (!user) {
+      console.log("No authenticated user found");
+      router.push('/landing');
+      return;
+    }
+
+    console.log("Authenticated user ID:", user.id);
+
+    // Fetch user account details, using 'id' from user_account
+    const { data, error } = await supabase
+      .from('user_account')
+      .select('id, fullname') // Select 'id' instead of 'user_id'
+      .eq('user_id', user.id)  // Match with the 'user_id' field
+      .single();
+
+    if (error) {
+      console.error('Error fetching child fullname:', error);
+      return;
+    }
+
+    setUserFullName(data?.fullname || null);
+    return data?.id || null; // Set the 'id' as uaid_child
+  } catch (error) {
+    console.error('Error in fetchChildData:', error);
+  } finally {
+    setIsLoading(false);
+  }
+};
+
+
 export default function ChildPage() {
   const [recommendedBooks, setRecommendedBooks] = useState<any[]>([]);
   const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(true); // Added loading state for recommendations

@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import axios from 'axios';
+import { supabase } from '@/lib/supabase';
 
 // Define the Content interface with cfid and cid
 export interface Content {
@@ -18,7 +19,54 @@ export interface Message {
   audio_url?: string; 
 }
 
-export const useChatbot = () => {
+const fetchChildData = async (
+  setUserFullName: (name: string | null) => void,
+  setIsLoading: (value: boolean) => void,
+  router: any
+) => {
+  setIsLoading(true);
+  console.log("Fetching child data...");
+
+  try {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+    if (userError) {
+      console.error("Error getting auth user:", userError);
+      router.push('/landing');
+      return;
+    }
+
+    if (!user) {
+      console.log("No authenticated user found");
+      router.push('/landing');
+      return;
+    }
+
+    console.log("Authenticated user ID:", user.id);
+
+    // Fetch the 'user_account' data, ensuring we get 'id' as 'uaid_child'
+    const { data, error } = await supabase
+      .from('user_account')
+      .select('id, fullname') // Select 'id' from user_account
+      .eq('user_id', user.id) // Match the user_id with the authenticated user's ID
+      .single();
+
+    if (error) {
+      console.error('Error fetching child fullname:', error);
+      return;
+    }
+
+    setUserFullName(data?.fullname || null);
+    
+    return data?.id || null;  // Return uaid_child
+  } catch (error) {
+    console.error('Error in fetchChildData:', error);
+  } finally {
+    setIsLoading(false);
+  }
+};
+
+export const useChatbot = (router: any) => {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
@@ -26,18 +74,50 @@ export const useChatbot = () => {
     }
   ]);
   const [isLoading, setIsLoading] = useState(false);
+  const [uaid_child, setUaidChild] = useState<string | null>(null);
 
   // Ref for auto-scrolling
   const chatContainerRef = useRef<HTMLDivElement | null>(null);
 
+  // Fetch the user data and set the user ID (uaid_child)
+  useEffect(() => {
+    const fetchUser = async () => {
+      const userId = await fetchChildData(
+        (fullname) => {
+          console.log("Full name:", fullname);
+        },
+        setIsLoading,
+        router
+      );
+      
+      setUaidChild(userId || null);
+    };
+
+    fetchUser();
+  }, [router]);
+
   const sendMessage = useCallback(async (message: string) => {
+    if (!uaid_child) {
+      console.error('User ID (uaid_child) is not available');
+      return;
+    }
+
     try {
       setIsLoading(true);
       setMessages((prev) => [...prev, { role: 'user', content: message }]);
 
-      const response = await axios.post('http://127.0.0.1:5000/api/chat', {
-        question: message,
-      });
+      const response = await axios.post(
+        'http://127.0.0.1:5000/api/chat',
+        JSON.stringify({
+          question: message,
+          uaid_child: uaid_child,
+        }),
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
 
       console.log("API Response:", response.data);
 
@@ -49,8 +129,8 @@ export const useChatbot = () => {
             ...response.data.books.map((book: any) => ({
               ...book,
               coverimage: book.coverimage || '',
-              cfid: book.cfid || 2, // Default to book
-              cid: book.cid || 0,   // Ensure cid is present
+              cfid: book.cfid || 2,
+              cid: book.cid || 0,
             }))
           );
         }
@@ -60,8 +140,8 @@ export const useChatbot = () => {
             ...response.data.videos.map((video: any) => ({
               ...video,
               coverimage: video.coverimage || '',
-              cfid: video.cfid || 1, // Default to video
-              cid: video.cid || 0,   // Ensure cid is present
+              cfid: video.cfid || 1,
+              cid: video.cid || 0,
             }))
           );
         }
@@ -70,7 +150,6 @@ export const useChatbot = () => {
 
         setMessages((prev) => [...prev, { role: 'assistant', content }]);
       } else {
-        // Fallback to text response (e.g. from AI)
         setMessages((prev) => [...prev, { role: 'assistant', content: response.data.answer }]);
       }
     } catch (error) {
@@ -79,13 +158,13 @@ export const useChatbot = () => {
         ...prev,
         {
           role: 'assistant',
-          content: 'Sorry, I have encountered an error. Please try again.'
-        }
+          content: 'Sorry, I have encountered an error. Please try again.',
+        },
       ]);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [uaid_child]);
 
   // Auto-scroll to the bottom on new messages
   useEffect(() => {
