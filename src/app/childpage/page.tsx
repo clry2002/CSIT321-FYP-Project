@@ -199,6 +199,7 @@ export default function ChildPage() {
         const ageFilteredBookmarks = similarBookmarks.filter(b =>
           allowedBookIds.includes(b.cid)
         );
+        console.log('allowedBookIds:', allowedBookIds); //delete after debugging
   
         // Get user bookmarks
         const { data: userBookmarks, error: userBookmarksError } = await supabase
@@ -206,11 +207,13 @@ export default function ChildPage() {
           .select('cid')
           .eq('uaid', uaid);
         const userCid = userBookmarks?.map(b => b.cid) || [];
+        console.log('userCid:', userCid); //delete after debugging
   
         // Filter out books the user already bookmarked
         const filteredCids = ageFilteredBookmarks
           .map(b => b.cid)
           .filter(bookId => !userCid.includes(bookId));
+        console.log('filteredCids:', filteredCids); //delete after debugging
   
         // Rank by frequency
         const contentFrequency: Record<string, number> = {};
@@ -220,6 +223,7 @@ export default function ChildPage() {
         const rankedContentIds = Object.entries(contentFrequency)
           .sort((a: [string, number], b: [string, number]) => b[1] - a[1])
           .map(([bookId]) => bookId);
+        console.log('rankedContentIds:', rankedContentIds); //delete after debugging
   
         // Genre relevance filtering - won't include books from bookmark, if book genre is not in user's top 5
         const filteredRecommendedBooks = await Promise.all(
@@ -236,6 +240,7 @@ export default function ChildPage() {
           })
         );
         const finalFilteredContentIds = rankedContentIds.filter((bookId, index) => filteredRecommendedBooks[index]);
+        console.log('finalFilteredContentIds:', finalFilteredContentIds); //delete after debugging
   
         if (finalFilteredContentIds.length === 0) {
           console.log('0 content with similar genres');
