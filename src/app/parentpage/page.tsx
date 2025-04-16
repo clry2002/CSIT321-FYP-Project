@@ -10,7 +10,7 @@ export default function ParentHome() {
   const searchParams = useSearchParams();
   const [parentName, setParentName] = useState<string | null>(null);
   // const [parentId, setParentId] = useState<string | null>(null);
-  const [setParentId] = useState<string | null>(null);
+  const [,setParentId] = useState<string | null>(null);
   const [children, setChildren] = useState<Array<{
     id: string;
     name: string;

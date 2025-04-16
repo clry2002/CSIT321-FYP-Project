@@ -18,7 +18,7 @@ export default function DiscussionBoardPage() {
   const [teacherQuestion, setTeacherQuestion] = useState('');
   const [responses, setResponses] = useState<DiscussionEntry[]>([]);
   // const [childName, setChildName] = useState('');
-  const [setChildName] = useState('');
+  const [,setChildName] = useState('');
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);

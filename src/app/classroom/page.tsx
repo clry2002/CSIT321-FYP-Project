@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { useUser } from '@supabase/auth-helpers-react';
+// import { useUser } from '@supabase/auth-helpers-react';
 import Navbar from '../components/Navbar';
 import ChatBot from '../components/ChatBot';
 import { useRouter } from 'next/navigation'; // Import useRouter
@@ -21,7 +21,8 @@ export default function ClassroomPage() {
   const [invitedClassrooms, setInvitedClassrooms] = useState<Classroom[]>([]);
   const [activeClassrooms, setActiveClassrooms] = useState<Classroom[]>([]);
   const [loadingInvited, setLoadingInvited] = useState(false);
- // const [loading, setLoading] = useState(true);
+  // const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
   const [userState, setUserState] = useState<any | null>(null);
 
   const router = useRouter(); // Initialize useRouter hook
