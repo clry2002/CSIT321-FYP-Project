@@ -41,10 +41,10 @@ export default function AboutPage() {
           Welcome to <span className="font-semibold text-gray-800">CoReadability</span>, where learning meets fun! Our mission is to provide kids with personalized book and video recommendations that sparks curiosity and creativity.
         </p>
         <p className="text-lg text-gray-700 mb-4 max-w-xl">
-          We believe every child is unique, and our chatbot is designed to help young learners explore exciting stories and educational content tailored just for them. Whether it's finding the perfect adventure novel or an engaging science video, we’re here to make discovery effortless and enjoyable.
+          We believe every child is unique, and our chatbot is designed to help young learners explore exciting stories and educational content tailored just for them. Whether it&apos;s finding the perfect adventure novel or an engaging science video, we’re here to make discovery effortless and enjoyable.
         </p>
         <p className="text-lg text-gray-700 mb-6 max-w-xl">
-          Thank you for trusting us to inspire the next generation of readers, thinkers, and dreamers. Let's make learning an unforgettable journey!
+          Thank you for trusting us to inspire the next generation of readers, thinkers, and dreamers. Let&apos;s make learning an unforgettable journey!
         </p>
         <Link href="/auth/signup">
           <button className="px-6 py-3 bg-purple-500 text-white font-semibold rounded-lg hover:bg-purple-600 transition mt-6">

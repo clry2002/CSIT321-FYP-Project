@@ -20,7 +20,8 @@ export default function CreateClassroom() {
         return;
       }
 
-      const { data: existingClassroom, error } = await supabase
+      // const { data: existingClassroom, error } = await supabase
+      const { data: existingClassroom } = await supabase
         .from('temp_classroom')
         .select('name')
         .eq('name', classroomName)

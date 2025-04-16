@@ -6,7 +6,8 @@ import { Search, Home as HomeIcon, BookOpen, Clock, Settings, Bell, PlayCircle }
 import { useCalendar } from '@/hooks/useCalendar';
 
 export default function HistoryPage() {
-  const { calendarDays, currentMonth } = useCalendar();
+  //const { calendarDays, currentMonth } = useCalendar();
+  const { calendarDays } = useCalendar();
 
   return (
     <div className="flex h-screen bg-white overflow-hidden">

@@ -15,10 +15,11 @@ type Discussion = {
 
 type DiscussionBoardProps = {
   classroomId: number;
-  educatorId: string | null;
+  // educatorId: string | null;
 };
 
-export default function DiscussionBoardSection({ classroomId, educatorId }: DiscussionBoardProps) {
+// export default function DiscussionBoardSection({ classroomId, educatorId }: DiscussionBoardProps) {
+  export default function DiscussionBoardSection({ classroomId }: DiscussionBoardProps) {
   const [discussions, setDiscussions] = useState<Discussion[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -84,7 +85,8 @@ export default function DiscussionBoardSection({ classroomId, educatorId }: Disc
       const formattedDiscussions = await Promise.all(
         (discussionsData || []).map(async (discussion) => {
           // Get user info
-          const { data: userData, error: userError } = await supabase
+          // const { data: userData, error: userError } = await supabase
+          const { data: userData } = await supabase
             .from('user_account')
             .select('fullname')
             .eq('user_id', discussion.uaid)
@@ -122,7 +124,8 @@ export default function DiscussionBoardSection({ classroomId, educatorId }: Disc
     }
   
     try {
-      const { data, error } = await supabase
+      // const { data, error } = await supabase
+      const { error } = await supabase
         .from('discussionboard')
         .insert({
           crid: classroomId,

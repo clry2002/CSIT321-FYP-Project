@@ -9,7 +9,7 @@ import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 
 export default function BookmarksPage() {
-  const router = useRouter();
+  // const router = useRouter();
   const [bookmarkedBooks, setBookmarkedBooks] = useState<Book[]>([]);
   const [bookmarkedVideos, setBookmarkedVideos] = useState<Video[]>([]);
   const [notification, setNotification] = useState<{ message: string; show: boolean }>({ message: '', show: false });

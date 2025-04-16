@@ -25,7 +25,7 @@ function ErrorBoundary({ children }: { children: React.ReactNode }) {
 
 export default function AccountSettings() {
   const router = useRouter();
-  const { userProfile, refreshProfile } = useSession();
+  // const { userProfile, refreshProfile } = useSession();
   const [email, setEmail] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

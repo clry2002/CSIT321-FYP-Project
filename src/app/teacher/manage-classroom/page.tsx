@@ -48,20 +48,20 @@ export default function ManageClassroom() {
   };
 
   // Add a resource to the selected classroom
-  const addResource = () => {
-    if (selectedClassroom && newResource.value) {
-      const updatedClassrooms = classrooms.map((classroom) =>
-        classroom.id === selectedClassroom.id
-          ? {
-              ...classroom,
-              [newResource.type]: [...(classroom as any)[newResource.type], newResource.value],
-            }
-          : classroom
-      );
-      setClassrooms(updatedClassrooms);
-      setNewResource({ type: '', value: '' }); // Reset input fields
-    }
-  };
+  // const addResource = () => {
+  //   if (selectedClassroom && newResource.value) {
+  //     const updatedClassrooms = classrooms.map((classroom) =>
+  //       classroom.id === selectedClassroom.id
+  //         ? {
+  //             ...classroom,
+  //             [newResource.type]: [...(classroom as any)[newResource.type], newResource.value],
+  //           }
+  //         : classroom
+  //     );
+  //     setClassrooms(updatedClassrooms);
+  //     setNewResource({ type: '', value: '' }); // Reset input fields
+  //   }
+  // };
 
   // Update classroom schedule
   const updateSchedule = (id: number, newSchedule: string) => {

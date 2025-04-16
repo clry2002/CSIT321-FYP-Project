@@ -255,7 +255,7 @@ export default function SearchBooksPage() {
 
           {query && (
             <h1 className="text-2xl font-bold text-gray-900 mb-6">
-              Search Results for "{query}"
+              Search Results for &quot;{query}&quot;
             </h1>
           )}
 

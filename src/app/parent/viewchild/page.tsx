@@ -407,7 +407,7 @@ export default function ViewChild() {
     <div className="min-h-screen bg-gray-100 p-6">
       <div className="max-w-4xl mx-auto">
         <div className="bg-white rounded-lg shadow-md p-6">
-          <h1 className="text-2xl font-bold mb-6 text-black">{childName}'s Profile</h1>
+          <h1 className="text-2xl font-bold mb-6 text-black">{childName}&apos;s Profile</h1>
           
           <div className="overflow-x-auto">
             <table className="min-w-full bg-white">

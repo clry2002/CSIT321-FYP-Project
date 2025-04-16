@@ -62,7 +62,7 @@ export default function AdminPage() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | null>(null);
   const [selectedUserType, setSelectedUserType] = useState<number | null>(null);
   const [showUserTypeDropdown, setShowUserTypeDropdown] = useState(false);
-  const [selectedParent, setSelectedParent] = useState<string | null>(null);
+  // const [selectedParent, setSelectedParent] = useState<string | null>(null);
   const [relationships, setRelationships] = useState<ParentChildRelationship[]>([]);
   const [showModifyModal, setShowModifyModal] = useState(false);
   const [selectedParentForModify, setSelectedParentForModify] = useState<{
@@ -374,10 +374,10 @@ export default function AdminPage() {
       return sortOrder === 'asc' ? a.age - b.age : b.age - a.age;
     });
 
-  const getParentUsers = () => {
-    // Get all users with upid 2 (Parent type) from user_account table
-    return userAccounts.filter(user => user.upid === 2);
-  };
+  // const getParentUsers = () => {
+  //   // Get all users with upid 2 (Parent type) from user_account table
+  //   return userAccounts.filter(user => user.upid === 2);
+  // };
 
   const getChildrenForParent = (parentUsername: string) => {
     // First, get the child usernames from isparentof table for this parent
@@ -389,15 +389,15 @@ export default function AdminPage() {
     return userAccounts.filter(user => childUsernames.includes(user.username) && user.upid === 3); // upid 3 for Child
   };
 
-  const getParentName = (username: string) => {
-    const parent = userAccounts.find(user => user.username === username);
-    return parent ? parent.fullname : username;
-  };
+  // const getParentName = (username: string) => {
+  //   const parent = userAccounts.find(user => user.username === username);
+  //   return parent ? parent.fullname : username;
+  // };
 
-  const getParentAge = (username: string) => {
-    const parent = userAccounts.find(user => user.username === username);
-    return parent ? parent.age : null;
-  };
+  // const getParentAge = (username: string) => {
+  //   const parent = userAccounts.find(user => user.username === username);
+  //   return parent ? parent.age : null;
+  // };
 
   const getChildName = (username: string) => {
     const child = userAccounts.find(user => user.username === username);
@@ -439,21 +439,21 @@ export default function AdminPage() {
     }));
   };
 
-  const handleAddChild = async (parentUsername: string, childUsername: string) => {
-    try {
-      const { error } = await supabase
-        .from('isparentof')
-        .insert([{ parent: parentUsername, child: childUsername }]);
+  // const handleAddChild = async (parentUsername: string, childUsername: string) => {
+  //   try {
+  //     const { error } = await supabase
+  //       .from('isparentof')
+  //       .insert([{ parent: parentUsername, child: childUsername }]);
 
-      if (error) throw error;
+  //     if (error) throw error;
       
-      // Refresh relationships after adding
-      await fetchRelationships();
-    } catch (err) {
-      console.error('Error adding child:', err);
-      setError(err instanceof Error ? err.message : 'An error occurred while adding child');
-    }
-  };
+  //     // Refresh relationships after adding
+  //     await fetchRelationships();
+  //   } catch (err) {
+  //     console.error('Error adding child:', err);
+  //     setError(err instanceof Error ? err.message : 'An error occurred while adding child');
+  //   }
+  // };
 
   const handleRemoveChild = async (parentUsername: string, childUsername: string) => {
     try {
@@ -1306,7 +1306,7 @@ export default function AdminPage() {
               </div>
             )}
             <p className="mb-4 text-red-400">
-              Warning: This action will delete the parent account "{selectedParentForModify.name}" and all associated child accounts. This action cannot be undone.
+              Warning: This action will delete the parent account &quot;{selectedParentForModify.name}&quot; and all associated child accounts. This action cannot be undone.
             </p>
             <p className="mb-4">
               The following accounts will be deleted:

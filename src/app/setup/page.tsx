@@ -5,11 +5,11 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/contexts/SessionContext';
 
-const GENRES = [
-  'Fantasy', 'Science Fiction', 'Mystery', 'Romance', 'Thriller',
-  'Horror', 'Historical Fiction', 'Literary Fiction', 'Young Adult',
-  'Biography', 'Self-Help', 'Business', 'Poetry', 'Drama'
-];
+// const GENRES = [
+//   'Fantasy', 'Science Fiction', 'Mystery', 'Romance', 'Thriller',
+//   'Horror', 'Historical Fiction', 'Literary Fiction', 'Young Adult',
+//   'Biography', 'Self-Help', 'Business', 'Poetry', 'Drama'
+// ];
 
 const USER_TYPES = ['Parent', 'Publisher', 'Educator'];
 
@@ -20,8 +20,9 @@ export default function SetupPage() {
   const [username, setUsername] = useState('');
   const [age, setAge] = useState('');
   const [userType, setUserType] = useState('');
-  const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
-  const [parentEmail, setParentEmail] = useState('');
+  // const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
+  const [setSelectedGenres] = useState<string[]>([]);
+  // const [parentEmail, setParentEmail] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
@@ -33,16 +34,16 @@ export default function SetupPage() {
   }>>([]);
   const [selectedChild, setSelectedChild] = useState<string>('');
 
-  const handleGenreToggle = (genre: string) => {
-    setSelectedGenres(prev => {
-      if (prev.includes(genre)) {
-        return prev.filter(g => g !== genre);
-      } else if (prev.length < 3) {
-        return [...prev, genre];
-      }
-      return prev;
-    });
-  };
+  // const handleGenreToggle = (genre: string) => {
+  //   setSelectedGenres(prev => {
+  //     if (prev.includes(genre)) {
+  //       return prev.filter(g => g !== genre);
+  //     } else if (prev.length < 3) {
+  //       return [...prev, genre];
+  //     }
+  //     return prev;
+  //   });
+  // };
 
   const checkUsername = async (username: string) => {
     if (!username) {

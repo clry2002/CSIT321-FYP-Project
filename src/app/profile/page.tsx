@@ -23,7 +23,8 @@ function ErrorBoundary({ children }: { children: React.ReactNode }) {
 }
 
 export default function ProfilePage() {
-  const { userAccount, userProfile, refreshProfile } = useSession();
+  // const { userAccount, userProfile, refreshProfile } = useSession();
+  const { userAccount, userProfile } = useSession();
   const [profileData, setProfileData] = useState<{
     full_name: string;
     username: string;

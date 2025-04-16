@@ -77,10 +77,10 @@ export default function SignUpPage() {
           <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-xl shadow-lg text-center">
             <div className="text-2xl font-bold text-gray-900">Check your email</div>
             <p className="text-gray-600">
-              We've sent you an email with a verification link. Please check your inbox and click the link to verify your account.
+              We&apos;ve sent you an email with a verification link. Please check your inbox and click the link to verify your account.
             </p>
             <p className="text-sm text-gray-500 mt-4">
-              After verifying your email, you'll be able to set up your account.
+              After verifying your email, you&apos;ll be able to set up your account.
             </p>
             <Link 
               href="/auth/login"

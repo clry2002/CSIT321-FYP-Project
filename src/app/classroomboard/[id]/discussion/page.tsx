@@ -17,7 +17,8 @@ export default function DiscussionBoardPage() {
   const [classroomName, setClassroomName] = useState('');
   const [teacherQuestion, setTeacherQuestion] = useState('');
   const [responses, setResponses] = useState<DiscussionEntry[]>([]);
-  const [childName, setChildName] = useState('');
+  // const [childName, setChildName] = useState('');
+  const [setChildName] = useState('');
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -192,7 +193,7 @@ export default function DiscussionBoardPage() {
       <main className="flex flex-col flex-1 p-25 max-w-4xl mx-auto space-y-8">
         <div className="bg-white rounded-xl shadow p-6">
           <h2 className="text-2xl font-bold text-blue-700 mb-1">🏫 {classroomName}</h2>
-          <h3 className="text-xl font-semibold text-blue-700 mb-2">📚 Teacher's Question</h3>
+          <h3 className="text-xl font-semibold text-blue-700 mb-2">📚 Teacher&apos;s Question</h3>
           <p className="text-lg text-gray-800">{teacherQuestion || 'No question available yet.'}</p>
         </div>
 

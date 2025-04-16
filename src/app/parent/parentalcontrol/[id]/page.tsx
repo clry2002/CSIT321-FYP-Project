@@ -74,7 +74,8 @@ export default function ParentalControlPage() {
                                 console.log('No direct relationship found, checking case insensitive or creating new');
                                 
                                 // Try with case insensitive match
-                                const { data: caseInsensitiveRelation, error: caseInsensitiveError } = await supabase
+                                // const { data: caseInsensitiveRelation, error: caseInsensitiveError } = await supabase
+                                const { data: caseInsensitiveRelation } = await supabase
                                     .from('isparentof')
                                     .select('parent_id, timeLimitMinute')
                                     .ilike('child_id', child.id)

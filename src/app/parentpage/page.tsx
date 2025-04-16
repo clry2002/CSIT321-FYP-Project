@@ -3,13 +3,14 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import Link from 'next/link';
+// import Link from 'next/link';
 
 export default function ParentHome() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [parentName, setParentName] = useState<string | null>(null);
-  const [parentId, setParentId] = useState<string | null>(null);
+  // const [parentId, setParentId] = useState<string | null>(null);
+  const [setParentId] = useState<string | null>(null);
   const [children, setChildren] = useState<Array<{
     id: string;
     name: string;
@@ -255,7 +256,7 @@ export default function ParentHome() {
           <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
             <h3 className="text-lg font-semibold mb-4 text-black">Confirm Deletion</h3>
             <p className="text-gray-600 mb-6">
-              Are you sure you want to delete this child's profile? This action cannot be undone.
+              Are you sure you want to delete this child&apos;s profile? This action cannot be undone.
             </p>
             <div className="flex justify-end space-x-4">
               <button
@@ -353,7 +354,7 @@ export default function ParentHome() {
                 <div key={child.id} className="mb-3 p-2 border border-gray-200 rounded">
                   <div className="flex justify-between items-center">
                     <div>
-                      <h3 className="font-medium text-sm text-black">{child.name}'s History</h3>
+                      <h3 className="font-medium text-sm text-black">{child.name}&apos;s History</h3>
                       <ul className="list-disc list-inside text-gray-600 text-xs">
                         {child.history?.length ? (
                           child.history.map((entry, index) => <li key={index}>{entry}</li>)
@@ -386,7 +387,7 @@ export default function ParentHome() {
                   className="block w-full text-center text-md bg-blue-500 text-white mb-2 p-3 rounded"
                   onClick={() => router.push(`/parent/parentalcontrol/${child.id}`)}
                 >
-                  {child.name}'s Settings
+                  {child.name}&apos;s Settings
                 </button>
               ))
             ) : (

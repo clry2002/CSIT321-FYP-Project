@@ -1,7 +1,7 @@
 // childpage.tsx
 'use client';
 
-import Image from 'next/image';
+// import Image from 'next/image';
 import Navbar from '../components/Navbar';
 
 import BookCard from '../components/BookCard';
@@ -18,59 +18,61 @@ import { useEffect, useState } from 'react';
 // import ScreenTimeLimit from '../components/child/ScreenTimeLimit';
 // import ScreenTimeIndicator from '../components/child/ScreenTimeIndicator';
 
-const fetchChildData = async (
-  setUserFullName: (name: string | null) => void,
-  setIsLoading: (value: boolean) => void,
-  router: any
-) => {
-  setIsLoading(true);
-  console.log("Fetching child data...");
+// const fetchChildData = async (
+//   setUserFullName: (name: string | null) => void,
+//   setIsLoading: (value: boolean) => void,
+//   router: any
+// ) => {
+//   setIsLoading(true);
+//   console.log("Fetching child data...");
 
-  try {
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+//   try {
+//     const { data: { user }, error: userError } = await supabase.auth.getUser();
 
-    if (userError) {
-      console.error("Error getting auth user:", userError);
-      router.push('/landing');
-      return;
-    }
+//     if (userError) {
+//       console.error("Error getting auth user:", userError);
+//       router.push('/landing');
+//       return;
+//     }
 
-    if (!user) {
-      console.log("No authenticated user found");
-      router.push('/landing');
-      return;
-    }
+//     if (!user) {
+//       console.log("No authenticated user found");
+//       router.push('/landing');
+//       return;
+//     }
 
-    console.log("Authenticated user ID:", user.id);
+//     console.log("Authenticated user ID:", user.id);
 
-    // Fetch user account details, using 'id' from user_account
-    const { data, error } = await supabase
-      .from('user_account')
-      .select('id, fullname') // Select 'id' instead of 'user_id'
-      .eq('user_id', user.id)  // Match with the 'user_id' field
-      .single();
+//     // Fetch user account details, using 'id' from user_account
+//     const { data, error } = await supabase
+//       .from('user_account')
+//       .select('id, fullname') // Select 'id' instead of 'user_id'
+//       .eq('user_id', user.id)  // Match with the 'user_id' field
+//       .single();
 
-    if (error) {
-      console.error('Error fetching child fullname:', error);
-      return;
-    }
+//     if (error) {
+//       console.error('Error fetching child fullname:', error);
+//       return;
+//     }
 
-    setUserFullName(data?.fullname || null);
-    return data?.id || null; // Set the 'id' as uaid_child
-  } catch (error) {
-    console.error('Error in fetchChildData:', error);
-  } finally {
-    setIsLoading(false);
-  }
-};
+//     setUserFullName(data?.fullname || null);
+//     return data?.id || null; // Set the 'id' as uaid_child
+//   } catch (error) {
+//     console.error('Error in fetchChildData:', error);
+//   } finally {
+//     setIsLoading(false);
+//   }
+// };
 
 
 export default function ChildPage() {
   const [recommendedBooks, setRecommendedBooks] = useState<any[]>([]);
   const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(true); // Added loading state for recommendations
-  const { availableBooks, recommendedForYouBooks } = useBooks();
+  //const { availableBooks, recommendedForYouBooks } = useBooks();
+  const { availableBooks } = useBooks();
   const { videos } = useVideos();
-  const { userAccount, userProfile, loading } = useSession();
+  // const { userAccount, userProfile, loading } = useSession();
+  const { loading } = useSession();
   const [userFullName, setUserFullName] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -202,7 +204,8 @@ export default function ChildPage() {
         console.log('allowedBookIds:', allowedBookIds); //delete after debugging
   
         // Get user bookmarks
-        const { data: userBookmarks, error: userBookmarksError } = await supabase
+        //const { data: userBookmarks, error: userBookmarksError } = await supabase
+        const { data: userBookmarks } = await supabase
           .from('temp_bookmark')
           .select('cid')
           .eq('uaid', uaid);

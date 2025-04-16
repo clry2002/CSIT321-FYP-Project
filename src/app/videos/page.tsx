@@ -9,9 +9,9 @@ import ChatBot from "../components/ChatBot";
 export default function VideosPage() {
   const { videos } = useVideos();
 
-  const handleSearch = (query: string) => {
-    // Add search logic here
-  };
+  // const handleSearch = (query: string) => {
+  //   // Add search logic here
+  // };
 
   return (
     <div className="flex h-screen bg-white overflow-hidden">

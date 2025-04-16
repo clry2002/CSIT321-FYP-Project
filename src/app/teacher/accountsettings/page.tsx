@@ -18,7 +18,8 @@ export default function TeacherAccountSettings() {
     setSuccess(false);
 
     try {
-      const { data, error } = await supabase.auth.updateUser({
+      //const { data, error } = await supabase.auth.updateUser({
+      const { error } = await supabase.auth.updateUser({
         email: email
       });
 

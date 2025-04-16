@@ -10,7 +10,7 @@ const ChatBot: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [enlargedImage, setEnlargedImage] = useState<string | null>(null);
   const chatContainerRef = useRef<HTMLDivElement | null>(null);
-  const router = useRouter();
+  // const router = useRouter();
 
   useEffect(() => {
     if (chatContainerRef.current) {

@@ -6,7 +6,8 @@ import { Book } from '@/types/database.types';
 
 export const useBooks = () => {
   const [availableBooks, setAvailableBooks] = useState<Book[]>([]);
-  const [recommendedForYouBooks, setRecommendedForYouBooks] = useState<Book[]>([]);
+  // const [recommendedForYouBooks, setRecommendedForYouBooks] = useState<Book[]>([]);
+  const [recommendedForYouBooks] = useState<Book[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 

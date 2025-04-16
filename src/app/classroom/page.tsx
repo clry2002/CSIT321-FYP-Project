@@ -16,12 +16,12 @@ type Classroom = {
 };
 
 export default function ClassroomPage() {
-  const user = useUser();
+ // const user = useUser();
   const [userAccountId, setUserAccountId] = useState<string | null>(null);
   const [invitedClassrooms, setInvitedClassrooms] = useState<Classroom[]>([]);
   const [activeClassrooms, setActiveClassrooms] = useState<Classroom[]>([]);
   const [loadingInvited, setLoadingInvited] = useState(false);
-  const [loading, setLoading] = useState(true);
+ // const [loading, setLoading] = useState(true);
   const [userState, setUserState] = useState<any | null>(null);
 
   const router = useRouter(); // Initialize useRouter hook
@@ -210,7 +210,7 @@ export default function ClassroomPage() {
               ))}
             </div>
           ) : (
-            <p className="text-gray-400">You don't have any active classrooms.</p>
+            <p className="text-gray-400">You don&apos;t have any active classrooms.</p>
           )}
         </div>
 
@@ -247,7 +247,7 @@ export default function ClassroomPage() {
               ))}
             </div>
           ) : (
-            !loadingInvited && <p className="text-gray-400">You don't have any invites.</p>
+            !loadingInvited && <p className="text-gray-400">You don&apos;t have any invites.</p>
           )}
         </div>
       </div>

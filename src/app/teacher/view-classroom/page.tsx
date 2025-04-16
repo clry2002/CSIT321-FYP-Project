@@ -10,7 +10,8 @@ type Classroom = {
 };
 
 export default function ViewClassroom() {
-  const [classrooms, setClassrooms] = useState<Classroom[]>([
+  // const [classrooms, setClassrooms] = useState<Classroom[]>([
+    const [classrooms] = useState<Classroom[]>([
     {
       id: 1,
       name: 'Classroom A',

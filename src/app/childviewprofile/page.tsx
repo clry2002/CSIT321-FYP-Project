@@ -26,7 +26,7 @@ function ErrorBoundary({ children }: { children: React.ReactNode }) {
 
 export default function ChildViewProfile() {
   const router = useRouter();
-  const { userProfile, refreshProfile } = useSession();
+  // const { userProfile, refreshProfile } = useSession();
   const [profileData, setProfileData] = useState<{
     full_name: string;
     username: string;
