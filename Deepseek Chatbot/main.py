@@ -12,9 +12,10 @@ from supabase import create_client, Client
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
-# Importing regex and random module
+# Importing regex, random, datetime, and logging
 import re
 import random
+import datetime
 import logging
 
 # Load environment variables
@@ -61,6 +62,40 @@ def clean_response(response):
     cleaned_response = re.sub("\n+", "<br>", cleaned_response)
     cleaned_response = re.sub(r"^\s*<br>", "", cleaned_response)
     return cleaned_response.strip()
+
+def save_chat_to_database(context, is_chatbot, uaid_child):
+    try:
+        timestamp = datetime.datetime.now().isoformat()
+
+        # 🔍 Add log here to see the ID being used
+        logging.info(f"[DB Insert] uaid_child being used: {uaid_child}")
+        logging.info(f"[DB Insert] Context: {context}")
+        logging.info(f"[DB Insert] is_chatbot: {is_chatbot}")
+
+        # Insert into temp_chathistory
+        response = supabase.from_("temp_chathistory").insert({
+            "context": context,
+            "ischatbot": is_chatbot,
+            "createddate": timestamp,
+            "uaid_child": uaid_child
+        }).execute()
+
+        logging.info(f"Response from insert: {response}")
+
+        if 'data' not in response or not response['data']:
+            logging.error(f"Failed to save chat: {response}")
+            return
+
+        chat_history_id = response['data'][0].get("chid") if response['data'] else None
+        if not chat_history_id:
+            raise Exception("No chat history ID returned.")
+
+        logging.info(f"Chat successfully saved with ID {chat_history_id} and linked to user {uaid_child}")
+
+    except Exception as e:
+        logging.error(f"Error saving chat: {e}")
+
+
 
 # Read static context
 def read_data_from_file(file_path):
@@ -140,10 +175,14 @@ def get_content_by_genre_and_format(question):
 def chat():
     data = request.json
     raw_question = data.get("question", "")
+    uaid_child = data.get("uaid_child")
     question = re.sub(r'[^\w\s]', '', raw_question).strip().lower()
 
     if not question:
         return jsonify({"error": "No question provided"}), 400
+
+    # Save user input to chat history
+    save_chat_to_database(context=question, is_chatbot=False, uaid_child=uaid_child)
 
     context_from_file = read_data_from_file("data.txt")
     if context_from_file is None:
@@ -158,7 +197,9 @@ def chat():
         template_with_context = template.format(context=context_from_file, question=question)
         try:
             ai_answer = deepseek_chain.invoke(template_with_context)
-            return jsonify({"answer": clean_response(ai_answer)})
+            cleaned = clean_response(ai_answer)
+            save_chat_to_database(context=cleaned, is_chatbot=True, uaid_child=uaid_child)
+            return jsonify({"answer": cleaned})
         except Exception as e:
             logging.error(f"AI response failed: {e}")
             return jsonify({"error": "AI response failed"}), 500
@@ -180,6 +221,9 @@ def chat():
             content_response["videos_ai"] = clean_response(ai_videos)
         except Exception as e:
             logging.warning(f"AI fallback for videos failed: {e}")
+
+    # Save full content response to chat history
+    save_chat_to_database(context=str(content_response), is_chatbot=True, uaid_child=uaid_child)
 
     return jsonify(content_response)
 

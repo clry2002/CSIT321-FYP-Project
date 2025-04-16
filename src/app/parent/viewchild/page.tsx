@@ -9,9 +9,21 @@ import { fetchBookmarkedContent, ContentWithGenres } from './fetchChildBookmark'
 interface ChildProfile {
   favourite_genres: string[];
   blocked_genres: string[];
-  classrooms: string[];
+  classrooms: {
+    crid: number;
+    name: string;
+    description: string;
+    educatorFullName: string;
+  }[];
   books_bookmark?: ContentWithGenres[];
   videos_bookmark?: ContentWithGenres[];
+}
+
+interface Classroom {
+  crid: number;
+  name: string;
+  description: string;
+  educatorFullName: string;
 }
 
 export default function ViewChild() {
@@ -68,9 +80,6 @@ export default function ViewChild() {
       const { data: userData, error: userError } = await supabase
         .from('user_account')
         .select('fullname, id')
-
-        
-        //.eq('user_id', childId)
         .eq('id', childId)
         .single();
   
@@ -81,33 +90,52 @@ export default function ViewChild() {
       setChildName(userData.fullname);
       setAccountId(userData.id);
   
-      // Get the profile from child_details
-      const { data: profileExists, error: existsError } = await supabase
-        .from('child_details')
-        .select('child_id')
-        .eq('child_id', userData.id);
+      // Get active classrooms for the child
+      const { data: classroomStudents, error: classroomError } = await supabase
+        .from('temp_classroomstudents')
+        .select('crid')
+        .eq('uaid_child', userData.id)
+        .eq('invitation_status', 'accepted');
   
-      if (existsError) throw existsError;
+      if (classroomError) throw classroomError;
   
-      // If profile doesn't exist, create it using the account ID
-      if (!profileExists || profileExists.length === 0) {
-        console.log('Creating new child profile for account ID:', userData.id);
-        const { error: createError } = await supabase
-          .from('child_details')
-          .insert({
-            child_id: userData.id, 
-            favourite_genres: [],
-            blocked_genres: [],
-            classrooms: []
-          });
+      let activeClassrooms: Classroom[] = [];
+      if (classroomStudents && classroomStudents.length > 0) {
+        const classroomIds = classroomStudents.map(cs => cs.crid);
+        
+        // Fetch classroom details
+        const { data: classroomData, error: classDetailsError } = await supabase
+          .from('temp_classroom')
+          .select('crid, name, description, uaid_educator')
+          .in('crid', classroomIds);
   
-        if (createError) throw createError;
+        if (classDetailsError) throw classDetailsError;
+  
+        if (classroomData) {
+          // Fetch educator names for each classroom
+          activeClassrooms = await Promise.all(classroomData.map(async (classroom) => {
+            const { data: educatorData, error: educatorError } = await supabase
+              .from('user_account')
+              .select('fullname')
+              .eq('id', classroom.uaid_educator)
+              .single();
+  
+            if (educatorError) throw educatorError;
+  
+            return {
+              crid: classroom.crid,
+              name: classroom.name,
+              description: classroom.description,
+              educatorFullName: educatorData?.fullname || 'Unknown Educator'
+            };
+          }));
+        }
       }
   
       // Get child's profile data from child_details
       const { data: profileData, error: profileError } = await supabase
         .from('child_details')
-        .select('favourite_genres, blocked_genres, classrooms')
+        .select('favourite_genres, blocked_genres')
         .eq('child_id', userData.id)
         .single();
   
@@ -122,27 +150,24 @@ export default function ViewChild() {
   
       if (blockedGenresError) throw blockedGenresError;
   
-
       // Extract genre names from blockedgenres.id
       let blockedGenreNames: string[] = [];
       if (blockedGenresData && blockedGenresData.length > 0) {
         const genreIds = blockedGenresData.map(item => item.genreid);
         const { data: genreData, error: genreError } = await supabase
-        .from('temp_genre')
-        .select('genrename')
-        .in('gid', genreIds);
-
+          .from('temp_genre')
+          .select('genrename')
+          .in('gid', genreIds);
+  
         if (genreError) throw genreError;
         blockedGenreNames = genreData?.map(item => item.genrename) || [];
       }
       
-
       // Initialize arrays if they're null
       const processedProfileData = {
         favourite_genres: profileData.favourite_genres || [],
-        // Replace blocked_genres from child_details with what we got from blockedgenres table
         blocked_genres: blockedGenreNames,
-        classrooms: profileData.classrooms || []
+        classrooms: activeClassrooms
       };
   
       const bookmarkedContent = await fetchBookmarkedContent(userData.id);
@@ -387,58 +412,74 @@ export default function ViewChild() {
           <div className="overflow-x-auto">
             <table className="min-w-full bg-white">
               <tbody className="divide-y divide-gray-200">
-                {childProfile && Object.entries(childProfile).map(([key, value]) => {
-                  // Skip books_bookmark and videos_bookmark from the table
-                  if (key === 'books_bookmark' || key === 'videos_bookmark') {
-                    return null;
-                  }
+                {/* Favourite Genres Row */}
+                <tr>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-black">
+                    Favourite Genres
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-black">
+                    {childProfile?.favourite_genres?.length ? 
+                      childProfile.favourite_genres.join(', ') : 
+                      'Not set'
+                    }
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <button
+                      onClick={() => setShowFavoriteGenreModal(true)}
+                      className="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600"
+                    >
+                      Edit
+                    </button>
+                  </td>
+                </tr>
 
-                  // Customize the display name for certain fields
-                  let displayName = key;
-                  if (key === 'books_bookmark') displayName = 'Books Bookmarked';
-                  if (key === 'videos_bookmark') displayName = 'Videos Bookmarked';
-                  
-                  // Handle empty arrays and null values
-                  let displayValue: string;
-                  if (value === null || (Array.isArray(value) && value.length === 0)) {
-                    displayValue = 'Not set';
-                  } else if (Array.isArray(value)) {
-                    displayValue = value.join(', ');
-                  } else {
-                    displayValue = String(value);
-                  }
-                  
-                  return (
-                    <tr key={key}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-black">
-                        {displayName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-black">
-                        {displayValue}
-                      </td>
-                      {key === 'blocked_genres' && (
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <button
-                            onClick={() => setShowGenreModal(true)}
-                            className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
-                          >
-                            Edit
-                          </button>
-                        </td>
-                      )}
-                      {key === 'favourite_genres' && (
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <button
-                            onClick={() => setShowFavoriteGenreModal(true)}
-                            className="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600"
-                          >
-                            Edit
-                          </button>
-                        </td>
-                      )}
-                    </tr>
-                  );
-                })}
+                {/* Blocked Genres Row */}
+                <tr>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-black">
+                    Blocked Genres
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-black">
+                    {childProfile?.blocked_genres?.length ? 
+                      childProfile.blocked_genres.join(', ') : 
+                      'Not set'
+                    }
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <button
+                      onClick={() => setShowGenreModal(true)}
+                      className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
+                    >
+                      Edit
+                    </button>
+                  </td>
+                </tr>
+
+                {/* Active Classrooms Row */}
+                <tr>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-black">
+                    Active Classrooms
+                  </td>
+                  <td className="px-6 py-4 text-sm text-black">
+                    {childProfile?.classrooms?.length ? (
+                      <div className="space-y-2">
+                        {childProfile.classrooms.map((classroom) => (
+                          <div key={classroom.crid} className="border-b border-gray-100 pb-2 last:border-b-0 last:pb-0 flex justify-between items-center">
+                            <div>
+                              <div className="font-medium">{classroom.name}</div>
+                              <div className="text-gray-600 text-xs">Description: {classroom.description}</div>
+                              <div className="text-gray-600 text-xs">Managed by: {classroom.educatorFullName}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      'No active classrooms'
+                    )}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    {/* No edit button for classrooms */}
+                  </td>
+                </tr>
               </tbody>
             </table>
           </div>

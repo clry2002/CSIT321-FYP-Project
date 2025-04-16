@@ -1,7 +1,10 @@
 'use client';
 
-import { useEffect, useState } from "react";
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
 
+// Define type for chat message
 type ChatMessage = {
   chid: number;
   context: string;
@@ -9,172 +12,156 @@ type ChatMessage = {
   createddate: string;
 };
 
-export default function ChatHistory() {
+// Props for ChatHistory
+interface ChatHistoryProps {
+  userId: string;
+}
+
+// Component: ChatHistory
+function ChatHistory({ userId }: ChatHistoryProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
-  const [time, setTime] = useState(""); // Fix: Placed inside component
+  const [error, setError] = useState<string | null>(null);
+  const [currentTime, setCurrentTime] = useState("");
 
   useEffect(() => {
-    setTime(new Date().toLocaleString()); // Fix: Runs only on client side
+    setCurrentTime(new Date().toLocaleString());
   }, []);
 
   useEffect(() => {
     async function fetchChatHistory() {
+      if (!userId) {
+        setLoading(false);
+        return;
+      }
+
       try {
-        const response = await fetch("/api/chat-history");
-        const text = await response.text(); // Read raw response
-  
-        console.log("API Response:", text); // Debug: Log the response
-        
-  
-        const data = JSON.parse(text); // Parse JSON manually
-        setMessages(data);
-      } catch (error) {
-        console.error("Failed to fetch chat history:", error);
+        const { data, error } = await supabase
+          .from('temp_chathistory')
+          .select('chid, context, ischatbot, createddate')
+          .eq('uaid_child', userId);
+
+        if (error) {
+          setError("Failed to load chat history.");
+          console.error(error);
+        } else {
+          const sortedMessages = (data ?? []).sort((a, b) =>
+            new Date(a.createddate).getTime() - new Date(b.createddate).getTime()
+          );
+          setMessages(sortedMessages);
+        }
+      } catch (err) {
+        console.error("Error fetching chat history:", err);
+        setError("Failed to load chat history.");
       } finally {
         setLoading(false);
       }
     }
-  
+
     fetchChatHistory();
-  }, []);
-  
+  }, [userId]);
+
   return (
-    <div className="max-w-3xl mx-auto mt-10 p-6 bg-white rounded-lg shadow-lg">
-      <h2 className="text-2xl font-semibold mb-4 text-gray-900">Chat History</h2>
-      
-      <p className="text-sm text-gray-600">Current Time: {time}</p> {/* Fix: Only runs on client */}
-      
-      {loading ? (
-        <p className="text-gray-700">Loading chat history...</p>
-      ) : messages.length === 0 ? (
-        <p className="text-gray-500">No chat history found.</p>
-      ) : (
-        <div className="space-y-4">
-          {messages.map((msg) => (
-            <div
-              key={msg.chid}
-              className={`p-3 rounded-lg shadow ${
-                msg.ischatbot ? "bg-gray-200 text-gray-900" : "bg-rose-500 text-white self-end"
-              }`}
-            >
-              <p>{msg.context}</p>
-              <span className="text-xs text-gray-600">
-                {new Date(msg.createddate).toLocaleString("en-US", { timeZone: "UTC" })} {/* Fix: Ensure consistent formatting */}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
+    <div className="w-full h-screen flex flex-col items-center bg-gray-100 overflow-y-auto px-4 py-6">
+      <div className="w-full max-w-4xl bg-white rounded-xl shadow-md p-6">
+        <h2 className="text-2xl font-bold mb-2 text-gray-800">Chat History</h2>
+        <p className="text-sm text-gray-500 mb-4">Current Time: {currentTime}</p>
+
+        {loading ? (
+          <p className="text-gray-700">Loading chat history...</p>
+        ) : error ? (
+          <p className="text-red-600">{error}</p>
+        ) : messages.length === 0 ? (
+          <p className="text-gray-500">No chat history found.</p>
+        ) : (
+          <div className="flex flex-col space-y-4">
+            {messages.map((msg) => (
+              <div
+                key={msg.chid}
+                className={`max-w-[80%] p-4 rounded-lg shadow-md ${
+                  msg.ischatbot
+                    ? 'bg-gray-200 text-gray-900 self-start'
+                    : 'bg-rose-500 text-white self-end'
+                }`}
+              >
+                <p className="mb-1 break-words whitespace-pre-wrap">{msg.context}</p>
+                <span className="text-xs text-gray-600 block text-right">
+                  {new Date(msg.createddate).toLocaleString("en-US", {
+                    dateStyle: "short",
+                    timeStyle: "short",
+                    timeZone: "UTC",
+                  })}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
-// ChatHistory.tsx
-// 'use client';
-// import React, { useEffect, useState } from 'react';
-// import axios from 'axios';
+// Utility function to fetch child data
+const fetchChildData = async (
+  setUserFullName: (name: string | null) => void,
+  setIsLoading: (value: boolean) => void,
+  router: any
+) => {
+  setIsLoading(true);
 
-// interface ChatMessage {
-//   chid: number;
-//   context: string;
-//   ischatbot: boolean;
-//   createddate: string;
-//   uaid_child: string;
-// }
+  try {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
 
-// interface ChatHistoryProps {
-//   userId: string;
-// }
+    if (userError || !user) {
+      console.error("Error getting auth user:", userError);
+      router.push('/landing');
+      return null;
+    }
 
-// const ChatHistory: React.FC<ChatHistoryProps> = ({ userId }) => {
-//   const [history, setHistory] = useState<ChatMessage[]>([]);
-//   const [loading, setLoading] = useState<boolean>(true);
-//   const [error, setError] = useState<string | null>(null);
-  
-//   useEffect(() => {
-//     console.log("Current userId:", userId);
-//     if (!userId){
-//       console.log("No userId provided, skipping fetch");
-//       setLoading(false);
-//       return;
-//     }
-    
-//     const fetchChatHistory = async () => {
-//       const url = `/api/chat/history?user_id=${userId}`;
-//       console.log("Fetching from:", url);
-//       try {
-//         setLoading(true);
-//         const response = await axios.get(url);
-//         console.log("Response data:", response.data);
-//         setHistory(response.data.history || []);
-//         setError(null);
-//       } catch (err) {
-//         console.error("Error details:", err);
-//         setError('Failed to load chat history');
-//       } finally {
-//         setLoading(false);
-//       }
-//     };
-    
-//     fetchChatHistory();
-//   }, [userId]);
-  
-//   const clearHistory = async () => {
-//     if (!window.confirm('Are you sure you want to clear your chat history?')) return;
-    
-//     try {
-//       setLoading(true);
-//       await axios.post('/api/chat/history/clear', { user_id: userId });
-//       setHistory([]);
-//       setError(null);
-//     } catch (err) {
-//       setError('Failed to clear chat history');
-//       console.error(err);
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
-  
-//   if (loading) return <div>Loading chat history...</div>;
-//   if (error) return <div className="error">{error}</div>;
-  
-//   return (
-//     <div className="chat-history">
-//       <h2>Chat History</h2>
-//       {history.length === 0 ? (
-//         <p>No chat history found</p>
-//       ) : (
-//         <>
-//           <button 
-//             onClick={clearHistory}
-//             className="clear-history-btn"
-//           >
-//             Clear History
-//           </button>
-//           <div className="messages-container">
-//             {history.map((message) => (
-//               <div 
-//                 key={message.chid}
-//                 className={`message ${message.ischatbot ? 'bot-message' : 'user-message'}`}
-//               >
-//                 <div className="message-header">
-//                   <span className="sender">{message.ischatbot ? 'Kid-Bot' : 'You'}</span>
-//                   <span className="timestamp">
-//                     {new Date(message.createddate).toLocaleString()}
-//                   </span>
-//                 </div>
-//                 <div 
-//                   className="message-content"
-//                   dangerouslySetInnerHTML={{ __html: message.context }}
-//                 />
-//               </div>
-//             ))}
-//           </div>
-//         </>
-//       )}
-//     </div>
-//   );
-// };
+    const { data, error } = await supabase
+      .from('user_account')
+      .select('id, fullname')
+      .eq('user_id', user.id)
+      .single();
 
-// export default ChatHistory;
+    if (error) {
+      console.error('Error fetching child fullname:', error);
+      return null;
+    }
+
+    setUserFullName(data?.fullname || null);
+    return data?.id || null;
+  } catch (error) {
+    console.error('Error in fetchChildData:', error);
+    return null;
+  } finally {
+    setIsLoading(false);
+  }
+};
+
+// Main ChatPage component
+export default function ChatPage() {
+  const [userFullName, setUserFullName] = useState<string | null>(null);
+  const [uaidChild, setUaidChild] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
+
+  useEffect(() => {
+    const loadData = async () => {
+      const childId = await fetchChildData(setUserFullName, setIsLoading, router);
+      setUaidChild(childId);
+    };
+    loadData();
+  }, []);
+
+  if (isLoading) return <p className="text-center mt-20">Loading...</p>;
+
+  return (
+    <div className="w-full h-screen bg-gray-100 flex flex-col items-center justify-start">
+      <h1 className="text-3xl font-bold mt-8 text-gray-800">
+        Chat History for {userFullName}
+      </h1>
+      <ChatHistory userId={uaidChild ?? ''} />
+    </div>
+  );
+}
