@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { supabase } from '@/lib/supabase';
+import { useRouter } from 'next/navigation';
 
 // Define the Content interface with cfid and cid
 export interface Content {
@@ -19,54 +20,29 @@ export interface Message {
   audio_url?: string; 
 }
 
-const fetchChildData = async (
-  setUserFullName: (name: string | null) => void,
-  setIsLoading: (value: boolean) => void,
-  router: any
-) => {
-  setIsLoading(true);
-  console.log("Fetching child data...");
+// Define response types for better type safety
+interface BookResponse {
+  title: string;
+  description: string;
+  contenturl: string;
+  coverimage?: string;
+  cfid?: number;
+  cid?: number;
+  [key: string]: any;
+}
 
-  try {
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+interface VideoResponse {
+  title: string;
+  description: string;
+  contenturl: string;
+  coverimage?: string;
+  cfid?: number;
+  cid?: number;
+  [key: string]: any;
+}
 
-    if (userError) {
-      console.error("Error getting auth user:", userError);
-      router.push('/landing');
-      return;
-    }
-
-    if (!user) {
-      console.log("No authenticated user found");
-      router.push('/landing');
-      return;
-    }
-
-    console.log("Authenticated user ID:", user.id);
-
-    // Fetch the 'user_account' data, ensuring we get 'id' as 'uaid_child'
-    const { data, error } = await supabase
-      .from('user_account')
-      .select('id, fullname') // Select 'id' from user_account
-      .eq('user_id', user.id) // Match the user_id with the authenticated user's ID
-      .single();
-
-    if (error) {
-      console.error('Error fetching child fullname:', error);
-      return;
-    }
-
-    setUserFullName(data?.fullname || null);
-    
-    return data?.id || null;  // Return uaid_child
-  } catch (error) {
-    console.error('Error in fetchChildData:', error);
-  } finally {
-    setIsLoading(false);
-  }
-};
-
-export const useChatbot = (router: any) => {
+export const useChatbot = () => {
+  const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
@@ -75,22 +51,61 @@ export const useChatbot = (router: any) => {
   ]);
   const [isLoading, setIsLoading] = useState(false);
   const [uaid_child, setUaidChild] = useState<string | null>(null);
+  const [userFullName, setUserFullName] = useState<string | null>(null);
 
   // Ref for auto-scrolling
   const chatContainerRef = useRef<HTMLDivElement | null>(null);
 
+  // Internal fetchChildData function
+  const fetchChildData = async () => {
+    setIsLoading(true);
+    console.log("Fetching child data...");
+
+    try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+      if (userError) {
+        console.error("Error getting auth user:", userError);
+        router.push('/landing');
+        return null;
+      }
+
+      if (!user) {
+        console.log("No authenticated user found");
+        router.push('/landing');
+        return null;
+      }
+
+      console.log("Authenticated user ID:", user.id);
+
+      // Fetch the 'user_account' data, ensuring we get 'id' as 'uaid_child'
+      const { data, error } = await supabase
+        .from('user_account')
+        .select('id, fullname') // Select 'id' from user_account
+        .eq('user_id', user.id) // Match the user_id with the authenticated user's ID
+        .single();
+
+      if (error) {
+        console.error('Error fetching child fullname:', error);
+        return null;
+      }
+
+      setUserFullName(data?.fullname || null);
+      
+      return data?.id || null;  // Return uaid_child
+    } catch (error) {
+      console.error('Error in fetchChildData:', error);
+      return null;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Fetch the user data and set the user ID (uaid_child)
   useEffect(() => {
     const fetchUser = async () => {
-      const userId = await fetchChildData(
-        (fullname) => {
-          console.log("Full name:", fullname);
-        },
-        setIsLoading,
-        router
-      );
-      
-      setUaidChild(userId || null);
+      const userId = await fetchChildData();
+      setUaidChild(userId);
     };
 
     fetchUser();
@@ -126,7 +141,7 @@ export const useChatbot = (router: any) => {
 
         if (Array.isArray(response.data.books)) {
           content.push(
-            ...response.data.books.map((book: any) => ({
+            ...response.data.books.map((book: BookResponse) => ({
               ...book,
               coverimage: book.coverimage || '',
               cfid: book.cfid || 2,
@@ -137,7 +152,7 @@ export const useChatbot = (router: any) => {
 
         if (Array.isArray(response.data.videos)) {
           content.push(
-            ...response.data.videos.map((video: any) => ({
+            ...response.data.videos.map((video: VideoResponse) => ({
               ...video,
               coverimage: video.coverimage || '',
               cfid: video.cfid || 1,
@@ -178,5 +193,6 @@ export const useChatbot = (router: any) => {
     isLoading,
     sendMessage,
     chatContainerRef,
+    userFullName,
   };
 };

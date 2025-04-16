@@ -15,7 +15,7 @@ type Discussion = {
 
 type DiscussionBoardProps = {
   classroomId: number;
-  // educatorId: string | null;
+  educatorId: string | null;
 };
 
 // export default function DiscussionBoardSection({ classroomId, educatorId }: DiscussionBoardProps) {

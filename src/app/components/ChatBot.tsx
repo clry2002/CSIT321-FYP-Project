@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useChatbot } from '@/hooks/useChatbot';
 import { Send, MessageCircle, Volume2 } from 'lucide-react';
 import './styles.css';
-import { useRouter } from 'next/navigation';
+// import { useRouter } from 'next/navigation';
 
 const ChatBot: React.FC = () => {
   const { messages, isLoading, sendMessage } = useChatbot();
