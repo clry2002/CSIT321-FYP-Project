@@ -37,6 +37,7 @@ export default function DiscussionBoardPage() {
         if (classroomError) throw classroomError;
         setClassroomName(classroomData?.name || '');
 
+        // Fetch discussion board created (handle multiple boards)
         const { data: questionData, error: questionError } = await supabase
         .from('discussionboard')
         .select('question')
@@ -44,10 +45,18 @@ export default function DiscussionBoardPage() {
         .not('question', 'is', null)
         .order('created_at', { ascending: true })
         .limit(1)
-        .single();
+        
+        // Handle array response
         if (questionError) throw questionError;
-        setTeacherQuestion(questionData?.question || '');
 
+        // Use first discussion board, in the event multiple boards exist
+        if (questionData && questionData.length > 0) {
+          setTeacherQuestion(questionData[0].question);
+        } else {
+          setTeacherQuestion('');
+        }
+
+        // Fetch student responses
         const { data: responsesData, error: responsesError } = await supabase
           .from('discussionboard')
           .select('did, response, uaid, created_at')
@@ -56,6 +65,7 @@ export default function DiscussionBoardPage() {
           .order('created_at', { ascending: true });
         if (responsesError) throw responsesError;
 
+        // Enrich responses with sender names
         const enriched = await Promise.all(
           (responsesData || []).map(async (entry: any) => {
             const { data: profileData } = await supabase
@@ -64,7 +74,7 @@ export default function DiscussionBoardPage() {
               .eq('user_id', entry.uaid)
               .single();
             return {
-              id: entry.id,
+              id: entry.did,
               message: entry.response,
               sender_name: profileData?.fullname || 'Unknown',
               created_at: entry.created_at,
@@ -82,12 +92,13 @@ export default function DiscussionBoardPage() {
         const { data: childData, error: childError } = await supabase
           .from('user_account')
           .select('fullname')
-          .eq('user_id', user!.id)
+          .eq('user_id', user.id)
           .single();
+
         if (childError) throw childError;
         setChildName(childData!.fullname);
       } catch (error: any) {
-        console.error('Error loading discussion board:', error.message || error); // Enhanced error logging
+        console.error('Error loading discussion board:', error.message || error);
       } finally {
         setLoading(false);
       }
@@ -124,7 +135,7 @@ export default function DiscussionBoardPage() {
           setResponses((prev) => [
             ...prev,
             {
-              id: newEntry.id,
+              id: newEntry.did || newEntry.id,
               message: newEntry.response,
               sender_name: profileData?.fullname || 'Unknown',
               created_at: newEntry.created_at,

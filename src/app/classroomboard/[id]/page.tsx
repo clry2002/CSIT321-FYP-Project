@@ -10,7 +10,7 @@ type Classroom = {
   name: string;
   description: string;
   educatorFullName: string;
-  cid: number; 
+  cid: number | null; // Allow cid to be null
 };
 
 type Content = {
@@ -86,24 +86,27 @@ export default function ClassroomBoardPage() {
           name: data.name,
           description: data.description,
           educatorFullName: educatorData.data?.fullname || 'Unknown Educator',
-          cid: data.cid,
+          cid: data.cid
         });
 
-        const { data: contentData, error: contentError } = await supabase
-          .from('temp_content')
-          .select('coverimage, title, cfid, contenturl')
-          .eq('cid', data.cid)
-          .single();
+        // If cid is null, do not fetch content
+        if (data.cid !== null) {
+          const { data: contentData, error: contentError } = await supabase
+            .from('temp_content')
+            .select('coverimage, title, cfid, contenturl')
+            .eq('cid', data.cid) // Automatically fetch content based on cid
+            .single();
 
-        if (contentError) throw contentError;
+          if (contentError) throw contentError;
 
-        if (contentData) {
-          setContent({
-            coverimage: contentData.coverimage,
-            title: contentData.title,
-            cfid: contentData.cfid,
-            contenturl: contentData.contenturl,
-          });
+          if (contentData) {
+            setContent({
+              coverimage: contentData.coverimage,
+              title: contentData.title,
+              cfid: contentData.cfid,
+              contenturl: contentData.contenturl,
+            });
+          }
         }
 
         const { data: invitationData, error: invitationError } = await supabase
@@ -205,10 +208,10 @@ export default function ClassroomBoardPage() {
     );
   }
 
-  if (!classroom || !content) {
+  if (!classroom) {
     return (
       <div className="flex justify-center items-center h-screen bg-yellow-100">
-        <div className="text-2xl text-yellow-600">No classroom or content found.</div>
+        <div className="text-2xl text-yellow-600">No classroom found.</div>
       </div>
     );
   }
@@ -236,41 +239,46 @@ export default function ClassroomBoardPage() {
             </div>
           </div>
 
-          {content.cfid === 1 ? (
-            <div className="mt-6">
-              <h4 className="text-xl font-semibold text-gray-600 mb-2">Videos to watch!</h4>
-              <div className="relative" style={{ paddingBottom: '56.25%' }}>
-                <iframe
-                  src={`https://www.youtube.com/embed/${content.contenturl.split('v=')[1]}`}
-                  title={content.title}
-                  frameBorder="0"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                  className="absolute top-0 left-0 w-full h-[280px] rounded-lg"
-                />
-              </div>
-              <h4
-                onClick={() => handleRedirectToDetail(classroom.cid, content.cfid)}
-                className="mt-4 text-2xl text-blue-600 font-semibold text-center cursor-pointer"
-              >
-                {content.title}
-              </h4>
-            </div>
-          ) : (
-            <div className="mt-6">
-              <h4 className="text-xl font-semibold text-gray-600 mb-2">Books to read!</h4>
-              <img
-                src={content.coverimage}
-                alt={content.title}
-                className="w-full h-64 object-cover rounded-lg mb-4"
-              />
-              <h4
-                onClick={() => handleRedirectToDetail(classroom.cid, content.cfid)}
-                className="mt-4 text-2xl text-blue-600 font-semibold text-center cursor-pointer"
-              >
-                {content.title}
-              </h4>
-            </div>
+          {/* Display content only if cid is not null */}
+          {classroom.cid !== null && content && (
+            <>
+              {content.cfid === 1 ? (
+                <div className="mt-6">
+                  <h4 className="text-xl font-semibold text-gray-600 mb-2">Videos to watch!</h4>
+                  <div className="relative" style={{ paddingBottom: '56.25%' }}>
+                    <iframe
+                      src={`https://www.youtube.com/embed/${content.contenturl.split('v=')[1]}`}
+                      title={content.title}
+                      frameBorder="0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                      className="absolute top-0 left-0 w-full h-[280px] rounded-lg"
+                    />
+                  </div>
+                  <h4
+                    onClick={() => classroom.cid !== null && handleRedirectToDetail(classroom.cid, content.cfid)}
+                    className="mt-4 text-2xl text-blue-600 font-semibold text-center cursor-pointer"
+                  >
+                    {content.title}
+                  </h4>
+                </div>
+              ) : (
+                <div className="mt-6">
+                  <h4 className="text-xl font-semibold text-gray-600 mb-2">Books to read!</h4>
+                  <img
+                    src={content.coverimage}
+                    alt={content.title}
+                    className="w-full h-64 object-cover rounded-lg mb-4"
+                  />
+                  <h4
+                    onClick={() => classroom.cid !== null && handleRedirectToDetail(classroom.cid, content.cfid)}
+                    className="mt-4 text-2xl text-blue-600 font-semibold text-center cursor-pointer"
+                  >
+                    {content.title}
+                  </h4>
+                </div>
+              )}
+            </>
           )}
 
           {/* View Discussion Board Section */}

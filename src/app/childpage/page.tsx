@@ -18,6 +18,53 @@ import { useEffect, useState } from 'react';
 // import ScreenTimeLimit from '../components/child/ScreenTimeLimit';
 // import ScreenTimeIndicator from '../components/child/ScreenTimeIndicator';
 
+const fetchChildData = async (
+  setUserFullName: (name: string | null) => void,
+  setIsLoading: (value: boolean) => void,
+  router: any
+) => {
+  setIsLoading(true);
+  console.log("Fetching child data...");
+
+  try {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+    if (userError) {
+      console.error("Error getting auth user:", userError);
+      router.push('/landing');
+      return;
+    }
+
+    if (!user) {
+      console.log("No authenticated user found");
+      router.push('/landing');
+      return;
+    }
+
+    console.log("Authenticated user ID:", user.id);
+
+    // Fetch user account details, using 'id' from user_account
+    const { data, error } = await supabase
+      .from('user_account')
+      .select('id, fullname') // Select 'id' instead of 'user_id'
+      .eq('user_id', user.id)  // Match with the 'user_id' field
+      .single();
+
+    if (error) {
+      console.error('Error fetching child fullname:', error);
+      return;
+    }
+
+    setUserFullName(data?.fullname || null);
+    return data?.id || null; // Set the 'id' as uaid_child
+  } catch (error) {
+    console.error('Error in fetchChildData:', error);
+  } finally {
+    setIsLoading(false);
+  }
+};
+
+
 export default function ChildPage() {
   const [recommendedBooks, setRecommendedBooks] = useState<any[]>([]);
   const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(true); // Added loading state for recommendations
@@ -152,6 +199,7 @@ export default function ChildPage() {
         const ageFilteredBookmarks = similarBookmarks.filter(b =>
           allowedBookIds.includes(b.cid)
         );
+        console.log('allowedBookIds:', allowedBookIds); //delete after debugging
   
         // Get user bookmarks
         const { data: userBookmarks, error: userBookmarksError } = await supabase
@@ -159,11 +207,13 @@ export default function ChildPage() {
           .select('cid')
           .eq('uaid', uaid);
         const userCid = userBookmarks?.map(b => b.cid) || [];
+        console.log('userCid:', userCid); //delete after debugging
   
         // Filter out books the user already bookmarked
         const filteredCids = ageFilteredBookmarks
           .map(b => b.cid)
           .filter(bookId => !userCid.includes(bookId));
+        console.log('filteredCids:', filteredCids); //delete after debugging
   
         // Rank by frequency
         const contentFrequency: Record<string, number> = {};
@@ -173,6 +223,7 @@ export default function ChildPage() {
         const rankedContentIds = Object.entries(contentFrequency)
           .sort((a: [string, number], b: [string, number]) => b[1] - a[1])
           .map(([bookId]) => bookId);
+        console.log('rankedContentIds:', rankedContentIds); //delete after debugging
   
         // Genre relevance filtering - won't include books from bookmark, if book genre is not in user's top 5
         const filteredRecommendedBooks = await Promise.all(
@@ -189,6 +240,7 @@ export default function ChildPage() {
           })
         );
         const finalFilteredContentIds = rankedContentIds.filter((bookId, index) => filteredRecommendedBooks[index]);
+        console.log('finalFilteredContentIds:', finalFilteredContentIds); //delete after debugging
   
         if (finalFilteredContentIds.length === 0) {
           console.log('0 content with similar genres');
