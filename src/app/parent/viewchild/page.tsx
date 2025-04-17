@@ -8,7 +8,7 @@ import { fetchBookmarkedContent, ContentWithGenres } from './fetchChildBookmark'
 
 interface ChildProfile {
   favourite_genres: string[];
-  blocked_genres: string[];
+  //blocked_genres: string[];
   classrooms: {
     crid: number;
     name: string;
@@ -41,6 +41,7 @@ export default function ViewChild() {
   const [accountId, setAccountId] = useState<string>('');
   const [bookmarkedBooks, setBookmarkedBooks] = useState<ContentWithGenres[]>([]);
   const [bookmarkedVideos, setBookmarkedVideos] = useState<ContentWithGenres[]>([]);
+  const [blockedGenreNames, setBlockedGenreNames] = useState<string[]>([]);
 
   useEffect(() => {
     const childId = searchParams.get('childId');
@@ -135,7 +136,8 @@ export default function ViewChild() {
       // Get child's profile data from child_details
       const { data: profileData, error: profileError } = await supabase
         .from('child_details')
-        .select('favourite_genres, blocked_genres')
+        //.select('favourite_genres, blocked_genres')
+        .select('favourite_genres')
         .eq('child_id', userData.id)
         .single();
   
@@ -161,6 +163,7 @@ export default function ViewChild() {
   
         if (genreError) throw genreError;
         blockedGenreNames = genreData?.map(item => item.genrename) || [];
+        setBlockedGenreNames(blockedGenreNames);
       }
       
       // Initialize arrays if they're null
@@ -199,19 +202,29 @@ export default function ViewChild() {
       if (!childId || !accountId) return;
   
       // Get current blocked genres using account ID
+     // const { data: currentProfile } = await supabase
+      //  .from('child_details')
+      //  .select('blocked_genres')
+      //  .eq('child_id', accountId)
+      //  .single();
+
       const { data: currentProfile } = await supabase
-        .from('child_details')
-        .select('blocked_genres')
+        .from('blockedgenres')
+        .select('*')
         .eq('child_id', accountId)
         .single();
   
       if (!currentProfile) throw new Error('Profile not found');
   
       // Remove any favorite genres that are in blocked genres
+      const blockedGenreIds = currentProfile ? [currentProfile.genreid] : [];
+
+
+      // Filter out any favorite genres that are in blocked genres
       const filteredFavoriteGenres = selectedFavoriteGenres.filter(
-        (genre) => !(currentProfile.blocked_genres || []).includes(genre)
+      (genre) => !blockedGenreIds.includes(genre)
       );
-  
+
       // Update favorite genres in child_details
       const { error } = await supabase
         .from('child_details')
@@ -439,8 +452,8 @@ export default function ViewChild() {
                     Blocked Genres
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-black">
-                    {childProfile?.blocked_genres?.length ? 
-                      childProfile.blocked_genres.join(', ') : 
+                    {blockedGenreNames.length ? 
+                      blockedGenreNames.join(', ') : 
                       'Not set'
                     }
                   </td>
@@ -539,7 +552,7 @@ export default function ViewChild() {
                 <h3 className="text-lg font-semibold mb-4 text-black">Select Favorite Genres</h3>
                 <div className="space-y-2 mb-4">
                   {availableGenres
-                    .filter(genre => !childProfile?.blocked_genres.includes(genre))
+                    .filter(genre => blockedGenreNames.includes(genre))
                     .map((genre) => (
                     <label key={genre} className="flex items-center space-x-2">
                       <input
