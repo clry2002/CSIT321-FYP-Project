@@ -35,8 +35,8 @@ const BookCard = (props: BookCardProps) => {
         <Image 
           src={coverimage}
           alt={`Cover for ${title}`}
-          width={300} // Add an appropriate width
-          height={400} // 
+          width={300}
+          height={400}
           className="w-full aspect-[3/4] object-cover"
           onError={() => setImgError(true)}
         />

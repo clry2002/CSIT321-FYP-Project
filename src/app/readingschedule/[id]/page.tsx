@@ -14,7 +14,14 @@ interface BookDetails {
   contenturl?: string;
 }
 
-export default function BookDetailFromSchedule({ params }: { params: { id: string } }) {
+interface PageParams {
+  params: {
+    id: string;
+  };
+  searchParams?: { [key: string]: string | string[] | undefined };
+}
+
+export default function BookDetailFromSchedule({ params }: PageParams) {
   const router = useRouter();
   const [book, setBook] = useState<BookDetails | null>(null);
   const [loading, setLoading] = useState(true);
