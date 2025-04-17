@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { supabase } from '@/lib/supabase';
-import { PostgrestError } from '@supabase/supabase-js';
 
 interface UserAccount {
   fullname: string;
@@ -15,8 +14,6 @@ interface UserAccount {
   updated_at: string;
   suspended: boolean;
   comments?: string;
-  user_id?: string;
-  id?: string;
 }
 
 interface NewUser {
@@ -32,271 +29,6 @@ interface ParentChildRelationship {
   parent: string;
   child: string;
 }
-
-interface RelationshipData {
-  parent_id: string;
-  child_id: string;
-  parent: {
-    username: string;
-    fullname: string;
-  };
-  child: {
-    username: string;
-    fullname: string;
-  };
-}
-
-interface ClassroomData {
-  crid: number;
-  name: string;
-  description: string;
-  educatorName: string;
-  students: {
-    username: string;
-    fullname: string;
-    invitation_status: string;
-  }[];
-}
-
-interface StudentData {
-  invitation_status: string;
-  user_account: {
-    username: string;
-    fullname: string;
-  };
-}
-
-interface ClassroomWithStudents {
-  crid: number;
-  name: string;
-  description: string;
-  uaid_educator: string;
-}
-
-interface DiscussionEntry {
-  id: number;
-  message: string;
-  sender_name: string;
-  created_at: string;
-}
-
-interface DiscussionData {
-  classroomName: string;
-  teacherQuestion: string;
-  responses: DiscussionEntry[];
-}
-
-interface EditingCell {
-  username: string;
-  field: string;
-  value: string | number;
-}
-
-interface UserDetailsModalProps {
-  user: UserAccount | null;
-  onClose: () => void;
-  onStatusClick: (user: UserAccount) => void;
-  onEdit: (username: string, field: string, value: string | number) => void;
-  userTypes: { id: number; label: string; }[];
-  getUpidLabel: (upid: number) => string;
-}
-
-const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
-  user,
-  onClose,
-  onStatusClick,
-  onEdit,
-  userTypes,
-  getUpidLabel,
-}) => {
-  type EditingCell = {
-    username: string;
-    field: string;
-    value: string | number;
-  };
-  
-  const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
-
-  const getEditableUserTypes = (currentUpid: number) => {
-    if (currentUpid === 3) return [];
-    return userTypes.filter(type => type.id !== 3);
-  };
-
-  if (!user) return null;
-
-  const handleEditingChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    if (editingCell) {
-      setEditingCell({ ...editingCell, value: parseInt(e.target.value) });
-    }
-  };
-
-  const startEditing = (field: string, value: string | number) => {
-    setEditingCell({ username: user.username, field, value });
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-gray-900 p-6 rounded-lg w-[1000px]">
-        <div className="flex justify-between items-center mb-6">
-          <div className="flex items-center space-x-4">
-            <h3 className="text-2xl font-bold">User Details</h3>
-            <button
-              onClick={() => onStatusClick(user)}
-              className={`px-6 py-2 inline-flex items-center justify-center text-sm leading-5 font-semibold rounded-full whitespace-nowrap min-w-[100px] ${
-                user.suspended 
-                  ? 'bg-red-900 text-red-200 hover:bg-red-800' 
-                  : 'bg-green-900 text-green-200 hover:bg-green-800'
-              }`}
-            >
-              {user.suspended ? 'Suspended' : 'Active'}
-            </button>
-          </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-white">✕</button>
-        </div>
-
-        <div className="space-y-4">
-          {editingCell ? (
-            <div className="bg-gray-800 p-4 rounded-lg">
-              <div className="mb-2">
-                <label className="text-sm text-gray-400">
-                  Editing {editingCell.field === 'upid' ? 'User Type' : editingCell.field.charAt(0).toUpperCase() + editingCell.field.slice(1)}
-                </label>
-              </div>
-              {editingCell.field === 'upid' ? (
-                <select
-                  value={editingCell.value as number}
-                  onChange={(e) => setEditingCell({ ...editingCell, value: parseInt(e.target.value) })}
-                  className="w-full bg-gray-700 text-white rounded px-3 py-2 mb-4"
-                  autoFocus
-                >
-                  {getEditableUserTypes(user.upid).map((type) => (
-                    <option key={type.id} value={type.id}>
-                      {type.label}
-                    </option>
-                  ))}
-                </select>
-              ) : editingCell.field === 'age' ? (
-                <input
-                  type="number"
-                  value={editingCell.value as number}
-                  onChange={(e) => setEditingCell({ ...editingCell, value: parseInt(e.target.value) })}
-                  className="w-full bg-gray-700 text-white rounded px-3 py-2 mb-4"
-                  autoFocus
-                />
-              ) : (
-                <input
-                  type="text"
-                  value={editingCell.value as string}
-                  onChange={(e) => setEditingCell({ ...editingCell, value: e.target.value })}
-                  className="w-full bg-gray-700 text-white rounded px-3 py-2 mb-4"
-                  autoFocus
-                />
-              )}
-              <div className="flex justify-end space-x-2">
-                <button
-                  onClick={() => setEditingCell(null)}
-                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-white"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => {
-                    onEdit(user.username, editingCell.field, editingCell.value);
-                    setEditingCell(null);
-                  }}
-                  className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded text-white"
-                >
-                  Save Changes
-                </button>
-              </div>
-            </div>
-          ) : (
-            <>
-              <div className="grid grid-cols-7 gap-4">
-                <div 
-                  className="col-span-2 bg-gray-800 p-4 rounded-lg cursor-pointer hover:bg-gray-700"
-                  onClick={() => setEditingCell({ username: user.username, field: 'fullname', value: user.fullname })}
-                >
-                  <div className="text-sm text-gray-400 mb-1">FULL NAME</div>
-                  <div className="text-white break-all">{user.fullname}</div>
-                </div>
-                <div 
-                  className="col-span-2 bg-gray-800 p-4 rounded-lg cursor-pointer hover:bg-gray-700"
-                  onClick={() => setEditingCell({ username: user.username, field: 'username', value: user.username })}
-                >
-                  <div className="text-sm text-gray-400 mb-1">USERNAME</div>
-                  <div className="text-white break-all">{user.username}</div>
-                </div>
-                <div 
-                  className="bg-gray-800 p-4 rounded-lg cursor-pointer hover:bg-gray-700"
-                  onClick={() => setEditingCell({ username: user.username, field: 'age', value: user.age })}
-                >
-                  <div className="text-sm text-gray-400 mb-1">AGE</div>
-                  <div className="text-white">{user.age}</div>
-                </div>
-                <div 
-                  className={`col-span-2 bg-gray-800 p-4 rounded-lg ${user.upid === 3 ? '' : 'cursor-pointer hover:bg-gray-700'}`}
-                >
-                  <div className="text-sm text-gray-400 mb-1">USER TYPE</div>
-                  {user.upid === 3 ? (
-                    <div className="text-white">{getUpidLabel(user.upid)}</div>
-                  ) : (
-                    editingCell?.username === user.username && editingCell?.field === 'upid' ? (
-                      <div className="flex items-center space-x-2">
-                        <select
-                          value={editingCell.value as number}
-                          onChange={handleEditingChange}
-                          className="w-full bg-gray-700 text-white rounded px-3 py-2 mb-4"
-                          autoFocus
-                        >
-                          {userTypes.filter(type => type.id !== 3).map((type) => (
-                            <option key={type.id} value={type.id}>
-                              {type.label}
-                            </option>
-                          ))}
-                        </select>
-                        <button
-                          onClick={() => onEdit(user.username, 'upid', editingCell.value)}
-                          className="text-green-500 hover:text-green-400"
-                        >
-                          ✓
-                        </button>
-                        <button
-                          onClick={() => setEditingCell(null)}
-                          className="text-red-500 hover:text-red-400"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ) : (
-                      <div 
-                        onClick={() => startEditing('upid', user.upid)}
-                        className="text-white cursor-pointer"
-                      >
-                        {getUpidLabel(user.upid)}
-                      </div>
-                    )
-                  )}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-gray-800 p-4 rounded-lg">
-                  <div className="text-sm text-gray-400 mb-1">CREATED AT</div>
-                  <div className="text-white">{new Date(user.created_at).toLocaleString()}</div>
-                </div>
-                <div className="bg-gray-800 p-4 rounded-lg">
-                  <div className="text-sm text-gray-400 mb-1">UPDATED AT</div>
-                  <div className="text-white">{new Date(user.updated_at).toLocaleString()}</div>
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
 
 export default function AdminPage() {
   const router = useRouter();
@@ -320,14 +52,16 @@ export default function AdminPage() {
   const [modalMessage, setModalMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const [authUserId, setAuthUserId] = useState<string | null>(null);
   const [step, setStep] = useState<'auth' | 'details'>('auth');
-  const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
+  const [editingCell, setEditingCell] = useState<{
+    username: string;
+    field: string;
+    value: string | number;
+  } | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | null>(null);
-  const [selectedStatusFilter, setSelectedStatusFilter] = useState<boolean | null>(null);
-  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
-  const [createdAtSort, setCreatedAtSort] = useState<'asc' | 'desc' | null>(null);
-  const [updatedAtSort, setUpdatedAtSort] = useState<'asc' | 'desc' | null>(null);
+  const [selectedUserType, setSelectedUserType] = useState<number | null>(null);
+  const [showUserTypeDropdown, setShowUserTypeDropdown] = useState(false);
   const [relationships, setRelationships] = useState<ParentChildRelationship[]>([]);
   const [showModifyModal, setShowModifyModal] = useState(false);
   const [selectedParentForModify, setSelectedParentForModify] = useState<{
@@ -353,15 +87,6 @@ export default function AdminPage() {
   const [showDeleteParentModal, setShowDeleteParentModal] = useState(false);
   const [deleteParentError, setDeleteParentError] = useState<string | null>(null);
   const [deleteUserError, setDeleteUserError] = useState<string | null>(null);
-  const [classrooms, setClassrooms] = useState<ClassroomData[]>([]);
-  const [loadingClassrooms, setLoadingClassrooms] = useState(true);
-  const [showAllClassrooms, setShowAllClassrooms] = useState(false);
-  const [showDiscussionModal, setShowDiscussionModal] = useState(false);
-  const [selectedDiscussion, setSelectedDiscussion] = useState<DiscussionData | null>(null);
-  const [loadingDiscussion, setLoadingDiscussion] = useState(false);
-  const [showUserModal, setShowUserModal] = useState(false);
-  const [selectedUserTypeFilter, setSelectedUserTypeFilter] = useState<number | null>(null);
-  const [showUserTypeDropdown, setShowUserTypeDropdown] = useState(false);
 
   const userTypes = [
     { id: 1, label: 'Publisher' },
@@ -370,27 +95,16 @@ export default function AdminPage() {
     { id: 5, label: 'Teacher' }
   ];
 
-  const getUpidLabel = (upid: number) => {
-    switch (upid) {
-      case 1: return 'Publisher';
-      case 2: return 'Parent';
-      case 3: return 'Child';
-      case 5: return 'Teacher';
-      default: return 'Unknown';
-    }
-  };
-
   useEffect(() => {
     fetchUserAccounts();
     fetchRelationships();
-    fetchClassrooms();
   }, []);
 
   const fetchUserAccounts = async () => {
     try {
       const { data, error } = await supabase
         .from('user_account')
-        .select('fullname, username, age, upid, created_at, updated_at, suspended, comments');
+        .select('fullname, username, age, upid, created_at, updated_at, suspended');
 
       if (error) throw error;
       setUserAccounts(data || []);
@@ -405,84 +119,23 @@ export default function AdminPage() {
     try {
       const { data, error } = await supabase
         .from('isparentof')
-        .select(`
-          parent_id,
-          child_id,
-          parent:user_account!fk_parent_id(username, fullname),
-          child:user_account!fk_child_id(username, fullname)
-        `) as { data: RelationshipData[] | null, error: PostgrestError | null };
+        .select('parent, child');
 
       if (error) throw error;
-
-      // Transform the data to match the expected format
-      const transformedRelationships = (data || []).map(rel => ({
-        parent: rel.parent.username,
-        child: rel.child.username
-      }));
-
-      setRelationships(transformedRelationships);
+      setRelationships(data || []);
     } catch (err) {
       console.error('Error fetching relationships:', err);
       setError(err instanceof Error ? err.message : 'An error occurred while fetching relationships');
     }
   };
 
-  const fetchClassrooms = async () => {
-    try {
-      // First, get all classrooms
-      const { data: classroomData, error: classroomError } = await supabase
-        .from('temp_classroom')
-        .select(`
-          crid,
-          name,
-          description,
-          uaid_educator
-        `) as { data: ClassroomWithStudents[] | null, error: PostgrestError | null };
-
-      if (classroomError) throw classroomError;
-
-      // For each classroom, get the educator's name and students
-      const classroomsWithDetails = await Promise.all((classroomData || []).map(async (classroom) => {
-        // Get educator name
-        const { data: educatorData } = await supabase
-          .from('user_account')
-          .select('fullname')
-          .eq('id', classroom.uaid_educator)
-          .single() as { data: { fullname: string } | null };
-
-        // Get students
-        const { data: studentData } = await supabase
-          .from('temp_classroomstudents')
-          .select(`
-            invitation_status,
-            user_account:uaid_child(
-              username,
-              fullname
-            )
-          `)
-          .eq('crid', classroom.crid) as { data: StudentData[] | null };
-
-        const students = (studentData || []).map(student => ({
-          username: student.user_account.username,
-          fullname: student.user_account.fullname,
-          invitation_status: student.invitation_status
-        }));
-
-        return {
-          crid: classroom.crid,
-          name: classroom.name,
-          description: classroom.description,
-          educatorName: educatorData?.fullname || 'Unknown Educator',
-          students
-        };
-      }));
-
-      setClassrooms(classroomsWithDetails);
-    } catch (err) {
-      console.error('Error fetching classrooms:', err);
-      setError(err instanceof Error ? err.message : 'An error occurred while fetching classrooms');
-    } finally {
-      setLoadingClassrooms(false);
+  const getUpidLabel = (upid: number) => {
+    switch (upid) {
+      case 1: return 'Publisher';
+      case 2: return 'Parent';
+      case 3: return 'Child';
+      case 5: return 'Teacher';
+      default: return 'Unknown';
     }
   };
 
@@ -524,12 +177,6 @@ export default function AdminPage() {
 
       if (!newUser.fullname || !newUser.username || newUser.age === null || !authUserId) {
         setModalMessage({ type: 'error', text: 'Please fill in all fields' });
-        return;
-      }
-
-      // Add age validation
-      if (newUser.age < 18) {
-        setModalMessage({ type: 'error', text: 'Age must be 18 or older' });
         return;
       }
 
@@ -587,7 +234,9 @@ export default function AdminPage() {
     setIsCreatingParent(false);
   };
 
-  const handleSuspendUser = async (user: UserAccount) => {
+  const handleSuspendUser = async () => {
+    if (!selectedUser) return;
+
     try {
       const { error } = await supabase
         .from('user_account')
@@ -596,47 +245,46 @@ export default function AdminPage() {
           comments: suspendComment,
           updated_at: new Date().toISOString()
         })
-        .eq('username', user.username);
+        .eq('username', selectedUser.username);
 
       if (error) throw error;
 
-      setUserAccounts(userAccounts.map(u => 
-        u.username === user.username 
-          ? { ...u, suspended: true, comments: suspendComment }
-          : u
+      setUserAccounts(userAccounts.map(user => 
+        user.username === selectedUser.username 
+          ? { ...user, suspended: true, comments: suspendComment }
+          : user
       ));
       
       setShowSuspendModal(false);
       setSelectedUser(null);
       setSuspendComment('');
-      setShowUserModal(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred while suspending user');
     }
   };
 
-  const handleRevertSuspension = async (user: UserAccount) => {
+  const handleRevertSuspension = async () => {
+    if (!selectedUser) return;
+
     try {
       const { error } = await supabase
         .from('user_account')
         .update({ 
           suspended: false,
-          comments: 'na',
           updated_at: new Date().toISOString()
         })
-        .eq('username', user.username);
+        .eq('username', selectedUser.username);
 
       if (error) throw error;
 
-      setUserAccounts(userAccounts.map(u => 
-        u.username === user.username 
-          ? { ...u, suspended: false, comments: 'na' }
-          : u
+      setUserAccounts(userAccounts.map(user => 
+        user.username === selectedUser.username 
+          ? { ...user, suspended: false }
+          : user
       ));
       
       setShowRevertModal(false);
       setSelectedUser(null);
-      setShowUserModal(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred while reverting suspension');
     }
@@ -657,44 +305,8 @@ export default function AdminPage() {
         for (const parent of parentsToDelete) {
           const children = getChildrenForParent(parent.username);
           
-          // First, delete parent-child relationships
+          // Delete all children accounts
           for (const child of children) {
-            // Get the parent and child IDs
-            const { data: parentData } = await supabase
-              .from('user_account')
-              .select('id')
-              .eq('username', parent.username)
-              .single();
-
-            const { data: childData } = await supabase
-              .from('user_account')
-              .select('id')
-              .eq('username', child.username)
-              .single();
-
-            if (parentData && childData) {
-              // Delete the relationship
-              const { error: relationshipError } = await supabase
-                .from('isparentof')
-                .delete()
-                .match({ 
-                  parent_id: parentData.id, 
-                  child_id: childData.id 
-                });
-              
-              if (relationshipError) throw relationshipError;
-            }
-
-            // Delete the child's auth user
-            const childUser = userAccounts.find(u => u.username === child.username);
-            if (childUser?.user_id) {
-              const { error: authError } = await supabase.auth.admin.deleteUser(
-                childUser.user_id
-              );
-              if (authError) throw authError;
-            }
-
-            // Delete the child's user account
             const { error: childError } = await supabase
               .from('user_account')
               .delete()
@@ -702,28 +314,10 @@ export default function AdminPage() {
             
             if (childError) throw childError;
           }
-
-          // Delete the parent's auth user
-          if (parent.user_id) {
-            const { error: authError } = await supabase.auth.admin.deleteUser(
-              parent.user_id
-            );
-            if (authError) throw authError;
-          }
         }
       }
 
-      // Delete remaining selected users' auth accounts
-      for (const user of selectedUsers.filter(user => user.upid !== 2)) {
-        if (user.user_id) {
-          const { error: authError } = await supabase.auth.admin.deleteUser(
-            user.user_id
-          );
-          if (authError) throw authError;
-        }
-      }
-
-      // Delete the selected users from user_account table
+      // Delete the selected users
       const { error } = await supabase
         .from('user_account')
         .delete()
@@ -770,33 +364,15 @@ export default function AdminPage() {
         user.fullname.toLowerCase().includes(searchQuery.toLowerCase()) ||
         user.username.toLowerCase().includes(searchQuery.toLowerCase());
       
-      const matchesStatus = selectedStatusFilter === null || user.suspended === selectedStatusFilter;
+      const matchesUserType = selectedUserType === null || user.upid === selectedUserType;
       
-      const matchesUserType = selectedUserTypeFilter === null || user.upid === selectedUserTypeFilter;
-      
-      return matchesSearch && matchesStatus && matchesUserType;
+      return matchesSearch && matchesUserType;
     })
     .sort((a, b) => {
-      if (sortOrder === null && createdAtSort === null && updatedAtSort === null) return 0;
-      
-      if (sortOrder !== null) {
-        return sortOrder === 'asc' ? a.age - b.age : b.age - a.age;
-      }
-      
-      if (createdAtSort !== null) {
-        return createdAtSort === 'asc' 
-          ? new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-          : new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-      }
-      
-      if (updatedAtSort !== null) {
-        return updatedAtSort === 'asc'
-          ? new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime()
-          : new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
-      }
-      
-      return 0;
+      if (sortOrder === null) return 0;
+      return sortOrder === 'asc' ? a.age - b.age : b.age - a.age;
     });
+
 
   const getChildrenForParent = (parentUsername: string) => {
     // First, get the child usernames from isparentof table for this parent
@@ -848,54 +424,18 @@ export default function AdminPage() {
     }));
   };
 
+
   const handleRemoveChild = async (parentUsername: string, childUsername: string) => {
     try {
-      // First get the parent and child IDs
-      const { data: parentData, error: parentError } = await supabase
-        .from('user_account')
-        .select('id')
-        .eq('username', parentUsername)
-        .single();
-
-      if (parentError) throw parentError;
-
-      const { data: childData, error: childError } = await supabase
-        .from('user_account')
-        .select('id')
-        .eq('username', childUsername)
-        .single();
-
-      if (childError) throw childError;
-
-      if (!parentData?.id || !childData?.id) {
-        throw new Error('Could not find parent or child account');
-      }
-
-      // First remove the relationship using the IDs
-      const { error: relationshipError } = await supabase
+      const { error } = await supabase
         .from('isparentof')
         .delete()
-        .match({ 
-          parent_id: parentData.id, 
-          child_id: childData.id 
-        });
+        .match({ parent: parentUsername, child: childUsername });
 
-      if (relationshipError) throw relationshipError;
-
-      // Delete the child's user account
-      const { error: deleteError } = await supabase
-        .from('user_account')
-        .delete()
-        .eq('username', childUsername);
-
-      if (deleteError) throw deleteError;
+      if (error) throw error;
       
-      // Refresh both user accounts and relationships after removing
-      await fetchUserAccounts();
+      // Refresh relationships after removing
       await fetchRelationships();
-
-      // Reset any errors
-      setError(null);
     } catch (err) {
       console.error('Error removing child:', err);
       setError(err instanceof Error ? err.message : 'An error occurred while removing child');
@@ -943,53 +483,34 @@ export default function AdminPage() {
         return;
       }
 
-      // Add age validation for children
-      if (newChild.age > 13) {
-        setNewChildModalMessage({ type: 'error', text: 'Child must be 13 years old or younger' });
-        return;
-      }
+      const userToInsert = {
+        fullname: newChild.fullname,
+        username: newChild.username,
+        age: newChild.age,
+        upid: 3, // Set upid to 3 for Child
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        suspended: false,
+        user_id: newChildAuthUserId
+      };
 
-      // First, create the child user account
-      const { data: childData, error: childError } = await supabase
+      const { error } = await supabase
         .from('user_account')
-        .insert([{
-          fullname: newChild.fullname,
-          username: newChild.username,
-          age: newChild.age,
-          upid: 3, // Set upid to 3 for Child
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          suspended: false,
-          user_id: newChildAuthUserId
-        }])
-        .select('id')
-        .single();
+        .insert([userToInsert])
+        .select();
 
-      if (childError) {
-        console.error('Database error:', childError);
-        setNewChildModalMessage({ type: 'error', text: childError.message });
+      if (error) {
+        console.error('Database error:', error);
+        setNewChildModalMessage({ type: 'error', text: error.message });
         return;
       }
 
-      // Get the parent's ID
-      const { data: parentData, error: parentError } = await supabase
-        .from('user_account')
-        .select('id')
-        .eq('username', selectedParentForModify.username)
-        .single();
-
-      if (parentError) {
-        console.error('Database error:', parentError);
-        setNewChildModalMessage({ type: 'error', text: parentError.message });
-        return;
-      }
-
-      // Create parent-child relationship using IDs
+      // Create parent-child relationship
       const { error: relationshipError } = await supabase
         .from('isparentof')
         .insert([{ 
-          parent_id: parentData.id, 
-          child_id: childData.id 
+          parent: selectedParentForModify.username, 
+          child: newChild.username 
         }]);
 
       if (relationshipError) {
@@ -1081,108 +602,6 @@ export default function AdminPage() {
     }
   };
 
-  const fetchDiscussionData = async (classroomId: number, classroomName: string) => {
-    setLoadingDiscussion(true);
-    try {
-      // Fetch teacher's question
-      const { data: questionData, error: questionError } = await supabase
-        .from('discussionboard')
-        .select('question')
-        .eq('crid', classroomId)
-        .not('question', 'is', null)
-        .order('created_at', { ascending: true })
-        .limit(1);
-      
-      if (questionError) throw questionError;
-
-      // Fetch student responses
-      const { data: responsesData, error: responsesError } = await supabase
-        .from('discussionboard')
-        .select('did, response, uaid, created_at')
-        .eq('crid', classroomId)
-        .not('response', 'is', null)
-        .order('created_at', { ascending: true });
-
-      if (responsesError) throw responsesError;
-
-      // Enrich responses with sender names
-      const enriched = await Promise.all(
-        (responsesData || []).map(async (entry) => {
-          const { data: profileData, error: profileError } = await supabase
-            .from('user_account')
-            .select('fullname')
-            .eq('user_id', entry.uaid)
-            .single();
-
-          if (profileError) {
-            console.error('Error fetching profile data:', profileError);
-            return {
-              id: entry.did,
-              message: entry.response,
-              sender_name: 'Unknown',
-              created_at: entry.created_at,
-            };
-          }
-
-          return {
-            id: entry.did,
-            message: entry.response,
-            sender_name: profileData?.fullname || 'Unknown',
-            created_at: entry.created_at,
-          };
-        })
-      );
-
-      setSelectedDiscussion({
-        classroomName,
-        teacherQuestion: questionData && questionData.length > 0 ? questionData[0].question : '',
-        responses: enriched
-      });
-    } catch (err) {
-      console.error('Error fetching discussion data:', err);
-    } finally {
-      setLoadingDiscussion(false);
-    }
-  };
-
-  const handleUserClick = async (username: string) => {
-    try {
-      // First try to find the user in userAccounts
-      const user = userAccounts.find(u => u.username === username || u.fullname === username);
-      if (user) {
-        setSelectedUser(user);
-        setShowUserModal(true);
-        return;
-      }
-
-      // If not found in userAccounts, fetch from database
-      const { data, error } = await supabase
-        .from('user_account')
-        .select('*')
-        .or(`username.eq.${username},fullname.eq.${username}`)
-        .single();
-
-      if (error) throw error;
-
-      if (data) {
-        setSelectedUser(data as UserAccount);
-        setShowUserModal(true);
-      }
-    } catch (err) {
-      console.error('Error fetching user details:', err);
-    }
-  };
-
-  const handleEditingChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    if (editingCell) {
-      setEditingCell({ ...editingCell, value: parseInt(e.target.value) });
-    }
-  };
-
-  const startEditing = (username: string, field: string, value: string | number) => {
-    setEditingCell({ username, field, value });
-  };
-
   return (
     <div className="min-h-screen bg-black text-white">
       {/* Header */}
@@ -1262,104 +681,43 @@ export default function AdminPage() {
                       Age {sortOrder === 'asc' ? '↑' : sortOrder === 'desc' ? '↓' : ''}
                     </th>
                     <th 
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-800"
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-800 relative"
                       onClick={() => setShowUserTypeDropdown(!showUserTypeDropdown)}
                     >
-                      <div className="relative">
-                        User Type {selectedUserTypeFilter !== null ? `(${getUpidLabel(selectedUserTypeFilter)})` : ''}
-                        {showUserTypeDropdown && (
-                          <div className="absolute top-full left-0 mt-1 w-48 bg-gray-800 rounded-lg shadow-lg z-50">
-                            <div className="py-1">
-                              <button
-                                className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedUserTypeFilter(null);
-                                  setShowUserTypeDropdown(false);
-                                }}
-                              >
-                                All Types
-                              </button>
-                              {userTypes.map(type => (
-                                <button
-                                  key={type.id}
-                                  className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedUserTypeFilter(type.id);
-                                    setShowUserTypeDropdown(false);
-                                  }}
-                                >
-                                  {type.label}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </th>
-                    <th 
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-800"
-                      onClick={() => {
-                        setCreatedAtSort(createdAtSort === 'asc' ? 'desc' : createdAtSort === 'desc' ? null : 'asc');
-                        setUpdatedAtSort(null);
-                        setSortOrder(null);
-                      }}
-                    >
-                      Created At {createdAtSort === 'asc' ? '↑' : createdAtSort === 'desc' ? '↓' : ''}
-                    </th>
-                    <th 
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-800"
-                      onClick={() => {
-                        setUpdatedAtSort(updatedAtSort === 'asc' ? 'desc' : updatedAtSort === 'desc' ? null : 'asc');
-                        setCreatedAtSort(null);
-                        setSortOrder(null);
-                      }}
-                    >
-                      Updated At {updatedAtSort === 'asc' ? '↑' : updatedAtSort === 'desc' ? '↓' : ''}
-                    </th>
-                    <th 
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-800 relative"
-                      onClick={() => setShowStatusDropdown(!showStatusDropdown)}
-                    >
-                      Status {selectedStatusFilter !== null ? `(${selectedStatusFilter ? 'Suspended' : 'Active'})` : ''}
-                      {showStatusDropdown && (
+                      User Type {selectedUserType !== null ? `(${getUpidLabel(selectedUserType)})` : ''}
+                      {showUserTypeDropdown && (
                         <div className="absolute top-full left-0 mt-1 w-48 bg-gray-800 rounded-lg shadow-lg z-50">
                           <div className="py-1">
                             <button
                               className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setSelectedStatusFilter(null);
-                                setShowStatusDropdown(false);
+                                setSelectedUserType(null);
+                                setShowUserTypeDropdown(false);
                               }}
                             >
-                              All Status
+                              All Users
                             </button>
-                            <button
-                              className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedStatusFilter(false);
-                                setShowStatusDropdown(false);
-                              }}
-                            >
-                              Active
-                            </button>
-                            <button
-                              className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedStatusFilter(true);
-                                setShowStatusDropdown(false);
-                              }}
-                            >
-                              Suspended
-                            </button>
+                            {userTypes.map(type => (
+                              <button
+                                key={type.id}
+                                className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedUserType(type.id);
+                                  setShowUserTypeDropdown(false);
+                                }}
+                              >
+                                {type.label}
+                              </button>
+                            ))}
                           </div>
                         </div>
                       )}
                     </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Created At</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Updated At</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-800">
@@ -1386,7 +744,7 @@ export default function AdminPage() {
                               type="text"
                               value={editingCell.value as string}
                               onChange={(e) => setEditingCell({ ...editingCell, value: e.target.value })}
-                              className="bg-gray-800 rounded px-2 py-1 w-full text-white"
+                              className="bg-gray-800 rounded px-2 py-1 w-full"
                               autoFocus
                             />
                             <button
@@ -1405,9 +763,7 @@ export default function AdminPage() {
                         ) : (
                           <div
                             onClick={() => setEditingCell({ username: account.username, field: 'fullname', value: account.fullname })}
-                            className={`cursor-pointer hover:bg-gray-700 px-2 py-1 rounded ${
-                              account.suspended ? 'text-red-400' : 'text-white'
-                            }`}
+                            className="cursor-pointer hover:bg-gray-700 px-2 py-1 rounded"
                           >
                             {account.fullname}
                           </div>
@@ -1420,7 +776,7 @@ export default function AdminPage() {
                               type="text"
                               value={editingCell.value as string}
                               onChange={(e) => setEditingCell({ ...editingCell, value: e.target.value })}
-                              className="bg-gray-800 rounded px-2 py-1 w-full text-white"
+                              className="bg-gray-800 rounded px-2 py-1 w-full"
                               autoFocus
                             />
                             <button
@@ -1439,22 +795,20 @@ export default function AdminPage() {
                         ) : (
                           <div
                             onClick={() => setEditingCell({ username: account.username, field: 'username', value: account.username })}
-                            className={`cursor-pointer hover:bg-gray-700 px-2 py-1 rounded ${
-                              account.suspended ? 'text-red-400' : 'text-white'
-                            }`}
+                            className="cursor-pointer hover:bg-gray-700 px-2 py-1 rounded"
                           >
                             {account.username}
                           </div>
                         )}
                       </td>
-                      <td className={`px-6 py-4 whitespace-nowrap ${account.suspended ? 'text-red-400' : 'text-white'}`}>
+                      <td className="px-6 py-4 whitespace-nowrap">
                         {editingCell?.username === account.username && editingCell?.field === 'age' ? (
                           <div className="flex items-center space-x-2">
                             <input
                               type="number"
                               value={editingCell.value as number}
                               onChange={(e) => setEditingCell({ ...editingCell, value: parseInt(e.target.value) })}
-                              className="bg-gray-800 rounded px-2 py-1 w-full text-white"
+                              className="bg-gray-800 rounded px-2 py-1 w-20"
                               autoFocus
                             />
                             <button
@@ -1475,60 +829,54 @@ export default function AdminPage() {
                             onClick={() => setEditingCell({ username: account.username, field: 'age', value: account.age })}
                             className="cursor-pointer hover:bg-gray-700 px-2 py-1 rounded"
                           >
-                            {account.age}
+                            {account.age === null ? '' : account.age}
                           </div>
                         )}
                       </td>
-                      <td className={`px-6 py-4 whitespace-nowrap ${account.suspended ? 'text-red-400' : 'text-white'}`}>
-                        {account.upid === 3 ? (
-                          <div className="px-2 py-1 rounded">
-                            {getUpidLabel(account.upid)}
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {editingCell?.username === account.username && editingCell?.field === 'upid' ? (
+                          <div className="flex items-center space-x-2">
+                            <select
+                              value={editingCell.value as number}
+                              onChange={(e) => setEditingCell({ ...editingCell, value: parseInt(e.target.value) })}
+                              className="bg-gray-800 rounded px-2 py-1"
+                              autoFocus
+                            >
+                              {userTypes.map(type => (
+                                <option key={type.id} value={type.id}>
+                                  {type.label}
+                                </option>
+                              ))}
+                            </select>
+                            <button
+                              onClick={() => handleUpdateUser(account.username, 'upid', editingCell.value)}
+                              className="text-green-500 hover:text-green-400"
+                            >
+                              ✓
+                            </button>
+                            <button
+                              onClick={() => setEditingCell(null)}
+                              className="text-red-500 hover:text-red-400"
+                            >
+                              ✕
+                            </button>
                           </div>
                         ) : (
-                          editingCell?.username === account.username && editingCell?.field === 'upid' ? (
-                            <div className="flex items-center space-x-2">
-                              <select
-                                value={editingCell.value as number}
-                                onChange={handleEditingChange}
-                                className="bg-gray-800 rounded px-2 py-1 w-full text-white"
-                                autoFocus
-                              >
-                                {userTypes.filter(type => type.id !== 3).map((type) => (
-                                  <option key={type.id} value={type.id}>
-                                    {type.label}
-                                  </option>
-                                ))}
-                              </select>
-                              <button
-                                onClick={() => handleUpdateUser(account.username, 'upid', editingCell.value)}
-                                className="text-green-500 hover:text-green-400"
-                              >
-                                ✓
-                              </button>
-                              <button
-                                onClick={() => setEditingCell(null)}
-                                className="text-red-500 hover:text-red-400"
-                              >
-                                ✕
-                              </button>
-                            </div>
-                          ) : (
-                            <div
-                              onClick={() => startEditing(account.username, 'upid', account.upid)}
-                              className="cursor-pointer hover:bg-gray-700 px-2 py-1 rounded"
-                            >
-                              {getUpidLabel(account.upid)}
-                            </div>
-                          )
+                          <div
+                            onClick={() => setEditingCell({ username: account.username, field: 'upid', value: account.upid })}
+                            className="cursor-pointer hover:bg-gray-700 px-2 py-1 rounded"
+                          >
+                            {getUpidLabel(account.upid)}
+                          </div>
                         )}
                       </td>
-                      <td className={`px-6 py-4 whitespace-nowrap ${account.suspended ? 'text-red-400' : 'text-white'}`}>
+                      <td className="px-6 py-4 whitespace-nowrap">
                         {new Date(account.created_at).toLocaleDateString()}
                       </td>
-                      <td className={`px-6 py-4 whitespace-nowrap ${account.suspended ? 'text-red-400' : 'text-white'}`}>
+                      <td className="px-6 py-4 whitespace-nowrap">
                         {new Date(account.updated_at).toLocaleDateString()}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap min-w-[120px] text-center">
+                      <td className="px-6 py-4 whitespace-nowrap">
                         <button
                           onClick={() => {
                             if (account.suspended) {
@@ -1539,7 +887,7 @@ export default function AdminPage() {
                               setShowSuspendModal(true);
                             }
                           }}
-                          className={`px-6 py-2 inline-flex items-center justify-center text-sm leading-5 font-semibold rounded-full whitespace-nowrap min-w-[100px] ${
+                          className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                             account.suspended 
                               ? 'bg-red-900 text-red-200 cursor-pointer hover:bg-red-800' 
                               : 'bg-green-900 text-green-200 cursor-pointer hover:bg-green-800'
@@ -1604,37 +952,15 @@ export default function AdminPage() {
               <tbody className="divide-y divide-gray-800">
                 {getGroupedRelationships().slice(0, showAllRelationships ? undefined : 3).map((group, index) => (
                   <tr key={index} className="hover:bg-gray-800">
-                    <td 
-                      className={`px-6 py-4 whitespace-nowrap cursor-pointer hover:text-blue-400 ${
-                        userAccounts.find(u => u.username === group.parentUsername)?.suspended ? 'text-red-400' : 'text-white'
-                      }`}
-                      onClick={() => handleUserClick(group.parentUsername)}
-                    >
-                      {group.parentUsername}
-                    </td>
-                    <td className={`px-6 py-4 whitespace-nowrap ${
-                      userAccounts.find(u => u.username === group.parentUsername)?.suspended ? 'text-red-400' : 'text-white'
-                    }`}>
-                      {group.parentName}
-                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">{group.parentUsername}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{group.parentName}</td>
                     <td className="px-6 py-4 whitespace-nowrap">{group.parentAge}</td>
                     <td className="px-6 py-4">
                       <div className="space-y-2">
                         {group.children.map((child, childIndex) => (
                           <div key={childIndex} className="flex items-center space-x-2">
-                            <span 
-                              className={`cursor-pointer hover:text-blue-400 ${
-                                userAccounts.find(u => u.username === child.username)?.suspended ? 'text-red-400' : 'text-gray-400'
-                              }`}
-                              onClick={() => handleUserClick(child.username)}
-                            >
-                              {child.username}
-                            </span>
-                            <span className={`${
-                              userAccounts.find(u => u.username === child.username)?.suspended ? 'text-red-400' : 'text-gray-500'
-                            }`}>
-                              ({child.fullname})
-                            </span>
+                            <span className="text-gray-400">{child.username}</span>
+                            <span className="text-gray-500">({child.fullname})</span>
                             <span className="text-gray-500">- Age: {child.age}</span>
                           </div>
                         ))}
@@ -1670,102 +996,6 @@ export default function AdminPage() {
               </div>
             )}
           </div>
-        </div>
-
-        {/* Classrooms Table */}
-        <div className="bg-gray-900 rounded-lg shadow-lg p-6 mt-8">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold">Classrooms</h2>
-          </div>
-          
-          {loadingClassrooms ? (
-            <div className="text-center py-4">Loading classrooms...</div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-800">
-                <thead>
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Classroom Name</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Description</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Educator</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Students</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-800">
-                  {classrooms.slice(0, showAllClassrooms ? undefined : 3).map((classroom) => (
-                    <tr key={classroom.crid} className="hover:bg-gray-800">
-                      <td 
-                        className="px-6 py-4 whitespace-nowrap cursor-pointer hover:text-blue-400"
-                        onClick={() => {
-                          setShowDiscussionModal(true);
-                          fetchDiscussionData(classroom.crid, classroom.name);
-                        }}
-                      >
-                        {classroom.name}
-                      </td>
-                      <td className="px-6 py-4">{classroom.description}</td>
-                      <td 
-                        className={`px-6 py-4 whitespace-nowrap cursor-pointer hover:text-blue-400 ${
-                          userAccounts.find(u => u.fullname === classroom.educatorName)?.suspended ? 'text-red-400' : 'text-white'
-                        }`}
-                        onClick={() => {
-                          const educator = userAccounts.find(u => u.fullname === classroom.educatorName);
-                          if (educator) {
-                            handleUserClick(educator.username);
-                          }
-                        }}
-                      >
-                        {classroom.educatorName}
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="space-y-2">
-                          {classroom.students.map((student, index) => (
-                            <div key={index} className="flex items-center space-x-2">
-                              <span 
-                                className={`cursor-pointer hover:text-blue-400 ${
-                                  userAccounts.find(u => u.username === student.username)?.suspended ? 'text-red-400' : 'text-gray-400'
-                                }`}
-                                onClick={() => handleUserClick(student.username)}
-                              >
-                                {student.username}
-                              </span>
-                              <span className={`${
-                                userAccounts.find(u => u.username === student.username)?.suspended ? 'text-red-400' : 'text-gray-500'
-                              }`}>
-                                ({student.fullname})
-                              </span>
-                              <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                student.invitation_status === 'accepted' 
-                                  ? 'bg-green-900 text-green-200' 
-                                  : student.invitation_status === 'pending'
-                                  ? 'bg-yellow-900 text-yellow-200'
-                                  : 'bg-red-900 text-red-200'
-                              }`}>
-                                {student.invitation_status}
-                              </span>
-                            </div>
-                          ))}
-                          {classroom.students.length === 0 && (
-                            <span className="text-gray-500">No students</span>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {classrooms.length > 3 && (
-                <div className="mt-4 text-center">
-                  <button
-                    onClick={() => setShowAllClassrooms(!showAllClassrooms)}
-                    className="text-blue-400 hover:text-blue-300"
-                  >
-                    {showAllClassrooms ? 'Show Less' : `Show All (${classrooms.length} classrooms)`}
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
         </div>
       </main>
 
@@ -1888,14 +1118,6 @@ export default function AdminPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
           <div className="bg-gray-900 p-6 rounded-lg w-96">
             <h3 className="text-xl font-bold mb-4">Suspend User?</h3>
-            {selectedUser.suspended && selectedUser.comments && selectedUser.comments !== 'na' && (
-              <div className="mb-4">
-                <div className="text-sm text-gray-400 mb-1">Current Suspension Reason:</div>
-                <div className="p-3 bg-gray-800 rounded text-white mb-4">
-                  {selectedUser.comments}
-                </div>
-              </div>
-            )}
             <textarea
               placeholder="Enter suspension reason..."
               value={suspendComment}
@@ -1914,7 +1136,7 @@ export default function AdminPage() {
                 Cancel
               </button>
               <button
-                onClick={() => handleSuspendUser(selectedUser)}
+                onClick={handleSuspendUser}
                 className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded"
               >
                 Confirm
@@ -1927,16 +1149,8 @@ export default function AdminPage() {
       {/* Revert Suspension Modal */}
       {showRevertModal && selectedUser && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-          <div className="bg-gray-900 p-6 rounded-lg w-[400px]">
+          <div className="bg-gray-900 p-6 rounded-lg w-96">
             <h3 className="text-xl font-bold mb-4">Revert suspension?</h3>
-            <div className="mb-4">
-              <div className="text-sm text-gray-400 mb-1">Reason:</div>
-              <div className="p-3 bg-gray-800 rounded text-white">
-                {selectedUser.comments && selectedUser.comments !== 'na' 
-                  ? selectedUser.comments 
-                  : 'No reason provided'}
-              </div>
-            </div>
             <div className="mt-6 flex justify-end space-x-2">
               <button
                 onClick={() => {
@@ -1948,7 +1162,7 @@ export default function AdminPage() {
                 No
               </button>
               <button
-                onClick={() => handleRevertSuspension(selectedUser)}
+                onClick={handleRevertSuspension}
                 className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded"
               >
                 Yes
@@ -2233,90 +1447,6 @@ export default function AdminPage() {
           </div>
         </div>
       )}
-
-      {/* Discussion Modal */}
-      {showDiscussionModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-gray-900 p-6 rounded-lg w-[800px] max-h-[80vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-2xl font-bold">
-                {selectedDiscussion?.classroomName} - Discussion Board
-              </h3>
-              <button
-                onClick={() => {
-                  setShowDiscussionModal(false);
-                  setSelectedDiscussion(null);
-                }}
-                className="text-gray-400 hover:text-white"
-              >
-                ✕
-              </button>
-            </div>
-
-            {loadingDiscussion ? (
-              <div className="text-center py-4">Loading discussion board...</div>
-            ) : selectedDiscussion ? (
-              <div className="space-y-6">
-                <div className="bg-gray-800 rounded-lg p-4">
-                  <h4 className="text-lg font-semibold mb-2">Teacher&apos;s Question</h4>
-                  <p className="text-gray-300">
-                    {selectedDiscussion.teacherQuestion || 'No question available yet.'}
-                  </p>
-                </div>
-
-                <div className="bg-gray-800 rounded-lg p-4">
-                  <h4 className="text-lg font-semibold mb-4">Student Responses</h4>
-                  {selectedDiscussion.responses.length > 0 ? (
-                    <div className="space-y-4">
-                      {selectedDiscussion.responses.map((response) => (
-                        <div
-                          key={response.id}
-                          className="bg-gray-700 rounded-lg p-4"
-                        >
-                          <p className="text-gray-300">{response.message}</p>
-                          <div className="text-sm text-gray-400 mt-2 text-right">
-                            – {response.sender_name} • {new Date(response.created_at).toLocaleDateString()}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-gray-400 italic">No responses yet.</p>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div className="text-center py-4">No discussion data available.</div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* User Details Modal */}
-      {showUserModal && selectedUser && (
-        <UserDetailsModal
-          user={selectedUser}
-          onClose={() => {
-            setShowUserModal(false);
-            setSelectedUser(null);
-          }}
-          onStatusClick={(user) => {
-            if (user.suspended) {
-              setShowRevertModal(true);
-              setSelectedUser(user);
-            } else {
-              setShowSuspendModal(true);
-              setSelectedUser(user);
-            }
-            setShowUserModal(false);
-          }}
-          onEdit={handleUpdateUser}
-          userTypes={userTypes}
-          getUpidLabel={getUpidLabel}
-        />
-      )}
     </div>
   );
 } 
-
-// merge error test
