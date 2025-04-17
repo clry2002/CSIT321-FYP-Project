@@ -4,7 +4,7 @@ export interface Content {
   cid: number;
   title: string;
   coverimage?: string;
-  contenturl?: string;
+  contenturl?: string;  
   credit?: string;
   description?: string;
   cfid: number;
@@ -14,10 +14,10 @@ export interface ContentWithGenres extends Content {
   genres: string[];
 }
 
-// Modify GenreItem interface to reflect that temp_genre is an array
+// Modify GenreItem interface to reflect that temp_genre might be an array or null
 interface GenreItem {
   cid: number;
-  temp_genre: { genrename: string }[]; // temp_genre is an array of objects with genrename
+  temp_genre: { genrename: string }[] | null;
 }
 
 export async function fetchBookmarkedContent(accountId: string) {
@@ -72,12 +72,16 @@ export async function fetchBookmarkedContent(accountId: string) {
           if (!genresMap[item.cid]) {
             genresMap[item.cid] = [];
           }
-          // Now we loop over temp_genre array and push each genre name into the map
-          item.temp_genre.forEach(genre => {
-            if (genre.genrename) {
-              genresMap[item.cid].push(genre.genrename);
-            }
-          });
+
+          if (Array.isArray(item.temp_genre)) {
+            item.temp_genre.forEach(genre => {
+              if (genre.genrename) {
+                genresMap[item.cid].push(genre.genrename);
+              }
+            });
+          } else {
+            console.warn(`temp_genre is not an array for cid ${item.cid}:`, item.temp_genre);
+          }
         });
       }
 
