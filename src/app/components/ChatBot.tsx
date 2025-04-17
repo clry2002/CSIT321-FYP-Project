@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useChatbot } from '@/hooks/useChatbot';
 import { Send, MessageCircle, Volume2 } from 'lucide-react';
+import Image from 'next/image';
 import './styles.css';
 // import { useRouter } from 'next/navigation';
 
@@ -119,10 +120,11 @@ const ChatBot: React.FC = () => {
                         <strong>{item.title}</strong> - {item.description}
                         <br />
                         {item.coverimage && item.cfid !== 1 && (
-                          <img
+                          <Image
                             src={item.coverimage}
                             alt={`Cover of ${item.title}`}
                             width="100"
+                            height={150}
                             style={{ borderRadius: '8px', marginTop: '5px', cursor: 'pointer' }}
                             onClick={() => handleImageClick(item.coverimage)}
                           />
@@ -200,7 +202,13 @@ const ChatBot: React.FC = () => {
       {enlargedImage && (
         <div className="modal-overlay" onClick={closeModal}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <img src={enlargedImage} alt="Enlarged" className="enlarged-image" />
+            <Image 
+            src={enlargedImage} 
+            alt="Enlarged" 
+            className="enlarged-image"
+            width={600}
+            height={900}
+            />
             <button className="close-modal" onClick={closeModal}>✖</button>
           </div>
         </div>

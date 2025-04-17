@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase'; 
 import Navbar from '../../components/Navbar'; 
-import { useParams, useRouter } from 'next/navigation'; 
+import { useParams, useRouter } from 'next/navigation';
+import Image from 'next/image';
 
 type Classroom = {
   crid: number;
@@ -265,7 +266,7 @@ export default function ClassroomBoardPage() {
               ) : (
                 <div className="mt-6">
                   <h4 className="text-xl font-semibold text-gray-600 mb-2">Books to read!</h4>
-                  <img
+                  <Image
                     src={content.coverimage}
                     alt={content.title}
                     className="w-full h-64 object-cover rounded-lg mb-4"

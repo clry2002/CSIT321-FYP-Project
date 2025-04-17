@@ -15,6 +15,16 @@ type Classroom = {
   educatorFullName?: string;
 };
 
+
+type SupabaseUser = {
+  id: string;
+  email?: string;
+  user_metadata?: Record<string, unknown>;
+  app_metadata?: Record<string, unknown>;
+  aud?: string;
+  created_at?: string;
+};
+
 export default function ClassroomPage() {
  // const user = useUser();
   const [userAccountId, setUserAccountId] = useState<string | null>(null);
@@ -23,7 +33,7 @@ export default function ClassroomPage() {
   const [loadingInvited, setLoadingInvited] = useState(false);
   // const [loading, setLoading] = useState(true);
   const [, setLoading] = useState(true);
-  const [userState, setUserState] = useState<any | null>(null);
+  const [userState, setUserState] = useState<SupabaseUser | null>(null);
 
   const router = useRouter(); // Initialize useRouter hook
 
@@ -90,7 +100,7 @@ export default function ClassroomPage() {
         console.log('Fetched invited classrooms:', invites);
 
         const classroomIds = invites?.map(i => i.crid) || [];
-        const invitationStatuses = invites?.map(i => i.invitation_status) || [];
+       // const invitationStatuses = invites?.map(i => i.invitation_status) || [];
 
         if (classroomIds.length === 0) {
           console.log('No invited classrooms found.');

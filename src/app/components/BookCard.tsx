@@ -1,5 +1,6 @@
 // components/BookCard.tsx
 import { useState } from 'react';
+import Image from 'next/image';
 
 interface BookCardProps {
   title: string;
@@ -30,12 +31,16 @@ const BookCard = (props: BookCardProps) => {
     >
 
     {!imgError && coverimage ? (
-        <img 
+      <div className="relative w-full aspect-[3/4]">
+        <Image 
           src={coverimage}
           alt={`Cover for ${title}`}
+          width={300} // Add an appropriate width
+          height={400} // 
           className="w-full aspect-[3/4] object-cover"
           onError={() => setImgError(true)}
         />
+        </div>
       ) : (
         <div className="w-full aspect-[3/4] bg-gray-200 flex items-center justify-center text-gray-500">
           No Image

@@ -5,8 +5,22 @@ import Navbar from '../components/Navbar';
 import { supabase } from '@/lib/supabase';
 import Image from 'next/image';
 import type { Book, Video } from '@/types/database.types';
-import { useRouter } from 'next/navigation';
+// import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
+
+type SupabaseUser = {
+  id: string;
+  email?: string;
+  app_metadata: Record<string, unknown>;
+  user_metadata: Record<string, unknown>;
+  aud: string;
+  created_at?: string;
+};
+
+interface GenreItem {
+  cid: number;
+  temp_genre: Array<{genrename: string}> | {genrename: string};
+}
 
 export default function BookmarksPage() {
   // const router = useRouter();
@@ -14,7 +28,7 @@ export default function BookmarksPage() {
   const [bookmarkedVideos, setBookmarkedVideos] = useState<Video[]>([]);
   const [notification, setNotification] = useState<{ message: string; show: boolean }>({ message: '', show: false });
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<SupabaseUser | null>(null);
   const [childUaid, setChildUaid] = useState<string | null>(null);
   const [bookGenres, setBookGenres] = useState<Record<number, string[]>>({});
   const [videoGenres, setVideoGenres] = useState<Record<number, string[]>>({});
@@ -134,13 +148,13 @@ export default function BookmarksPage() {
         // Process book genres
         const bookGenresMap: Record<number, string[]> = {};
         if (bookGenresRes.data) {
-          bookGenresRes.data.forEach((item: any) => {
+          bookGenresRes.data.forEach((item: GenreItem) => {
             if (!bookGenresMap[item.cid]) {
               bookGenresMap[item.cid] = [];
             }
             const genreField = item.temp_genre;
             if (Array.isArray(genreField)) {
-              genreField.forEach((g: any) => {
+              genreField.forEach((g: {genrename: string}) => {
                 if (g && g.genrename) {
                   bookGenresMap[item.cid].push(g.genrename);
                 }
@@ -155,13 +169,13 @@ export default function BookmarksPage() {
         // Process video genres
         const videoGenresMap: Record<number, string[]> = {};
         if (videoGenresRes.data) {
-          videoGenresRes.data.forEach((item: any) => {
+          videoGenresRes.data.forEach((item: GenreItem) => {
             if (!videoGenresMap[item.cid]) {
               videoGenresMap[item.cid] = [];
             }
             const genreField = item.temp_genre;
             if (Array.isArray(genreField)) {
-              genreField.forEach((g: any) => {
+              genreField.forEach((g: {genrename: string}) => {
                 if (g && g.genrename) {
                   videoGenresMap[item.cid].push(g.genrename);
                 }
