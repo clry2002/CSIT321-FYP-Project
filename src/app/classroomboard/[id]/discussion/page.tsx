@@ -248,7 +248,7 @@ export default function DiscussionBoardPage() {
               placeholder="Write your response..."
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
-              className="w-full border rounded-lg p-2 h-24"
+              className="w-full border rounded-lg p-2 h-24 text-black placeholder-black"
               required
             />
             <button
