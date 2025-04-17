@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 // import Link from 'next/link';
@@ -24,24 +24,8 @@ export default function ParentHome() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [childToDelete, setChildToDelete] = useState<string | null>(null);
 
-  useEffect(() => {
-    // Check for success message in URL
-    const success = searchParams.get('success');
-    if (success) {
-      setNotificationMessage(success);
-      setShowNotification(true);
-      // Remove the success parameter from URL
-      const newUrl = window.location.pathname;
-      window.history.replaceState({}, '', newUrl);
-      // Hide notification after 5 seconds
-      setTimeout(() => setShowNotification(false), 5000);
-    }
-
-    // Always fetch parent data when component mounts or when url params change
-    fetchParentData();
-  }, [searchParams]);
-
-  const fetchParentData = async () => {
+  // Wrap fetchParentData with useCallback to avoid infinite re-renders
+  const fetchParentData = useCallback(async () => {
     setLoading(true);
     setError(null);
     console.log("Fetching parent data...");
@@ -146,7 +130,24 @@ export default function ParentHome() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [router]); // Include router in the dependencies since it's used in the function
+
+  useEffect(() => {
+    // Check for success message in URL
+    const success = searchParams.get('success');
+    if (success) {
+      setNotificationMessage(success);
+      setShowNotification(true);
+      // Remove the success parameter from URL
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, '', newUrl);
+      // Hide notification after 5 seconds
+      setTimeout(() => setShowNotification(false), 5000);
+    }
+
+    // Always fetch parent data when component mounts or when url params change
+    fetchParentData();
+  }, [searchParams, fetchParentData]); // Now we can safely include fetchParentData as a dependency
 
   // Function to handle delete confirmation
   const handleDeleteClick = (childId: string) => {

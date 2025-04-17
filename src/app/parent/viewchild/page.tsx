@@ -8,7 +8,6 @@ import { fetchBookmarkedContent, ContentWithGenres } from './fetchChildBookmark'
 
 interface ChildProfile {
   favourite_genres: string[];
-  //blocked_genres: string[];
   classrooms: {
     crid: number;
     name: string;
@@ -136,7 +135,6 @@ export default function ViewChild() {
       // Get child's profile data from child_details
       const { data: profileData, error: profileError } = await supabase
         .from('child_details')
-        //.select('favourite_genres, blocked_genres')
         .select('favourite_genres')
         .eq('child_id', userData.id)
         .single();
@@ -200,13 +198,6 @@ export default function ViewChild() {
     try {
       const childId = searchParams.get('childId');
       if (!childId || !accountId) return;
-  
-      // Get current blocked genres using account ID
-     // const { data: currentProfile } = await supabase
-      //  .from('child_details')
-      //  .select('blocked_genres')
-      //  .eq('child_id', accountId)
-      //  .single();
 
       const { data: currentProfile } = await supabase
         .from('blockedgenres')
@@ -360,7 +351,7 @@ export default function ViewChild() {
         .eq('child_id', accountId);
   
       if (deleteError) {
-        console.warn('Warning: Could not delete existing blockedgenres. This might be ok if none existed.');
+        console.warn('Warning: Could not delete existing blocked genres. This might be ok if none existed.');
       }
   
       // Insert new blocked genres if there are any

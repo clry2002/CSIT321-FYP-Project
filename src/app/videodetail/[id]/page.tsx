@@ -7,6 +7,14 @@ import { supabase } from '@/lib/supabase';
 import type { Video } from '@/types/database.types';
 import ChatBot from '../../components/ChatBot';
 
+interface GenreData {
+  temp_genre: {
+    genrename: string;
+  } | {
+    genrename: string;
+  }[];
+}
+
 export default function VideoDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -101,7 +109,7 @@ export default function VideoDetailPage() {
         if (genreError) throw genreError;
 
         const genreNames = Array.isArray(genreData)
-          ? genreData.flatMap((g: any) => {
+          ? genreData.flatMap((g: GenreData) => {
               const genreField = g.temp_genre;
 
               if (Array.isArray(genreField)) {

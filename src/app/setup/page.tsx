@@ -21,7 +21,7 @@ export default function SetupPage() {
   const [age, setAge] = useState('');
   const [userType, setUserType] = useState('');
   // const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
-  const [setSelectedGenres] = useState<string[]>([]);
+  // const [setSelectedGenres] = useState<string[]>([]);
   // const [parentEmail, setParentEmail] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);

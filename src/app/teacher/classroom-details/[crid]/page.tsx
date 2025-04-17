@@ -29,7 +29,8 @@ enum TabType {
 export default function ClassroomDetails() {
   const [classroom, setClassroom] = useState<Classroom | null>(null);
   const [loading, setLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState('');
+  // const [errorMessage, setErrorMessage] = useState('');
+  const [, setErrorMessage] = useState('');
   const [educatorId, setEducatorId] = useState<string | null>(null);
   
   // Tab state
@@ -46,8 +47,26 @@ export default function ClassroomDetails() {
 
   useEffect(() => {
     fetchEducatorId();
-    fetchClassroomDetails();
-  }, [crid]);
+
+  const fetchClassroomDetails = async () => {
+    setLoading(true);
+    setErrorMessage('');
+    const { data, error } = await supabase
+      .from('temp_classroom')
+      .select('crid, name, description')
+      .eq('crid', crid)
+      .single();
+
+    if (error || !data) {
+      setErrorMessage('Failed to fetch classroom details.');
+    } else {
+      setClassroom(data);
+    }
+    setLoading(false);
+  };
+  
+  fetchClassroomDetails();
+}, [crid]);
 
   const fetchEducatorId = async () => {
     try {
@@ -78,23 +97,6 @@ export default function ClassroomDetails() {
       console.error('Error in fetchEducatorId:', error);
       setErrorMessage('An error occurred while fetching the educator ID.');
     }
-  };
-
-  const fetchClassroomDetails = async () => {
-    setLoading(true);
-    setErrorMessage('');
-    const { data, error } = await supabase
-      .from('temp_classroom')
-      .select('crid, name, description')
-      .eq('crid', crid)
-      .single();
-
-    if (error || !data) {
-      setErrorMessage('Failed to fetch classroom details.');
-    } else {
-      setClassroom(data);
-    }
-    setLoading(false);
   };
 
   // Function to handle tab change

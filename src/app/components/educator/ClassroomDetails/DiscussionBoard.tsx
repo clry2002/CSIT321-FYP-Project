@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { MessageCircle, Plus, Edit, Trash2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
@@ -51,12 +51,6 @@ type DiscussionBoardProps = {
     initialize();
   }, []);
 
-  useEffect(() => {
-    if (userId) {
-      fetchDiscussions();
-    }
-  }, [classroomId, userId]);
-
   // Clear create modal error when typing
   useEffect(() => {
     if (newDiscussionQuestion.trim() && modalError === 'Please provide a question') {
@@ -71,7 +65,7 @@ type DiscussionBoardProps = {
     }
   }, [editQuestion, editModalError]);
 
-  const fetchDiscussions = async () => {
+  const fetchDiscussions = useCallback(async () => {
     setLoading(true);
     try {
       const { data: discussionsData, error: discussionError } = await supabase
@@ -109,7 +103,13 @@ type DiscussionBoardProps = {
     } finally {
       setLoading(false);
     }
-  };
+  }, [classroomId]);
+  
+  useEffect(() => {
+    if (userId) {
+      fetchDiscussions();
+    }
+  }, [userId, fetchDiscussions]);
 
   const handleCreateDiscussion = async () => {
     if (!newDiscussionQuestion.trim()) {

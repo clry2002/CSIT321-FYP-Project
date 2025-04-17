@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { X } from 'lucide-react';
 
@@ -23,6 +23,16 @@ type ClassroomStudent = {
     username: string;
     fullname: string;
   };
+};
+
+// Define the raw response type from Supabase
+type RawClassroomStudentResponse = {
+  uaid_child: string;
+  invitation_status: InvitationStatus;
+  user_account: {
+    username: string;
+    fullname: string;
+  } | null;
 };
 
 type StudentsSectionProps = {
@@ -52,16 +62,16 @@ export default function StudentsSection({ classroomId, educatorId }: StudentsSec
     setShowRejected(!showRejected);
   };
 
-  const fetchChildUsers = async () => {
+  const fetchChildUsers = useCallback (async () => {
     const { data, error } = await supabase
       .from('user_account')
       .select('id, username, fullname')
       .eq('upid', 3);
 
     if (!error && data) setAllChildren(data);
-  };
+  }, []);
 
-  const fetchClassroomStudents = async () => {
+  const fetchClassroomStudents = useCallback(async () => {
     const { data, error } = await supabase
       .from('temp_classroomstudents')
       .select(`
@@ -74,9 +84,10 @@ export default function StudentsSection({ classroomId, educatorId }: StudentsSec
       `)
       .eq('crid', classroomId);
 
-    if (!error && data) {
-      // Check if the user_account exists before trying to access its properties
-      const formattedData = data.map((item: any) => {
+      if (!error && data) {
+        const typedData = data as unknown as RawClassroomStudentResponse[];
+        // Check if the user_account exists before trying to access its properties
+        const formattedData = typedData.map((item): ClassroomStudent => {
         if (item.user_account) {
           return {
             ...item,
@@ -96,10 +107,10 @@ export default function StudentsSection({ classroomId, educatorId }: StudentsSec
 
       // Separate accepted/pending and rejected students
       const acceptedPending = formattedData.filter(
-        (item: any) => item.invitation_status !== InvitationStatus.Rejected
+        (item) => item.invitation_status !== InvitationStatus.Rejected
       );
       const rejected = formattedData.filter(
-        (item: any) => item.invitation_status === InvitationStatus.Rejected
+        (item) => item.invitation_status === InvitationStatus.Rejected
       );
 
       setClassroomStudents(acceptedPending);
@@ -107,12 +118,12 @@ export default function StudentsSection({ classroomId, educatorId }: StudentsSec
     } else {
       console.error('Failed to fetch classroom students:', error);
     }
-  };
+  },[classroomId]);
 
   useEffect(() => {
     fetchChildUsers();
     fetchClassroomStudents();
-  }, [classroomId]);
+  }, [fetchChildUsers, fetchClassroomStudents]);
 
   // Handle email input change
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {

@@ -39,7 +39,8 @@ export default function ManageClassroom() {
   ]);
 
   const [newResource, setNewResource] = useState({ type: '', value: '' });
-  const [selectedClassroom, setSelectedClassroom] = useState<Classroom | null>(null);
+  // const [selectedClassroom, setSelectedClassroom] = useState<Classroom | null>(null);
+  const [, setSelectedClassroom] = useState<Classroom | null>(null);
 
   // Handle new resource input (books, videos, schedules)
   const handleResourceInput = (event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {

@@ -71,7 +71,8 @@ export default function CreateClassroom() {
       const uaid_educator = userData.id;
 
       // Check if classroom name already exists
-      const { data: existingClassroom, error: duplicateCheckError } = await supabase
+      // const { data: existingClassroom, error: duplicateCheckError } = await supabase
+      const { data: existingClassroom } = await supabase
         .from('temp_classroom')
         .select('name')
         .eq('name', classroomName)
@@ -97,12 +98,17 @@ export default function CreateClassroom() {
       }
 
       router.push('/teacherpage');
-    } catch (error: any) {
-      console.error('Error creating classroom:', error);
-      setErrorMessage(error.message || 'Failed to create classroom');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        console.error('Error creating classroom:', error);
+        setErrorMessage(error.message || 'Failed to create classroom');
+      } else {
+        console.error('Unknown error:', error);
+        setErrorMessage('Failed to create classroom');
+      }
     } finally {
       setLoading(false);
-    }
+    }    
   };
 
   useEffect(() => {
