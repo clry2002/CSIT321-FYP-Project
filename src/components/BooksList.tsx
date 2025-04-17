@@ -9,6 +9,7 @@ export default function BooksList() {
   const [newBook, setNewBook] = useState<Omit<Book, 'id'>>({
     title: '',+
     author: '',
+    
   });
 
   if (loading) return <div>Loading books...</div>;

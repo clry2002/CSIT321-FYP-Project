@@ -12,9 +12,9 @@ type DiscussionEntry = {
   created_at: string;
 };
 
-type ProfileData = {
-  fullname: string;
-};
+// type ProfileData = {
+//   fullname: string;
+// };
 
 export default function DiscussionBoardPage() {
   const { id } = useParams(); // id = crid (classroom ID)

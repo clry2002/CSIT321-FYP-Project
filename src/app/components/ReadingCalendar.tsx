@@ -70,7 +70,7 @@ export default function ReadingCalendar({ selectedBook, onClose }: ReadingCalend
         const savedSchedules = localStorage.getItem('readingSchedules');
         if (savedSchedules) {
           const parsed = JSON.parse(savedSchedules);
-          setSchedules(parsed.map((schedule: any) => ({
+          setSchedules(parsed.map((schedule: { date: string; book_title: string; status?: string; }) => ({
             ...schedule,
             date: new Date(schedule.date),
             bookTitle: schedule.book_title,
