@@ -13,6 +13,9 @@ const AddBooks: React.FC = () => {
   const [coverImage, setCoverImage] = useState<File | null>(null); // For cover image
   const [minimumAge, setMinimumAge] = useState<number | ''>('');
   const [credits, setCredits] = useState('');  // New state for credits input
+  const [showErrorPopup, setShowErrorPopup] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [titleAvailable, setTitleAvailable] = useState<boolean | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -27,6 +30,38 @@ const AddBooks: React.FC = () => {
     fetchGenres();
   }, []);
 
+  useEffect(() => {
+    const checkTitle = async () => {
+      if (!title) {
+        setTitleAvailable(null);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('temp_content')
+          .select('title')
+          .ilike('title', title) // Using ilike for case-insensitive comparison
+          .eq('cfid', 2); // For books only
+
+        if (error) {
+          console.error('Error checking title:', error);
+          return;
+        }
+
+        setTitleAvailable(!data || data.length === 0);
+      } catch (error) {
+        console.error('Error checking title:', error);
+      }
+    };
+
+    checkTitle();
+  }, [title]);
+
+  const handleTitleChange = (value: string) => {
+    setTitle(value);
+  };
+
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files.length > 0) {
       setFile(event.target.files[0]);
@@ -40,14 +75,27 @@ const AddBooks: React.FC = () => {
   };
 
   const handleSubmit = async () => {
-    // Step 1: Ensure the user is logged in
+    // First check: All required fields
+    if (!title || !genre || !description || !file || !coverImage || minimumAge === '') {
+      setErrorMessage('Please fill in all fields and upload both a book file and cover image.');
+      setShowErrorPopup(true);
+      return;
+    }
+
+    // Second check: User authentication
     const { data: userData, error: userError } = await supabase.auth.getUser();
     const user = userData?.user;
 
-    console.log('User data:', user);  // Log the user data to check if the user is correctly authenticated
-
     if (!user || userError) {
-      alert('You must be logged in to upload a book.');
+      setErrorMessage('You must be logged in to upload a book.');
+      setShowErrorPopup(true);
+      return;
+    }
+
+    // Third check: Title availability
+    if (!titleAvailable) {
+      setErrorMessage('Book title already exists in database. Please choose a different title.');
+      setShowErrorPopup(true);
       return;
     }
 
@@ -60,7 +108,8 @@ const AddBooks: React.FC = () => {
 
     if (userAccountError) {
       console.error('Error fetching user account:', userAccountError);
-      alert('Error fetching user account data!');
+      setErrorMessage('Error fetching user account data!');
+      setShowErrorPopup(true);
       return;
     }
 
@@ -68,12 +117,8 @@ const AddBooks: React.FC = () => {
 
     if (!uaid_publisher) {
       console.error('User UUID not found!');
-      alert('User UUID not found!');
-      return;
-    }
-
-    if (!title || !genre || !description || !file || !coverImage || minimumAge === '') {
-      alert('Please fill in all fields and upload both a book file and cover image.');
+      setErrorMessage('User UUID not found!');
+      setShowErrorPopup(true);
       return;
     }
 
@@ -84,10 +129,12 @@ const AddBooks: React.FC = () => {
       .upload(filePath, file);
 
     if (uploadError) {
-      alert('File upload failed!');
       console.error('File upload error:', uploadError.message || uploadError);
+      setErrorMessage('File upload failed!');
+      setShowErrorPopup(true);
       return;
     }
+    // remove localhost popup
 
     // public url for book file
     const { data: publicURLData } = supabase.storage
@@ -102,8 +149,9 @@ const AddBooks: React.FC = () => {
       .upload(coverImagePath, coverImage);
 
     if (coverImageUploadError) {
-      alert('Cover image upload failed!');
       console.error('Cover image upload error:', coverImageUploadError.message || coverImageUploadError);
+      setErrorMessage('Cover image upload failed!');
+      setShowErrorPopup(true);
       return;
     }
 
@@ -133,7 +181,8 @@ const AddBooks: React.FC = () => {
 
     if (insertError || !insertedContent || insertedContent.length === 0) {
       console.error('Insert error:', insertError?.message || insertError);
-      alert('Failed to save book to database!');
+      setErrorMessage('Failed to save book to database!');
+      setShowErrorPopup(true);
       return;
     }
 
@@ -146,6 +195,9 @@ const AddBooks: React.FC = () => {
 
     if (genreInsertError) {
       console.error('Failed to insert genre relation:', genreInsertError.message || genreInsertError);
+      setErrorMessage('Failed to save genre information!');
+      setShowErrorPopup(true);
+      return;
     }
 
     alert('Book uploaded successfully!');
@@ -173,16 +225,52 @@ const AddBooks: React.FC = () => {
     <div className="flex flex-col h-screen bg-gray-100 p-6">
       <h1 className="text-2xl font-serif text-black mb-6">Add a New Book</h1>
 
+      {/* Error Popup */}
+      {showErrorPopup && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4">
+            <div className="text-center">
+              <div className="mb-4 text-red-600">
+                <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Error</h3>
+              <p className="text-sm text-gray-500 mb-6">{errorMessage}</p>
+              <button
+                onClick={() => setShowErrorPopup(false)}
+                className="w-full bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors"
+              >
+                Try Again
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="bg-white rounded-lg shadow-md p-4 space-y-4">
         <div>
           <label className="block text-sm text-gray-600 mb-2">Title:</label>
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Enter book title"
-            className="w-full px-4 py-2 border rounded-lg text-gray-700"
-          />
+          <div className="relative">
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => handleTitleChange(e.target.value)}
+              placeholder="Enter book title"
+              className={`w-full px-4 py-2 border rounded-lg text-gray-700 ${
+                title && (
+                  titleAvailable === false
+                    ? 'border-red-500 focus:ring-red-500'
+                    : ''
+                )
+              }`}
+            />
+            {title && titleAvailable === false && (
+              <div className="text-sm text-red-600 mt-1">
+                Book exists in database
+              </div>
+            )}
+          </div>
         </div>
 
         <div>

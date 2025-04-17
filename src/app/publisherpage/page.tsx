@@ -26,6 +26,7 @@ export default function PublisherPage() {
   const [videos, setVideos] = useState<Content[]>([]);
   const [uaidPublisher, setUaidPublisher] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [publisherName, setPublisherName] = useState<string>('');
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -40,7 +41,7 @@ export default function PublisherPage() {
 
       const { data: userAccountData, error: userAccountError } = await supabase
         .from('user_account')
-        .select('id')
+        .select('id, fullname')
         .eq('user_id', user.id)
         .single();
 
@@ -50,6 +51,7 @@ export default function PublisherPage() {
       }
 
       setUaidPublisher(userAccountData?.id || null);
+      setPublisherName(userAccountData?.fullname || 'Publisher');
       setLoading(false);
     };
 
@@ -113,7 +115,7 @@ export default function PublisherPage() {
     <div className="flex flex-col h-screen bg-gray-100 overflow-hidden">
       {/* Header Section */}
       <div className="flex justify-between items-center mb-6 px-6 py-5">
-        <h1 className="text-2xl font-serif text-black">Welcome, Publisher!</h1>
+        <h1 className="text-2xl font-serif text-black">Welcome, {publisherName}!</h1>
         <div className="flex space-x-3">
           <button
             className="bg-gray-900 text-white px-4 py-2 rounded-lg"
