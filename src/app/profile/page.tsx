@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Navbar from '../components/Navbar';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
@@ -23,7 +23,6 @@ function ErrorBoundary({ children }: { children: React.ReactNode }) {
 }
 
 export default function ProfilePage() {
-  // const { userAccount, userProfile, refreshProfile } = useSession();
   const { userAccount, userProfile } = useSession();
   const [profileData, setProfileData] = useState<{
     full_name: string;
@@ -34,19 +33,10 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (userAccount){ // only attempt to fetch if userAccount exists
-      fetchProfileData();
-    } else {
-      setLoading(false);
-      setError("You must logged in to view this page");
-    }
-  }, [userAccount, userProfile]);
-
-  const fetchProfileData = async () => {
+  const fetchProfileData = useCallback(async () => {
     try {
       setLoading(true);
-      
+
       if (!userAccount) {
         throw new Error('No user account found');
       }
@@ -74,7 +64,7 @@ export default function ProfilePage() {
         full_name: userData.fullname,
         username: userData.username,
         age: userData.age,
-        favourite_genres: profileData.favourite_genres || []
+        favourite_genres: profileData.favourite_genres || [],
       });
     } catch (err) {
       console.error('Error fetching profile data:', err);
@@ -82,9 +72,36 @@ export default function ProfilePage() {
     } finally {
       setLoading(false);
     }
-  };
-  
+  }, [userAccount]);
+
+  useEffect(() => {
+    if (userAccount) {
+      fetchProfileData();
+    } else {
+      setLoading(false);
+      setError("You must be logged in to view this page");
+    }
+  }, [userAccount, userProfile, fetchProfileData]);
+
   if (!userAccount && !loading) {
+    return (
+      <ErrorBoundary>
+        <div className="flex h-screen bg-white overflow-hidden">
+          <Navbar />
+          <div className="flex-1 overflow-y-auto pt-16">
+            <div className="px-6 py-8">
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">My Profile</h2>
+              <p className="text-red-600">{error}</p>
+              <Link href="/settings" className="mt-4 inline-block text-blue-500 hover:underline">
+                Back to Settings
+              </Link>
+            </div>
+          </div>
+        </div>
+      </ErrorBoundary>
+    );
+  }
+
   return (
     <ErrorBoundary>
       <div className="flex h-screen bg-white overflow-hidden">
@@ -143,5 +160,3 @@ export default function ProfilePage() {
     </ErrorBoundary>
   );
 }
-}
-

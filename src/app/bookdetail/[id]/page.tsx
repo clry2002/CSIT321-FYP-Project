@@ -27,6 +27,14 @@ export default function BookDetailPage() {
   const [childId, setChildId] = useState<number | null>(null);
   const [isBookmarked, setIsBookmarked] = useState<boolean>(false);
 
+  interface GenreField {
+    genrename: string;
+  }
+  
+  interface GenreData {
+    temp_genre: GenreField[] | GenreField | null;
+  }
+
   // Fetch child profile ID (uaid)
   useEffect(() => {
     const fetchChildProfile = async () => {
@@ -82,7 +90,7 @@ export default function BookDetailPage() {
         if (genreError) throw genreError;
 
         const genreNames = Array.isArray(genreData)
-          ? genreData.flatMap((g: any) => {
+          ? genreData.flatMap((g: GenreData) => {
               const genreField = g.temp_genre;
               if (Array.isArray(genreField)) {
                 return genreField.map((tg) => tg.genrename);

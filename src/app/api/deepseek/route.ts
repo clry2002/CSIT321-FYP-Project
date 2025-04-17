@@ -5,7 +5,12 @@ import { supabase } from '@/lib/supabase';
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
 
-async function queryDeepSeek(messages: any[]) {
+interface Message {
+  role: 'system' | 'user';
+  content: string;
+}
+
+async function queryDeepSeek(messages: Message[]) {
   const response = await fetch(DEEPSEEK_API_URL, {
     method: 'POST',
     headers: {

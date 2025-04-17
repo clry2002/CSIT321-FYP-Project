@@ -11,18 +11,23 @@ interface Content {
   genrename: string;
 }
 
+interface PublishedContent {
+  cid: number;
+  title: string;
+  credit: string;
+  cfid: number; // 1 for video, 2 for book
+  genrename: string;
+}
+
 export default function PublisherPage() {
   const router = useRouter();
 
-  // State for published books and videos
-  const [books, setBooks] = useState<Content[]>([]); // Specify the type for books state
-  const [videos, setVideos] = useState<Content[]>([]); // Specify the type for videos state
-
-  const [uaidPublisher, setUaidPublisher] = useState<string | null>(null); // Store the user ID (uaid)
-  const [loading, setLoading] = useState(true); // Add a loading state
+  const [books, setBooks] = useState<Content[]>([]);
+  const [videos, setVideos] = useState<Content[]>([]);
+  const [uaidPublisher, setUaidPublisher] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Fetch the logged-in user and their publisher account
     const fetchUser = async () => {
       const { data: userData, error: userError } = await supabase.auth.getUser();
 
@@ -33,7 +38,6 @@ export default function PublisherPage() {
 
       const user = userData.user;
 
-      // Fetch the user account ID (uaid) using the logged-in user ID
       const { data: userAccountData, error: userAccountError } = await supabase
         .from('user_account')
         .select('id')
@@ -45,15 +49,14 @@ export default function PublisherPage() {
         return;
       }
 
-      setUaidPublisher(userAccountData?.id || null); // Set the user account ID (uaid)
-      setLoading(false); // Set loading to false once the user is fetched
+      setUaidPublisher(userAccountData?.id || null);
+      setLoading(false);
     };
 
     fetchUser();
   }, []);
 
   useEffect(() => {
-    // Fetch published content when uaidPublisher is available
     const fetchPublishedContent = async () => {
       if (!uaidPublisher) {
         console.error('Publisher account ID (uaidPublisher) is null');
@@ -61,7 +64,9 @@ export default function PublisherPage() {
       }
 
       try {
-        const { data, error } = await supabase.rpc('view_published_book', { uaid_publisher: uaidPublisher });
+        const { data, error } = await supabase.rpc('view_published_book', {
+          uaid_publisher: uaidPublisher,
+        });
 
         if (error) {
           console.error('Error executing RPC function:', error.message);
@@ -69,25 +74,27 @@ export default function PublisherPage() {
         }
 
         console.log('Fetched content:', data);
-        
-        // Filter out only books (cfid = 2 indicates books) and videos (cfid = 1 indicates videos)
-        const filteredBooks = data.filter((content: any) => content.cfid === 2);
-        const filteredVideos = data.filter((content: any) => content.cfid === 1);
-        
-        // Map the filtered data to match the Content interface
-        const formattedBooks = filteredBooks.map((content: any) => ({
+
+        const contentList = data as PublishedContent[];
+
+        const filteredBooks = contentList.filter((content) => content.cfid === 2);
+        const filteredVideos = contentList.filter((content) => content.cfid === 1);
+
+        const formattedBooks: Content[] = filteredBooks.map((content) => ({
+          cid: content.cid,
           title: content.title,
           credit: content.credit,
           genrename: content.genrename,
         }));
-        const formattedVideos = filteredVideos.map((content: any) => ({
+        const formattedVideos: Content[] = filteredVideos.map((content) => ({
+          cid: content.cid,
           title: content.title,
           credit: content.credit,
           genrename: content.genrename,
         }));
-        
-        setBooks(formattedBooks); // Set the filtered books
-        setVideos(formattedVideos); // Set the filtered videos
+
+        setBooks(formattedBooks);
+        setVideos(formattedVideos);
       } catch (error) {
         console.error('Error fetching published content:', error);
       }
@@ -96,10 +103,10 @@ export default function PublisherPage() {
     if (!loading) {
       fetchPublishedContent();
     }
-  }, [uaidPublisher, loading]); // Fetch content when `uaidPublisher` is set and loading is complete
+  }, [uaidPublisher, loading]);
 
   if (loading) {
-    return <div>Loading...</div>; // Show a loading message until the session is loaded
+    return <div>Loading...</div>;
   }
 
   return (
@@ -116,7 +123,7 @@ export default function PublisherPage() {
           </button>
           <button
             className="bg-red-600 text-white px-4 py-2 rounded-lg"
-            onClick={() => router.push('/logout')} // Navigate to the logout page
+            onClick={() => router.push('/logout')}
           >
             Logout
           </button>
@@ -127,7 +134,6 @@ export default function PublisherPage() {
       <div className="flex-1 overflow-y-auto px-6 space-y-5">
         {/* Top Genres Section */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Top Book Genres */}
           <div className="bg-white rounded-lg shadow-md p-4">
             <h2 className="text-lg font-serif mb-3 text-black">Top Book Genres</h2>
             <ul className="list-disc list-inside text-gray-600 text-sm">
@@ -137,7 +143,6 @@ export default function PublisherPage() {
             </ul>
           </div>
 
-          {/* Top Video Genres */}
           <div className="bg-white rounded-lg shadow-md p-4">
             <h2 className="text-lg font-serif mb-3 text-black">Top Video Genres</h2>
             <ul className="list-disc list-inside text-gray-600 text-sm">
@@ -156,7 +161,7 @@ export default function PublisherPage() {
           </p>
           <button
             className="bg-blue-500 text-white px-4 py-2 rounded-lg w-full"
-            onClick={() => router.push('/publisher/book-analytics')} // Navigate to Books Analytics page
+            onClick={() => router.push('/publisher/book-analytics')}
           >
             View Books Analytics
           </button>
@@ -170,7 +175,7 @@ export default function PublisherPage() {
           </p>
           <button
             className="bg-blue-500 text-white px-4 py-2 rounded-lg w-full"
-            onClick={() => router.push('/publisher/video-analytics')} // Navigate to Videos Analytics page
+            onClick={() => router.push('/publisher/video-analytics')}
           >
             View Videos Analytics
           </button>

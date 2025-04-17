@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import Navbar from '../components/Navbar';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
-import { useSession } from '@/contexts/SessionContext';
+// import { useSession } from '@/contexts/SessionContext';
 import { useRouter } from 'next/navigation';
 
 function ErrorBoundary({ children }: { children: React.ReactNode }) {

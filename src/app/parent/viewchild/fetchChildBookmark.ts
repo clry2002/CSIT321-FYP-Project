@@ -14,6 +14,12 @@ export interface ContentWithGenres extends Content {
   genres: string[];
 }
 
+// Modify GenreItem interface to reflect that temp_genre is an array
+interface GenreItem {
+  cid: number;
+  temp_genre: { genrename: string }[]; // temp_genre is an array of objects with genrename
+}
+
 export async function fetchBookmarkedContent(accountId: string) {
   try {
     // Get bookmarked content from temp_bookmark using the user_account.id
@@ -62,13 +68,16 @@ export async function fetchBookmarkedContent(accountId: string) {
       // Create a map of content ID to genres
       const genresMap: Record<number, string[]> = {};
       if (genresData && genresData.length > 0) {
-        genresData.forEach((item: any) => {
+        genresData.forEach((item: GenreItem) => {
           if (!genresMap[item.cid]) {
             genresMap[item.cid] = [];
           }
-          if (item.temp_genre && item.temp_genre.genrename) {
-            genresMap[item.cid].push(item.temp_genre.genrename);
-          }
+          // Now we loop over temp_genre array and push each genre name into the map
+          item.temp_genre.forEach(genre => {
+            if (genre.genrename) {
+              genresMap[item.cid].push(genre.genrename);
+            }
+          });
         });
       }
 

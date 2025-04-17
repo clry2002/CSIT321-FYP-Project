@@ -26,9 +26,8 @@ interface BookResponse {
   description: string;
   contenturl: string;
   coverimage?: string;
-  cfid?: number;
-  cid?: number;
-  [key: string]: any;
+  cfid: number;
+  cid: number;
 }
 
 interface VideoResponse {
@@ -36,9 +35,8 @@ interface VideoResponse {
   description: string;
   contenturl: string;
   coverimage?: string;
-  cfid?: number;
-  cid?: number;
-  [key: string]: any;
+  cfid: number;
+  cid: number;
 }
 
 export const useChatbot = () => {
@@ -57,7 +55,7 @@ export const useChatbot = () => {
   const chatContainerRef = useRef<HTMLDivElement | null>(null);
 
   // Internal fetchChildData function
-  const fetchChildData = async () => {
+  const fetchChildData = useCallback(async () => {
     setIsLoading(true);
     console.log("Fetching child data...");
 
@@ -99,7 +97,7 @@ export const useChatbot = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [router]); // Include router in the dependency array
 
   // Fetch the user data and set the user ID (uaid_child)
   useEffect(() => {
@@ -109,7 +107,7 @@ export const useChatbot = () => {
     };
 
     fetchUser();
-  }, [router]);
+  }, [fetchChildData]); // Add fetchChildData to the dependency array
 
   const sendMessage = useCallback(async (message: string) => {
     if (!uaid_child) {

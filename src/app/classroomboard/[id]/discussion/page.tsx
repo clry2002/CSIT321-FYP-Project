@@ -6,10 +6,14 @@ import { supabase } from '@/lib/supabase';
 import Navbar from '../../../components/Navbar';
 
 type DiscussionEntry = {
-    id: number;
-    message: string;
-    sender_name: string;
-    created_at: string;
+  id: number;
+  message: string;
+  sender_name: string;
+  created_at: string;
+};
+
+type ProfileData = {
+  fullname: string;
 };
 
 export default function DiscussionBoardPage() {
@@ -17,8 +21,7 @@ export default function DiscussionBoardPage() {
   const [classroomName, setClassroomName] = useState('');
   const [teacherQuestion, setTeacherQuestion] = useState('');
   const [responses, setResponses] = useState<DiscussionEntry[]>([]);
-  // const [childName, setChildName] = useState('');
-  const [,setChildName] = useState('');
+  const [, setChildName] = useState('');
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -40,12 +43,12 @@ export default function DiscussionBoardPage() {
 
         // Fetch discussion board created (handle multiple boards)
         const { data: questionData, error: questionError } = await supabase
-        .from('discussionboard')
-        .select('question')
-        .eq('crid', classroomData?.crid)
-        .not('question', 'is', null)
-        .order('created_at', { ascending: true })
-        .limit(1)
+          .from('discussionboard')
+          .select('question')
+          .eq('crid', classroomData?.crid)
+          .not('question', 'is', null)
+          .order('created_at', { ascending: true })
+          .limit(1);
         
         // Handle array response
         if (questionError) throw questionError;
@@ -68,12 +71,23 @@ export default function DiscussionBoardPage() {
 
         // Enrich responses with sender names
         const enriched = await Promise.all(
-          (responsesData || []).map(async (entry: any) => {
-            const { data: profileData } = await supabase
-              .from('user_account')
-              .select('fullname')
-              .eq('user_id', entry.uaid)
-              .single();
+          (responsesData || []).map(async (entry) => {
+            const { data: profileData, error: profileError } = await supabase
+              .from('user_account') // Table name
+              .select('fullname') // Column you want to fetch
+              .eq('user_id', entry.uaid) // Filter condition
+              .single(); // Retrieve only one row
+
+            if (profileError) {
+              console.error('Error fetching profile data:', profileError);
+              return {
+                id: entry.did,
+                message: entry.response,
+                sender_name: 'Unknown',
+                created_at: entry.created_at,
+              };
+            }
+
             return {
               id: entry.did,
               message: entry.response,
@@ -98,11 +112,15 @@ export default function DiscussionBoardPage() {
 
         if (childError) throw childError;
         setChildName(childData!.fullname);
-      } catch (error: any) {
-        console.error('Error loading discussion board:', error.message || error);
+      } catch (error: unknown) {
+        if (error instanceof Error) {
+          console.error('Error loading discussion board:', error.message);
+        } else {
+          console.error('An unknown error occurred:', error);
+        }
       } finally {
         setLoading(false);
-      }
+      }      
     };
 
     fetchDiscussion();
@@ -127,11 +145,16 @@ export default function DiscussionBoardPage() {
           const newEntry = payload.new;
           if (!newEntry.response) return;
 
-          const { data: profileData } = await supabase
-            .from('user_account')
-            .select('fullname')
-            .eq('user_id', newEntry.uaid)
-            .single();
+          const { data: profileData, error: profileError } = await supabase
+            .from('user_account') // Table name
+            .select('fullname') // Column you want to fetch
+            .eq('user_id', newEntry.uaid) // Filter condition
+            .single(); // Retrieve only one row
+
+          if (profileError) {
+            console.error('Error fetching profile data:', profileError);
+            return;
+          }
 
           setResponses((prev) => [
             ...prev,

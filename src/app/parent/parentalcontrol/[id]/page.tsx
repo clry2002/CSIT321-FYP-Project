@@ -4,6 +4,13 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
+type UserProfile = {
+    id: string;
+    user_id: string;
+    fullname: string;
+    email: string;
+};
+
 export default function ParentalControlPage() {
     const router = useRouter();
     const params = useParams();
@@ -17,9 +24,9 @@ export default function ParentalControlPage() {
     const [success, setSuccess] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     //const [parentId, setParentId] = useState<string | null>(null);
-    const [childProfile, setChildProfile] = useState<any>(null);
-    const [parentProfile, setParentProfile] = useState<any>(null);
-
+    const [childProfile, setChildProfile] = useState<UserProfile | null>(null);
+    const [parentProfile, setParentProfile] = useState<UserProfile | null>(null);
+    
     useEffect(() => {
         const fetchParentalControls = async () => {
             setLoading(true);

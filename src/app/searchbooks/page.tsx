@@ -109,7 +109,7 @@ export default function SearchBooksPage() {
           return;
         }
 
-        const bookCids = rawBooks.map((book: { cid: any; }) => book.cid);
+        const bookCids = rawBooks.map((book: { cid: number }) => book.cid);
         const { data: genresMap, error: genreError } = await supabase
           .from('temp_contentgenres')
           .select('cid, gid')

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
 // Define types for chat message
@@ -12,7 +12,7 @@ type ChatMessage = {
   createddate: string;
 };
 
-// Types for content response
+// Book type
 type Book = {
   cid: number;
   cfid: number;
@@ -24,26 +24,32 @@ type Book = {
   description: string;
 };
 
+// Basic video type
+type Video = {
+  title: string;
+  description: string;
+};
+
+// Content response
 type ContentResponse = {
   genre?: string;
   books?: Book[];
-  videos?: any[];
+  videos?: Video[];
   books_ai?: string;
   videos_ai?: string;
   error?: string;
 };
 
-// Props for ChatHistory
+// Props
 interface ChatHistoryProps {
   userId: string;
 }
 
-// Component: ChatHistory
 function ChatHistory({ userId }: ChatHistoryProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [currentTime, setCurrentTime] = useState("");
+  const [currentTime, setCurrentTime] = useState('');
 
   useEffect(() => {
     setCurrentTime(new Date().toLocaleString());
@@ -63,17 +69,19 @@ function ChatHistory({ userId }: ChatHistoryProps) {
           .eq('uaid_child', userId);
 
         if (error) {
-          setError("Failed to load chat history.");
+          setError('Failed to load chat history.');
           console.error(error);
         } else {
-          const sortedMessages = (data ?? []).sort((a, b) =>
-            new Date(a.createddate).getTime() - new Date(b.createddate).getTime()
+          const sortedMessages = (data ?? []).sort(
+            (a, b) =>
+              new Date(a.createddate).getTime() -
+              new Date(b.createddate).getTime()
           );
           setMessages(sortedMessages);
         }
-      } catch (err) {
-        console.error("Error fetching chat history:", err);
-        setError("Failed to load chat history.");
+      } catch (fetchError) {
+        console.error('Error fetching chat history:', fetchError);
+        setError('Failed to load chat history.');
       } finally {
         setLoading(false);
       }
@@ -82,41 +90,41 @@ function ChatHistory({ userId }: ChatHistoryProps) {
     fetchChatHistory();
   }, [userId]);
 
-  // Function to parse and format chatbot response content
   const formatChatbotResponse = (content: string) => {
     try {
-      // Check if this might be a JSON or object string
       if (content.includes('{') && content.includes('}')) {
-        // Try to parse as object/JSON
         const contentObj = JSON.parse(content.replace(/'/g, '"'));
-        
-        // If it's a content response object
-        if (contentObj.genre || contentObj.books || contentObj.videos) {
+
+        if (
+          contentObj.genre ||
+          contentObj.books ||
+          contentObj.videos ||
+          contentObj.books_ai ||
+          contentObj.videos_ai
+        ) {
           return renderContentResponse(contentObj);
         }
       }
-      
-      // Handle HTML content (from AI responses with <br>, <h3>, etc.)
+
       if (content.includes('<br>') || content.includes('<h3>')) {
         return <div dangerouslySetInnerHTML={{ __html: content }} />;
       }
-      
-      // Default - return as plain text
+
       return <p>{content}</p>;
-    } catch (e) {
-      // If parsing fails, just return the raw text
+    } catch {
       return <p>{content}</p>;
     }
   };
-  
-  // Render formatted content response
+
   const renderContentResponse = (content: ContentResponse) => {
     return (
       <div className="space-y-4">
         {content.genre && (
-          <p className="font-medium">Here are some {content.genre} recommendations for you:</p>
+          <p className="font-medium">
+            Here are some {content.genre} recommendations for you:
+          </p>
         )}
-        
+
         {content.books && content.books.length > 0 && (
           <div className="space-y-3">
             <h3 className="font-bold text-lg">Books:</h3>
@@ -129,7 +137,7 @@ function ChatHistory({ userId }: ChatHistoryProps) {
             ))}
           </div>
         )}
-        
+
         {content.videos && content.videos.length > 0 && (
           <div className="space-y-3">
             <h3 className="font-bold text-lg">Videos:</h3>
@@ -141,22 +149,20 @@ function ChatHistory({ userId }: ChatHistoryProps) {
             ))}
           </div>
         )}
-        
+
         {content.books_ai && (
           <div className="mt-3">
             <div dangerouslySetInnerHTML={{ __html: content.books_ai }} />
           </div>
         )}
-        
+
         {content.videos_ai && (
           <div className="mt-3">
             <div dangerouslySetInnerHTML={{ __html: content.videos_ai }} />
           </div>
         )}
-        
-        {content.error && (
-          <p className="text-red-500">{content.error}</p>
-        )}
+
+        {content.error && <p className="text-red-500">{content.error}</p>}
       </div>
     );
   };
@@ -165,7 +171,9 @@ function ChatHistory({ userId }: ChatHistoryProps) {
     <div className="w-full h-screen flex flex-col items-center bg-gray-100 overflow-y-auto px-4 py-6">
       <div className="w-full max-w-4xl bg-white rounded-xl shadow-md p-6">
         <h2 className="text-2xl font-bold mb-2 text-gray-800">Chat History</h2>
-        <p className="text-sm text-gray-500 mb-4">Current Time: {currentTime}</p>
+        <p className="text-sm text-gray-500 mb-4">
+          Current Time: {currentTime}
+        </p>
 
         {loading ? (
           <p className="text-gray-700">Loading chat history...</p>
@@ -189,13 +197,15 @@ function ChatHistory({ userId }: ChatHistoryProps) {
                     {formatChatbotResponse(msg.context)}
                   </div>
                 ) : (
-                  <p className="mb-1 break-words whitespace-pre-wrap">{msg.context}</p>
+                  <p className="mb-1 break-words whitespace-pre-wrap">
+                    {msg.context}
+                  </p>
                 )}
                 <span className="text-xs text-gray-600 block text-right">
-                  {new Date(msg.createddate).toLocaleString("en-US", {
-                    dateStyle: "short",
-                    timeStyle: "short",
-                    timeZone: "UTC",
+                  {new Date(msg.createddate).toLocaleString('en-US', {
+                    dateStyle: 'short',
+                    timeStyle: 'short',
+                    timeZone: "Asia/Singapore", // SG timezone
                   })}
                 </span>
               </div>
@@ -207,19 +217,22 @@ function ChatHistory({ userId }: ChatHistoryProps) {
   );
 }
 
-// Utility function to fetch child data
+// Utility to fetch child data
 const fetchChildData = async (
   setUserFullName: (name: string | null) => void,
   setIsLoading: (value: boolean) => void,
-  router: any
-) => {
+  router: ReturnType<typeof useRouter>
+): Promise<string | null> => {
   setIsLoading(true);
 
   try {
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
 
     if (userError || !user) {
-      console.error("Error getting auth user:", userError);
+      console.error('Error getting auth user:', userError);
       router.push('/landing');
       return null;
     }
@@ -245,7 +258,6 @@ const fetchChildData = async (
   }
 };
 
-// Main ChatPage component
 export default function ChatPage() {
   const [userFullName, setUserFullName] = useState<string | null>(null);
   const [uaidChild, setUaidChild] = useState<string | null>(null);
@@ -258,7 +270,7 @@ export default function ChatPage() {
       setUaidChild(childId);
     };
     loadData();
-  }, []);
+  }, [router]);
 
   if (isLoading) return <p className="text-center mt-20">Loading...</p>;
 

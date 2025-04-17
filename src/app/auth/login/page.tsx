@@ -6,6 +6,7 @@ import Link from 'next/link';
 import Image from 'next/image'; // Import the Image component
 import { supabase } from '@/lib/supabase';
 
+// Define types for UserProfile and UserData
 interface UserProfile {
   upid: number;
 }
@@ -13,6 +14,11 @@ interface UserProfile {
 interface UserData {
   upid: number;
   userprofile: UserProfile;
+}
+
+interface ErrorData {
+  message: string;
+  code?: number;
 }
 
 export default function LoginPage() {
@@ -46,10 +52,10 @@ export default function LoginPage() {
             )
           `)
           .eq('user_id', data.user.id)
-          .single() as { data: UserData | null, error: any };
+          .single() as { data: UserData | null, error: ErrorData | null }; // Fixed type
 
         if (userError) {
-          console.error('Error fetching user type:', userError);
+          console.error('Error fetching user type:', userError.message);
           throw new Error('Failed to fetch user profile');
         }
 
@@ -178,7 +184,3 @@ export default function LoginPage() {
     </div>
   );
 }
-
-
-
-//test

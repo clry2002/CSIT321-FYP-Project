@@ -211,6 +211,17 @@ export default function VideoDetailPage() {
 
   return (
     <div className="flex h-screen bg-white">
+      {/* Notification Toast */}
+      {notification.show && (
+        <div
+          className={`fixed top-4 right-4 z-50 px-4 py-2 rounded-lg shadow-md transition-opacity duration-300 ${
+            notification.message.includes('Failed') ? 'bg-red-500' : 'bg-green-500'
+          } text-white`}
+        >
+          {notification.message}
+        </div>
+      )}
+
       <Navbar />
       <div className="flex-1 overflow-y-auto pt-16 px-6">
         <div className="max-w-4xl mx-auto mt-8">
@@ -240,7 +251,6 @@ export default function VideoDetailPage() {
                 </div>
               )}
 
-              {/* If no YouTube video, show link to open in a new tab */}
               {video.contenturl && !video.contenturl.includes('youtube.com') && (
                 <div className="mt-8">
                   <a
@@ -271,8 +281,6 @@ export default function VideoDetailPage() {
                     </p>
                   </div>
                 )}
-                
-                {/* Genres */}
                 {genres.length > 0 && (
                   <div>
                     <h2 className="text-gray-600">Genres</h2>
@@ -288,13 +296,11 @@ export default function VideoDetailPage() {
                     </div>
                   </div>
                 )}
-
                 <div>
                   <h2 className="text-gray-600">Summary</h2>
                   <p className="text-gray-900">{video.description}</p>
                 </div>
 
-                {/* Bookmark button */}
                 <div className="mt-4">
                   <button
                     onClick={handleBookmark}

@@ -62,3 +62,19 @@ export interface Database {
         };
     };
 }
+
+// Additional for Searchbooks
+export interface RawBook {
+    cid: number;
+    title: string;
+    description: string;
+    coverimage: string;
+    credit: string;
+    contenturl: string;
+    content_format: string;
+  }
+  
+  export interface BookWithGenres extends RawBook {
+    genreNames?: string[];
+  }
+  
