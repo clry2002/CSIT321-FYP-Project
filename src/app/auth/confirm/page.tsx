@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 
-export default function ConfirmPage() {
+function ConfirmPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [error, setError] = useState<string | null>(null);
@@ -34,7 +34,7 @@ export default function ConfirmPage() {
 
         // After verification, check if user has a profile
         const { data: { user } } = await supabase.auth.getUser();
-        
+
         if (!user) throw new Error('User not found after verification');
 
         const { data: profile } = await supabase
@@ -76,7 +76,7 @@ export default function ConfirmPage() {
         <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-xl shadow-lg text-center">
           <div className="text-red-500 text-lg font-medium">Verification Failed</div>
           <p className="text-gray-600">{error}</p>
-          <Link 
+          <Link
             href="/auth/login"
             className="inline-block mt-4 text-rose-500 hover:text-rose-600"
           >
@@ -97,4 +97,12 @@ export default function ConfirmPage() {
       </div>
     </div>
   );
-} 
+}
+
+export default function ConfirmPage() {
+  return (
+    <Suspense fallback={<p>Loading...</p>}>
+      <ConfirmPageContent />
+    </Suspense>
+  );
+}
