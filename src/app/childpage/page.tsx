@@ -12,6 +12,7 @@ import { useVideos } from '../../hooks/useVideos';
 import { useSession } from '@/contexts/SessionContext';
 import { supabase } from '@/lib/supabase';
 import { useEffect, useState } from 'react';
+import { Book } from '../../types/database.types';
 
 // Import the updated screen time components
 // import ScreenTimeTracker from '../components/child/ScreenTimeTracker';
@@ -66,7 +67,7 @@ import { useEffect, useState } from 'react';
 
 
 export default function ChildPage() {
-  const [recommendedBooks, setRecommendedBooks] = useState<any[]>([]);
+  const [recommendedBooks, setRecommendedBooks] = useState<Book[]>([]);
   const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(true); // Added loading state for recommendations
   //const { availableBooks, recommendedForYouBooks } = useBooks();
   const { availableBooks } = useBooks();
