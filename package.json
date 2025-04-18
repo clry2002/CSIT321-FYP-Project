@@ -44,5 +44,10 @@
     "tailwindcss": "^4",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.30.1"
+  },
+  "overrides": {
+    "@tailwindcss/oxide": {
+      "tailwindcss": "^3.3.0"
+    }
   }
 }
