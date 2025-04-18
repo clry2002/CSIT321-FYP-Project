@@ -6,7 +6,13 @@
 
 // Modify for deployment purposes
 // postcss.config.js
-import { join } from 'path';
+// postcss.config.mjs
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+// Create __dirname equivalent for ESM
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const config = {
   plugins: {
