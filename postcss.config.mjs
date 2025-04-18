@@ -14,12 +14,11 @@ import { dirname, join } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+// With nesting plugin
 const config = {
   plugins: {
-    'tailwindcss/nesting': {},
-    tailwindcss: {
-      config: join(__dirname, 'tailwind.config.ts')
-    },
+    'postcss-nesting': {},
+    tailwindcss: {},
     autoprefixer: {},
   },
 };
