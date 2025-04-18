@@ -15,6 +15,7 @@
 // export default config; 
 // tailwind.config.js
 
+// Revised for deployment purpose
 module.exports = {
   content: [
     "./app/**/*.{js,ts,jsx,tsx}",
