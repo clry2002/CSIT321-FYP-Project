@@ -83,6 +83,12 @@ const ChatBot: React.FC = () => {
     }
   };
 
+  const processMessage = (message: string) => {
+    // Replace double asterisks with <b> tags
+    return message.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+  };
+  
+
   const handleCloseChat = () => {
     setIsOpen(false);
     window.speechSynthesis.cancel();
@@ -176,7 +182,7 @@ const ChatBot: React.FC = () => {
                     ))}
                   </ul>
                 ) : (
-                  <div dangerouslySetInnerHTML={{ __html: typeof message.content === "string" ? message.content : "" }} />
+                  <div dangerouslySetInnerHTML={{ __html: typeof message.content === "string" ? processMessage(message.content): "" }} />
                 )}
               </div>
             </div>

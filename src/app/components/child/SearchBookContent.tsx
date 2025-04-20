@@ -182,11 +182,17 @@ function SearchResults({ query }: { query: string }) {
             return { ...book, genreNames: allowedGenreNames };
           });
 
-        if (filteredBooks.length === 0) {
-          setError('This genre has been blocked, please search another genre.');
-        } else {
-          setError(null);
-        }
+          if (filteredBooks.length === 0) {
+            if (rawBooks.length > 0) {
+              // Filtered out due to blocked genres
+              setError('This genre has been blocked, please search another genre.');
+            } else {
+              // No results were found in the database
+              setError('No matching books found for your search.');
+            }
+          } else {
+            setError(null);
+          }
 
         setBooks(filteredBooks);
       } catch (err) {
