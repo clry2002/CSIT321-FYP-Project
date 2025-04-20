@@ -21,7 +21,15 @@ function ChatHistory({ userId }: ChatHistoryProps) {
   const router = useRouter();
 
   useEffect(() => {
-    setCurrentTime(new Date().toLocaleString());
+    setCurrentTime(new Date().toLocaleString('en-GB',{
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+        timeZone: "Asia/Singapore"
+    }));
   }, []);
 
   useEffect(() => {
@@ -80,12 +88,13 @@ function ChatHistory({ userId }: ChatHistoryProps) {
   // Format date for display
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
+    const formattedDate = date.toLocaleDateString('en-GB', {
       weekday: 'long',
       year: 'numeric',
       month: 'long',
       day: 'numeric'
     });
+    return formattedDate.replace(/(^[A-Z][a-z]+)( \d)/, '$1,$2');
   };
 
   // Get currently selected date group
@@ -105,9 +114,16 @@ function ChatHistory({ userId }: ChatHistoryProps) {
       <div className="w-full flex flex-col items-center bg-gray-100 px-4 py-6">
         <div className="w-full max-w-4xl bg-white rounded-xl shadow-md p-6">
           <h2 className="text-2xl font-bold mb-2 text-gray-800">Chat History</h2>
-          <p className="text-sm text-gray-500 mb-4">
-            Current Time: {currentTime}
-          </p>
+          <div className="flex justify-between items-start mb-4">
+            <div>
+              <p className="text-sm text-gray-500">
+                Current Time: {currentTime}
+              </p>
+              <p className="text-sm text-red-500 italic mt-1">
+                Note: Chat messages are automatically deleted after 1 week
+              </p>
+            </div>
+          </div>
 
           {loading ? (
             <p className="text-gray-700">Loading chat history...</p>

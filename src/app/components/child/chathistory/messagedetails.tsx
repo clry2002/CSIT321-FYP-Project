@@ -25,8 +25,10 @@ const MessageDisplay: React.FC<MessageDisplayProps> = ({ message }) => {
           {message.context}
         </p>
       )}
-      <span className="text-xs text-gray-600 block text-right">
-        {new Date(message.createddate + 'Z').toLocaleString('en-US', {
+      <span className={`text-xs block text-right ${
+        message.ischatbot ? 'text-gray-500' : 'text-white' 
+      }`}>
+        {new Date(message.createddate + 'Z').toLocaleString('en-GB', {
           dateStyle: 'short',
           timeStyle: 'short',
           timeZone: "Asia/Singapore", // SG timezone
