@@ -54,10 +54,12 @@ interface ChatHistoryProps {
 }
 
 function ChatHistory({ userId }: ChatHistoryProps) {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [, setMessages] = useState<ChatMessage[]>([]);
+  const [groupedMessages, setGroupedMessages] = useState<{ date: string; messages: ChatMessage[] }[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState('');
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -87,6 +89,15 @@ function ChatHistory({ userId }: ChatHistoryProps) {
               new Date(b.createddate).getTime()
           );
           setMessages(sortedMessages);
+          
+          // Group messages by date
+          const grouped = groupMessagesByDate(sortedMessages);
+          setGroupedMessages(grouped);
+          
+          // Set the most recent date as selected by default
+          if (grouped.length > 0 && !selectedDate) {
+            setSelectedDate(grouped[grouped.length - 1].date);
+          }
         }
       } catch (fetchError) {
         console.error('Error fetching chat history:', fetchError);
@@ -97,7 +108,29 @@ function ChatHistory({ userId }: ChatHistoryProps) {
     }
 
     fetchChatHistory();
-  }, [userId]);
+  }, [userId, selectedDate]);
+
+  // Group messages by date
+  const groupMessagesByDate = (messages: ChatMessage[]) => {
+    const groups: { date: string; messages: ChatMessage[] }[] = [];
+    
+    messages.forEach((message) => {
+      const messageDate = new Date(message.createddate);
+      const dateString = messageDate.toDateString();
+      
+      const existingGroup = groups.find(group => group.date === dateString);
+      if (existingGroup) {
+        existingGroup.messages.push(message);
+      } else {
+        groups.push({
+          date: dateString,
+          messages: [message]
+        });
+      }
+    });
+    
+    return groups;
+  };
 
   // Extract video ID from YouTube URL - Improved to handle more formats
   const getVideoId = (contentUrl: string) => {
@@ -172,15 +205,6 @@ function ChatHistory({ userId }: ChatHistoryProps) {
       }
     }
     
-    // // If there's no CID but there's a contentUrl, extract video ID and build a fallback URL
-    // if (video.contentUrl) {
-    //   const videoId = getVideoId(video.contentUrl);
-    //   if (videoId) {
-    //     window.open(`https://www.youtube.com/watch?v=${videoId}`, '_blank');
-    //     return;
-    //   }
-    // }
-    
     // Last resort - search by title
     handleSearch(video.title, 'videos');
   };
@@ -195,13 +219,12 @@ function ChatHistory({ userId }: ChatHistoryProps) {
   const VideoThumbnail = ({ contentUrl, title }: { contentUrl?: string, title: string }) => {
     console.log('Rendering video thumbnail for:', title, 'URL:', contentUrl);
 
-  if (!contentUrl) {
-    console.warn(`Missing contentUrl for video: "${title}"`);
-  }
-  
-  const videoId = contentUrl ? getVideoId(contentUrl) : null;
-  console.log('Extracted video ID:', videoId);
-
+    if (!contentUrl) {
+      console.warn(`Missing contentUrl for video: "${title}"`);
+    }
+    
+    const videoId = contentUrl ? getVideoId(contentUrl) : null;
+    console.log('Extracted video ID:', videoId);
 
     // If we couldn't extract a video ID or there's no content URL, show fallback immediately
     if (!videoId || !contentUrl) {
@@ -277,6 +300,11 @@ function ChatHistory({ userId }: ChatHistoryProps) {
 
   const handleBackPage = () => {
     router.back();
+  };
+
+  // Handler for date selection
+  const handleDateSelect = (date: string) => {
+    setSelectedDate(date);
   };
 
   // Render recommendations based on the UI in the screenshot
@@ -491,42 +519,42 @@ function ChatHistory({ userId }: ChatHistoryProps) {
             )}
             
             {books.length > 0 && (
-  <div className="space-y-3">
-    <h3 className="font-bold text-lg">Books:</h3>
-    {books.map((book, index) => (
-      <div key={index} className="bg-white p-3 rounded shadow-sm">
-        <div className="flex flex-col">
-          <div className="w-full mb-3">
-            {book.coverimage ? (
-              <Image
-                src={book.coverimage}
-                alt={`Cover of ${book.title}`}
-                width={800} 
-                height={400}
-                className="w-full object-cover rounded"
-              />
-            ) : (
-              <div className="w-full h-64 bg-gray-200 rounded flex items-center justify-center">
-                <span className="text-gray-500 text-xs">Cover</span>
+              <div className="space-y-3">
+                <h3 className="font-bold text-lg">Books:</h3>
+                {books.map((book, index) => (
+                  <div key={index} className="bg-white p-3 rounded shadow-sm">
+                    <div className="flex flex-col">
+                      <div className="w-full mb-3">
+                        {book.coverimage ? (
+                          <Image
+                            src={book.coverimage}
+                            alt={`Cover of ${book.title}`}
+                            width={800} 
+                            height={400}
+                            className="w-full object-cover rounded"
+                          />
+                        ) : (
+                          <div className="w-full h-64 bg-gray-200 rounded flex items-center justify-center">
+                            <span className="text-gray-500 text-xs">Cover</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-grow">
+                        <h4 className="font-bold">{book.title}</h4>
+                        <p className="text-sm">{book.description}</p>
+                        <p className="text-xs mt-1">For ages {book.minimumage}+</p>
+                        <button 
+                          className="mt-2 px-3 py-1 bg-rose-500 text-white text-sm rounded hover:bg-rose-600 transition-colors"
+                          onClick={() => handleViewDetails(book)}
+                        >
+                          View Book Details
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
-          </div>
-          <div className="flex-grow">
-            <h4 className="font-bold">{book.title}</h4>
-            <p className="text-sm">{book.description}</p>
-            <p className="text-xs mt-1">For ages {book.minimumage}+</p>
-            <button 
-              className="mt-2 px-3 py-1 bg-rose-500 text-white text-sm rounded hover:bg-rose-600 transition-colors"
-              onClick={() => handleViewDetails(book)}
-            >
-              View Book Details
-            </button>
-          </div>
-        </div>
-      </div>
-    ))}
-  </div>
-)}
             
             {videos.length > 0 && (
               <div className="space-y-3">
@@ -663,63 +691,118 @@ function ChatHistory({ userId }: ChatHistoryProps) {
     );
   };
 
+  // Format date for display
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
+  
+  // Format date for button display - shorter format
+  const formatDateForButton = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
+  // Get currently selected date group
+  const selectedDateGroup = groupedMessages.find(group => group.date === selectedDate);
+
   return (
     <div className="max-w-4xl mx-auto mt-8">
-          <div className="flex justify-start">
-            <button
-              onClick={handleBackPage}
-              className="mb-6 px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition"
-            >
-              ← Back
-            </button>
-          </div>
-      
-    <div className="w-full h-screen flex flex-col items-center bg-gray-100 overflow-y-auto px-4 py-6">
-      <div className="w-full max-w-4xl bg-white rounded-xl shadow-md p-6">
-        <h2 className="text-2xl font-bold mb-2 text-gray-800">Chat History</h2>
-        <p className="text-sm text-gray-500 mb-4">
-          Current Time: {currentTime}
-        </p>
-
-        {loading ? (
-          <p className="text-gray-700">Loading chat history...</p>
-        ) : error ? (
-          <p className="text-red-600">{error}</p>
-        ) : messages.length === 0 ? (
-          <p className="text-gray-500">No chat history found.</p>
-        ) : (
-          <div className="flex flex-col space-y-4">
-            {messages.map((msg) => (
-              <div
-                key={msg.chid}
-                className={`max-w-[80%] p-4 rounded-lg shadow-md ${
-                  msg.ischatbot
-                    ? 'bg-gray-200 text-gray-900 self-start'
-                    : 'bg-rose-500 text-white self-end'
-                }`}
-              >
-                {msg.ischatbot ? (
-                  <div className="break-words">
-                    {extractRecommendations(msg.context)}
-                  </div>
-                ) : (
-                  <p className="mb-1 break-words whitespace-pre-wrap">
-                    {msg.context}
-                  </p>
-                )}
-                <span className="text-xs text-gray-600 block text-right">
-                  {new Date(msg.createddate + 'Z').toLocaleString('en-US', {
-                    dateStyle: 'short',
-                    timeStyle: 'short',
-                    timeZone: "Asia/Singapore", // SG timezone
-                  })}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
+      <div className="flex justify-start">
+        <button
+          onClick={handleBackPage}
+          className="mb-6 px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition"
+        >
+          ← Back
+        </button>
       </div>
-    </div>
+      
+      <div className="w-full flex flex-col items-center bg-gray-100 px-4 py-6">
+        <div className="w-full max-w-4xl bg-white rounded-xl shadow-md p-6">
+          <h2 className="text-2xl font-bold mb-2 text-gray-800">Chat History</h2>
+          <p className="text-sm text-gray-500 mb-4">
+            Current Time: {currentTime}
+          </p>
+
+          {loading ? (
+            <p className="text-gray-700">Loading chat history...</p>
+          ) : error ? (
+            <p className="text-red-600">{error}</p>
+          ) : groupedMessages.length === 0 ? (
+            <p className="text-gray-500">No chat history found.</p>
+          ) : (
+            <div className="space-y-6">
+              {/* Date Selection Buttons */}
+              <div className="mb-4">
+                <h3 className="text-md font-medium text-gray-700 mb-2">Select Date:</h3>
+                <div className="flex flex-wrap gap-2">
+                  {groupedMessages.map((group, index) => (
+                    <button
+                      key={`date-btn-${index}`}
+                      onClick={() => handleDateSelect(group.date)}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        selectedDate === group.date
+                          ? 'bg-rose-500 text-white'
+                          : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+                      }`}
+                    >
+                      {formatDateForButton(group.date)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Selected Date Messages */}
+              {selectedDateGroup && (
+                <div className="border-t pt-4">
+                  <h3 className="text-lg font-medium text-gray-800 mb-4">
+                    {formatDate(selectedDateGroup.date)}
+                  </h3>
+                  
+                  <div className="flex flex-col space-y-4">
+                    {selectedDateGroup.messages.map((msg) => (
+                      <div
+                        key={msg.chid}
+                        className={`max-w-[80%] p-4 rounded-lg shadow-md ${
+                          msg.ischatbot
+                            ? 'bg-gray-200 text-gray-900 self-start'
+                            : 'bg-rose-500 text-white self-end'
+                        }`}
+                      >
+                        {msg.ischatbot ? (
+                          <div className="break-words">
+                            {extractRecommendations(msg.context)}
+                          </div>
+                        ) : (
+                          <p className="mb-1 break-words whitespace-pre-wrap">
+                            {msg.context}
+                          </p>
+                        )}
+                        <span className="text-xs text-gray-600 block text-right">
+                          {new Date(msg.createddate + 'Z').toLocaleString('en-US', {
+                            dateStyle: 'short',
+                            timeStyle: 'short',
+                            timeZone: "Asia/Singapore", // SG timezone
+                          })}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
