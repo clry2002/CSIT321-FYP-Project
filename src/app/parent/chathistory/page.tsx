@@ -3,8 +3,16 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 
+// Define an interface for the chat history item
+interface ChatHistoryItem {
+  message: string;
+  response: string;
+  timestamp: string;
+  child_id: string;
+}
+
 export default function ViewChildChatHistory() {
-  const [chatHistory, setChatHistory] = useState([]);
+  const [chatHistory, setChatHistory] = useState<ChatHistoryItem[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -23,7 +31,7 @@ export default function ViewChildChatHistory() {
 
         if (!history || historyError) throw historyError;
 
-        setChatHistory(history);
+        setChatHistory(history as ChatHistoryItem[]);
       } catch (err) {
         console.error('Error fetching chat history:', err);
         setError('An error occurred while fetching the chat history.');

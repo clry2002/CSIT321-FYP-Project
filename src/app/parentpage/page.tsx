@@ -1,22 +1,25 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import React, { useState, useEffect, useCallback, Suspense } from 'react';
+import { useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 // import Link from 'next/link';
 
-export default function ParentHome() {
+interface Child {
+  id: string;
+  user_id?: string;
+  name: string;
+  age: number | null;
+  history: string[];
+}
+
+const ParentDataFetcher = () => {
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const searchParams = useSearchParams(); 
   const [parentName, setParentName] = useState<string | null>(null);
-  // const [parentId, setParentId] = useState<string | null>(null);
-  const [,setParentId] = useState<string | null>(null);
-  const [children, setChildren] = useState<Array<{
-    id: string;
-    name: string;
-    age: number;
-    history: string[];
-  }>>([]);
+  const [, setParentId] = useState<string | null>(null);
+  const [children, setChildren] = useState<Child[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showNotification, setShowNotification] = useState(false);
@@ -24,14 +27,12 @@ export default function ParentHome() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [childToDelete, setChildToDelete] = useState<string | null>(null);
 
-  // Wrap fetchParentData with useCallback to avoid infinite re-renders
   const fetchParentData = useCallback(async () => {
     setLoading(true);
     setError(null);
     console.log("Fetching parent data...");
 
     try {
-      // Get current user
       const { data: { user }, error: userError } = await supabase.auth.getUser();
 
       if (userError) {
@@ -50,7 +51,6 @@ export default function ParentHome() {
 
       console.log("Authenticated user ID:", user.id);
 
-      // Fetch parent's full name from user_account
       const { data: parentData, error: parentError } = await supabase
         .from('user_account')
         .select('id, fullname, username')
@@ -74,7 +74,6 @@ export default function ParentHome() {
       setParentName(parentData.fullname || 'Parent');
       setParentId(parentData.id);
 
-      // Fetch children through isparentof relationship
       const { data: childrenRelations, error: relationsError } = await supabase
         .from('isparentof')
         .select('child_id')
@@ -95,11 +94,9 @@ export default function ParentHome() {
         return;
       }
 
-      // Get child usernames from the relations
       const childIds = childrenRelations.map(relation => relation.child_id);
       console.log("Child IDs:", childIds);
 
-      // Fetch children data from user_account
       const { data: childrenData, error: childrenError } = await supabase
         .from('user_account')
         .select('id, user_id, username, fullname, age')
@@ -114,12 +111,11 @@ export default function ParentHome() {
 
       console.log("Children data fetched:", childrenData);
 
-      // Map the data to match the expected type
       const mappedChildren = (childrenData || []).map(child => ({
         id: child.id,
         user_id: child.user_id,
         name: child.fullname || 'Child',
-        age: child.age || 0,
+        age: child.age,
         history: []
       }));
 
@@ -130,32 +126,26 @@ export default function ParentHome() {
     } finally {
       setLoading(false);
     }
-  }, [router]); // Include router in the dependencies since it's used in the function
+  }, [router]);
 
   useEffect(() => {
-    // Check for success message in URL
     const success = searchParams.get('success');
     if (success) {
       setNotificationMessage(success);
       setShowNotification(true);
-      // Remove the success parameter from URL
       const newUrl = window.location.pathname;
       window.history.replaceState({}, '', newUrl);
-      // Hide notification after 5 seconds
       setTimeout(() => setShowNotification(false), 5000);
     }
 
-    // Always fetch parent data when component mounts or when url params change
     fetchParentData();
-  }, [searchParams, fetchParentData]); // Now we can safely include fetchParentData as a dependency
+  }, [searchParams, fetchParentData]);
 
-  // Function to handle delete confirmation
   const handleDeleteClick = (childId: string) => {
     setChildToDelete(childId);
     setShowDeleteConfirm(true);
   };
 
-  // Function to handle actual deletion
   const handleDeleteConfirm = async () => {
     if (!childToDelete) return;
     await deleteChild(childToDelete);
@@ -163,13 +153,11 @@ export default function ParentHome() {
     setChildToDelete(null);
   };
 
-  // Function to cancel deletion
   const handleDeleteCancel = () => {
     setShowDeleteConfirm(false);
     setChildToDelete(null);
   };
 
-  // Function to delete a child profile
   const deleteChild = async (id: string) => {
     try {
       setLoading(true);
@@ -180,7 +168,6 @@ export default function ParentHome() {
         throw new Error('Child not found');
       }
 
-      // Delete from isparentof first
       const { error: relationError } = await supabase
         .from('isparentof')
         .delete()
@@ -191,7 +178,6 @@ export default function ParentHome() {
         throw relationError;
       }
 
-      // Delete from child_profile
       const { error: profileError } = await supabase
         .from('child_details')
         .delete()
@@ -202,23 +188,16 @@ export default function ParentHome() {
         throw profileError;
       }
 
-      // Finally delete from user_account - DOES NOT WORK (PLEASE ACTION!)
-      //  
-      //
-      //
       const { error: accountError } = await supabase
         .from('user_account')
         .delete()
         .eq('id', id);
-
-        
 
       if (accountError) {
         console.error('Error deleting from user_account:', accountError);
         throw accountError;
       }
 
-      // Refresh the children list
       await fetchParentData();
       setNotificationMessage('Child profile successfully deleted');
       setShowNotification(true);
@@ -237,21 +216,18 @@ export default function ParentHome() {
 
   return (
     <div className="flex flex-col h-screen bg-gray-100 overflow-hidden">
-      {/* Floating Notification */}
       {showNotification && (
         <div className="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50">
           {notificationMessage}
         </div>
       )}
 
-      {/* Error Message */}
       {error && (
         <div className="fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg z-50">
           {error}
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
@@ -277,9 +253,7 @@ export default function ParentHome() {
         </div>
       )}
 
-      {/* Main Content */}
       <div className="flex-1 overflow-y-auto px-6 py-5">
-        {/* Header Section */}
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-serif text-black">Welcome back, {parentName || ""}!</h1>
           <div className="flex space-x-3">
@@ -296,16 +270,15 @@ export default function ParentHome() {
               Settings
             </button>
             <button
-            className="bg-red-600 text-white px-4 py-2 rounded-lg"
-            onClick={() => router.push('/logout')} // Navigate to the logout page
-          >
-            Logout
-          </button>
+              className="bg-red-600 text-white px-4 py-2 rounded-lg"
+              onClick={() => router.push('/logout')}
+            >
+              Logout
+            </button>
           </div>
         </div>
 
         <div className="space-y-5">
-          {/* Child Profiles Section */}
           <div className="bg-white rounded-lg shadow-md p-4">
             <h2 className="text-lg font-serif mb-3 text-black">Child Profiles</h2>
             {children.length > 0 ? (
@@ -318,7 +291,7 @@ export default function ParentHome() {
                     >
                       {child.name}
                     </h3>
-                    <p className="text-gray-500 text-xs">Age: {child.age || 'Unknown'}</p>
+                    <p className="text-gray-500 text-xs">Age: {child.age !== null ? child.age : 'Unknown'}</p>
                   </div>
                   <div className="flex space-x-2">
                     <button
@@ -347,7 +320,6 @@ export default function ParentHome() {
             </button>
           </div>
 
-          {/* Child Chatbot History Section */}
           <div className="bg-white rounded-lg shadow-md p-4">
             <h2 className="text-lg font-serif mb-3 text-black">Child ChatBot History</h2>
             {children.length > 0 ? (
@@ -378,7 +350,6 @@ export default function ParentHome() {
             )}
           </div>
 
-          {/* Child Profile Settings Section */}
           <div className="bg-white rounded-lg shadow-md p-4">
             <h2 className="text-lg font-serif mb-3 text-black">Parental Control</h2>
             {children.length > 0 ? (
@@ -398,5 +369,13 @@ export default function ParentHome() {
         </div>
       </div>
     </div>
+  );
+};
+
+export default function ParentHome() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading parent data...</div>}>
+      <ParentDataFetcher />
+    </Suspense>
   );
 }

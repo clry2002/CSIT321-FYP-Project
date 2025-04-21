@@ -1,3 +1,4 @@
+// Database types for Supabase
 export interface Book {
     cid: number; 
     title: string;
@@ -25,8 +26,28 @@ export interface Video {
     cfid: number;
     createddate?: string | null;
     decisiondate?: string | null;
+    
 }
 
+// Additional for View Chatbot History
+export type ChatMessage = {
+    chid: number;
+    context: string;
+    ischatbot: boolean;
+    createddate: string;
+  };
+
+  export type ContentResponse = {
+    genre?: string;
+    books?: Book[];
+    videos?: Video[];
+    books_ai?: string;
+    videos_ai?: string;
+    error?: string;
+  };
+
+
+// Database types for Supabase
 export interface Database {
     public: {
         Tables: {

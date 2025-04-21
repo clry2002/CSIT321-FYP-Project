@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import React, { useState, useEffect, Suspense, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import ViewChildBookmark from '../../components/parent/view_child_bookmark';
 import { fetchBookmarkedContent, ContentWithGenres } from './fetchChildBookmark';
@@ -18,16 +18,9 @@ interface ChildProfile {
   videos_bookmark?: ContentWithGenres[];
 }
 
-interface Classroom {
-  crid: number;
-  name: string;
-  description: string;
-  educatorFullName: string;
-}
-
-export default function ViewChild() {
+// Client Components
+function ClientViewChild() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [childProfile, setChildProfile] = useState<ChildProfile | null>(null);
   const [childName, setChildName] = useState<string>('');
   const [loading, setLoading] = useState(true);
@@ -41,19 +34,9 @@ export default function ViewChild() {
   const [bookmarkedBooks, setBookmarkedBooks] = useState<ContentWithGenres[]>([]);
   const [bookmarkedVideos, setBookmarkedVideos] = useState<ContentWithGenres[]>([]);
   const [blockedGenreNames, setBlockedGenreNames] = useState<string[]>([]);
+  const [searchParams, setSearchParams] = useState<URLSearchParams>(new URLSearchParams(''));
 
-  useEffect(() => {
-    const childId = searchParams.get('childId');
-    if (childId) {
-      fetchChildData(childId);
-      fetchAvailableGenres();
-    } else {
-      setError('No child ID provided');
-      setLoading(false);
-    }
-  }, [searchParams]);
-
-  const fetchAvailableGenres = async () => {
+  const fetchAvailableGenres = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('temp_genre')
@@ -67,9 +50,9 @@ export default function ViewChild() {
       console.error('Error fetching genres:', err);
       setError('Failed to fetch available genres');
     }
-  };
+  }, []);
 
-  const fetchChildData = async (childId: string) => {
+  const fetchChildData = useCallback(async (childId: string) => {
     try {
       setLoading(true);
       setError(null);
@@ -99,7 +82,13 @@ export default function ViewChild() {
   
       if (classroomError) throw classroomError;
   
-      let activeClassrooms: Classroom[] = [];
+      let activeClassrooms: {
+        crid: number;
+        name: string;
+        description: string;
+        educatorFullName: string;
+      }[] = [];
+
       if (classroomStudents && classroomStudents.length > 0) {
         const classroomIds = classroomStudents.map(cs => cs.crid);
         
@@ -151,7 +140,7 @@ export default function ViewChild() {
       if (blockedGenresError) throw blockedGenresError;
   
       // Extract genre names from blockedgenres.id
-      let blockedGenreNames: string[] = [];
+      let blockedGenreNames = [];
       if (blockedGenresData && blockedGenresData.length > 0) {
         const genreIds = blockedGenresData.map(item => item.genreid);
         const { data: genreData, error: genreError } = await supabase
@@ -175,7 +164,7 @@ export default function ViewChild() {
       setBookmarkedBooks(bookmarkedContent.books);
       setBookmarkedVideos(bookmarkedContent.videos);
   
-      const combinedProfile: ChildProfile = {
+      const combinedProfile = {
         ...processedProfileData,
         books_bookmark: bookmarkedContent.books,
         videos_bookmark: bookmarkedContent.videos
@@ -192,7 +181,26 @@ export default function ViewChild() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setSearchParams(new URLSearchParams(window.location.search));
+    }
+  }, []);
+
+  useEffect(() => {
+ 
+    const childId = searchParams.get('childId');
+    if (childId) {
+      fetchChildData(childId);
+      fetchAvailableGenres();
+    } else {
+      setError('No child ID provided');
+      setLoading(false);
+    }
+  }, [searchParams, fetchChildData, fetchAvailableGenres]);
+  
 
   const handleAddFavoriteGenres = async () => {
     try {
@@ -209,7 +217,6 @@ export default function ViewChild() {
   
       // Remove any favorite genres that are in blocked genres
       const blockedGenreIds = currentProfile ? [currentProfile.genreid] : [];
-
 
       // Filter out any favorite genres that are in blocked genres
       const filteredFavoriteGenres = selectedFavoriteGenres.filter(
@@ -428,12 +435,12 @@ export default function ViewChild() {
                     }
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <button
+                    {/* <button
                       onClick={() => setShowFavoriteGenreModal(true)}
                       className="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600"
                     >
                       Edit
-                    </button>
+                    </button> */}
                   </td>
                 </tr>
 
@@ -536,14 +543,14 @@ export default function ViewChild() {
             </div>
           )}
 
-          {/* Favorite Genre Selection Modal */}
+          Favorite Genre Selection Modal
           {showFavoriteGenreModal && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
               <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
                 <h3 className="text-lg font-semibold mb-4 text-black">Select Favorite Genres</h3>
                 <div className="space-y-2 mb-4">
                   {availableGenres
-                    .filter(genre => blockedGenreNames.includes(genre))
+                    .filter(genre => !blockedGenreNames.includes(genre))
                     .map((genre) => (
                     <label key={genre} className="flex items-center space-x-2">
                       <input
@@ -594,4 +601,16 @@ export default function ViewChild() {
   );
 }
 
-//ignorethis
+// Loading component
+function LoadingFallback() {
+  return <div className="flex items-center justify-center h-screen">Loading page...</div>;
+}
+
+// Main component with Suspense
+export default function ViewChild() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <ClientViewChild />
+    </Suspense>
+  );
+}
