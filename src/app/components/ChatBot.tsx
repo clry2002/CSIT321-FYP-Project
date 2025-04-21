@@ -1,17 +1,20 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useChatbot } from '@/hooks/useChatbot';
-import { Send, MessageCircle, Volume2 } from 'lucide-react';
+import { useSpeech } from '@/hooks/useTextToSpeech';
+import { Send, MessageCircle } from 'lucide-react';
 import Image from 'next/image';
+import AudioButton from './child/chatbot/audioButton';
 import './styles.css';
-// import { useRouter } from 'next/navigation';
+
 
 const ChatBot: React.FC = () => {
   const { messages, isLoading, sendMessage } = useChatbot();
+  const { speakingItemId, isPaused, toggleSpeech, stopAllSpeech } = useSpeech();
   const [input, setInput] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [enlargedImage, setEnlargedImage] = useState<string | null>(null);
   const chatContainerRef = useRef<HTMLDivElement | null>(null);
-  // const router = useRouter();
+  const iframeRefs = useRef<{ [key: number]: HTMLIFrameElement | null }>({});
 
   useEffect(() => {
     if (chatContainerRef.current) {
@@ -39,7 +42,7 @@ const ChatBot: React.FC = () => {
     setEnlargedImage(null);
   };
 
-  const renderVideoContent = (contenturl: string) => {
+  const renderVideoContent = (contenturl: string, index: number) => {
     if (contenturl.includes("<iframe")) {
       return <div dangerouslySetInnerHTML={{ __html: contenturl }} />;
     }
@@ -50,6 +53,7 @@ const ChatBot: React.FC = () => {
       const videoId = matchYouTube[1] || matchYouTube[2];
       return (
         <iframe
+          ref={el => {iframeRefs.current[index] = el;}}
           width="100%"
           height="315"
           src={`https://www.youtube.com/embed/${videoId}`}
@@ -64,34 +68,25 @@ const ChatBot: React.FC = () => {
     return <a href={contenturl} target="_blank" rel="noopener noreferrer">View Video</a>;
   };
 
-  const handleSpeech = (title: string, description: string) => {
-    if ('speechSynthesis' in window) {
-      // Check if speech is already being synthesized
-      if (speechSynthesis.speaking) {
-        // Cancel any ongoing speech
-        speechSynthesis.cancel();
-      }
-  
-      // Concatenate title and description
-      const textToRead = `${title}. ${description}`;
-      
-      // Create a new speech utterance
-      const utterance = new SpeechSynthesisUtterance(textToRead);
-      utterance.lang = 'en-US'; 
-
-      speechSynthesis.speak(utterance);
-    }
-  };
-
   const processMessage = (message: string) => {
     // Replace double asterisks with <b> tags
     return message.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
   };
   
+  const stopVideoPlayer = () => {
+    Object.values(iframeRefs.current).forEach(iframe => {
+      if (iframe && iframe.src) {
+        const currentSrc = iframe.src;
+        iframe.src = '';
+        iframe.src = currentSrc;
+      }
+    });
+  };
 
   const handleCloseChat = () => {
+    stopVideoPlayer();
+    stopAllSpeech();
     setIsOpen(false);
-    window.speechSynthesis.cancel();
   };
 
   return (
@@ -116,73 +111,82 @@ const ChatBot: React.FC = () => {
             ))}
           </div>
 
-          {messages.map((message, index) => (
-            <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} mb-4`}>
+          {messages.map((message, msgIndex) => (
+            <div key={msgIndex} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} mb-4`}>
               <div className={message.role === 'user' ? 'user-message' : 'bot-message'}>
                 {message.role === 'assistant' && Array.isArray(message.content) ? (
                   <ul>
-                    {message.content.map((item, idx) => (
-                      <li key={idx} className="book-item">
-                        <strong>{item.title}</strong> - {item.description}
-                        <br />
-                        {item.coverimage && item.cfid !== 1 && (
-                          <Image
-                            src={item.coverimage}
-                            alt={`Cover of ${item.title}`}
-                            width="100"
-                            height={150}
-                            style={{ borderRadius: '8px', marginTop: '5px', cursor: 'pointer' }}
-                            onClick={() => handleImageClick(item.coverimage)}
-                          />
-                        )}
-                        <button
-                            className="audio-button"
-                            onClick={() => handleSpeech(item.title, item.description)}
-                          >
-                            <Volume2 size={15} />
-                            <span className="description-text">Read Description</span> 
-                          </button>
-                        <div style={{ marginTop: '8px' }}>
-                          {item.cfid === 1 ? (
-                            renderVideoContent(item.contenturl)
-                          ) : (
-                            <>
-                              <a
-                                href={item.contenturl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-block mr-2 bg-blue-500 text-white px-3 py-1 rounded"
-                              >
-                                View Book
-                              </a>
-                              {item.cid && item.cid !== 0 ? (
-                                <a
-                                  href={`/bookdetail/${item.cid}`}
-                                  className="inline-block bg-emerald-500 text-white px-3 py-1 rounded"
-                                >
-                                  View Details
-                                </a>
-                              ) : (
-                                <span>Details unavailable</span>
-                              )}
-                            </>
+                    {message.content.map((item, idx) => {
+                      // Create a unique ID for this item
+                      const itemId = `item-${msgIndex}-${idx}`;
+                      const isSpeaking = speakingItemId === itemId;
+                      
+                      return (
+                        <li key={idx} className="book-item">
+                          <strong>{item.title}</strong> - {item.description}
+                          <br />
+                          {item.coverimage && item.cfid !== 1 && (
+                            <Image
+                              src={item.coverimage}
+                              alt={`Cover of ${item.title}`}
+                              width="100"
+                              height={150}
+                              style={{ borderRadius: '8px', marginTop: '5px', cursor: 'pointer' }}
+                              onClick={() => handleImageClick(item.coverimage)}
+                            />
                           )}
 
-                          {/* For Videos, Add Video Detail Button */}
-                          {item.cfid === 1 && item.cid ? (
-                            <a
-                              href={`/videodetail/${item.cid}`}
-                              className="inline-block bg-emerald-500 text-white px-3 py-1 rounded"
-                            >
-                              View Video Details
-                            </a>
-                          ) : null}
-                        </div>
-                      </li>
-                    ))}
+                          <AudioButton 
+                            title={item.title}
+                            description={item.description}
+                            itemId={itemId}
+                            isSpeaking={isSpeaking}
+                            isPaused={isPaused}
+                            onToggle={toggleSpeech}
+                          />
+                          
+                          <div style={{ marginTop: '8px' }}>
+                            {item.cfid === 1 ? (
+                              renderVideoContent(item.contenturl, msgIndex * 100 + idx)
+                            ) : (
+                              <>
+                                <a
+                                  href={item.contenturl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-block mr-2 bg-blue-500 text-white px-3 py-1 rounded"
+                                >
+                                  View Book
+                                </a>
+                                {item.cid && item.cid !== 0 ? (
+                                  <a
+                                    href={`/bookdetail/${item.cid}`}
+                                    className="inline-block bg-emerald-500 text-white px-3 py-1 rounded"
+                                  >
+                                    View Details
+                                  </a>
+                                ) : (
+                                  <span>Details unavailable</span>
+                                )}
+                              </>
+                            )}
+
+                            {/* For Videos, Add Video Detail Button */}
+                            {item.cfid === 1 && item.cid ? (
+                              <a
+                                href={`/videodetail/${item.cid}`}
+                                className="inline-block bg-emerald-500 text-white px-3 py-1 rounded"
+                              >
+                                View Video Details
+                              </a>
+                            ) : null}
+                          </div>
+                        </li>
+                      );
+                    })}
                   </ul>
                 ) : (
-                  <div dangerouslySetInnerHTML={{ __html: typeof message.content === "string" ? processMessage(message.content): "" }} />
+                  <div dangerouslySetInnerHTML={{ __html: typeof message.content === "string" ? processMessage(message.content) : "" }} />
                 )}
               </div>
             </div>
@@ -209,11 +213,11 @@ const ChatBot: React.FC = () => {
         <div className="modal-overlay" onClick={closeModal}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <Image 
-            src={enlargedImage} 
-            alt="Enlarged" 
-            className="enlarged-image"
-            width={600}
-            height={900}
+              src={enlargedImage} 
+              alt="Enlarged" 
+              className="enlarged-image"
+              width={600}
+              height={900}
             />
             <button className="close-modal" onClick={closeModal}>✖</button>
           </div>
