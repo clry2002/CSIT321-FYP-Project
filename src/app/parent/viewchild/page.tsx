@@ -543,7 +543,7 @@ function ClientViewChild() {
             </div>
           )}
 
-          {/* Favorite Genre Selection Modal */}
+          Favorite Genre Selection Modal
           {showFavoriteGenreModal && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
               <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
@@ -614,3 +614,5 @@ export default function ViewChild() {
     </Suspense>
   );
 }
+
+// edited
