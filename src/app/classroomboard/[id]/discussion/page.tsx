@@ -109,7 +109,6 @@ export default function DiscussionBoardPage() {
     };
 
     fetchDiscussion();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   useEffect(() => {
@@ -157,7 +156,6 @@ export default function DiscussionBoardPage() {
     return () => {
       supabase.removeChannel(channel);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
