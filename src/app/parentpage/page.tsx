@@ -4,7 +4,6 @@ import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-// import Link from 'next/link';
 
 interface Child {
   id: string;
@@ -26,6 +25,7 @@ const ParentDataFetcher = () => {
   const [notificationMessage, setNotificationMessage] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [childToDelete, setChildToDelete] = useState<string | null>(null);
+  const [childNameToDelete, setChildNameToDelete] = useState<string | null>(null);
 
   const fetchParentData = useCallback(async () => {
     setLoading(true);
@@ -142,7 +142,9 @@ const ParentDataFetcher = () => {
   }, [searchParams, fetchParentData]);
 
   const handleDeleteClick = (childId: string) => {
+    const child = children.find(c => c.id === childId);
     setChildToDelete(childId);
+    setChildNameToDelete(child ? child.name : null);
     setShowDeleteConfirm(true);
   };
 
@@ -167,7 +169,7 @@ const ParentDataFetcher = () => {
       if (!childToRemove) {
         throw new Error('Child not found');
       }
-
+      // Delete from isparentof table first
       const { error: relationError } = await supabase
         .from('isparentof')
         .delete()
@@ -177,7 +179,7 @@ const ParentDataFetcher = () => {
         console.error('Error deleting from isparentof:', relationError);
         throw relationError;
       }
-
+      // Delete from child_details table
       const { error: profileError } = await supabase
         .from('child_details')
         .delete()
@@ -188,27 +190,33 @@ const ParentDataFetcher = () => {
         throw profileError;
       }
 
-      const { error: accountError } = await supabase
-        .from('user_account')
-        .delete()
-        .eq('id', id);
+      // Delete auth user and user_account via API in api/admin/route.ts
+      if (childToRemove.user_id){
+      const response = await fetch('/api/admin/delete-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ user_id: childToRemove.user_id, account_id: childToRemove.id }),
+      });
 
-      if (accountError) {
-        console.error('Error deleting from user_account:', accountError);
-        throw accountError;
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to delete child account');
       }
-
-      await fetchParentData();
-      setNotificationMessage('Child profile successfully deleted');
+      // Update local state without refetching
+      setChildren(children.filter(child => child.id !== id));
+      setNotificationMessage('Child account successfully deleted');
       setShowNotification(true);
       setTimeout(() => setShowNotification(false), 3000);
-    } catch (err) {
-      console.error('Error deleting child:', err);
-      setError(err instanceof Error ? err.message : 'Error deleting child profile');
-    } finally {
-      setLoading(false);
     }
-  };
+  } catch (err) {
+    console.error('Error deleting child:', err);
+    setError(err instanceof Error ? err.message : 'Error deleting child account');
+  } finally {
+    setLoading(false);
+  }
+};
 
   if (loading) {
     return <div className="flex items-center justify-center h-screen">Loading...</div>;
@@ -233,7 +241,7 @@ const ParentDataFetcher = () => {
           <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
             <h3 className="text-lg font-semibold mb-4 text-black">Confirm Deletion</h3>
             <p className="text-gray-600 mb-6">
-              Are you sure you want to delete this child&apos;s profile? This action cannot be undone.
+              Are you sure you want to delete <span className="font-medium">{childNameToDelete}</span>&apos;s account? This action cannot be undone.
             </p>
             <div className="flex justify-end space-x-4">
               <button
