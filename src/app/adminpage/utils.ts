@@ -92,7 +92,10 @@ export const filterAndSortUsers = (
       if (sortOrder === null && createdAtSort === null && updatedAtSort === null) return 0;
       
       if (sortOrder !== null) {
-        return sortOrder === 'asc' ? a.age - b.age : b.age - a.age;
+        // Handle null age values
+        const ageA = a.age !== null ? a.age : 0;
+        const ageB = b.age !== null ? b.age : 0;
+        return sortOrder === 'asc' ? ageA - ageB : ageB - ageA;
       }
       
       if (createdAtSort !== null) {
