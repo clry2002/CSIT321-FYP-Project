@@ -24,6 +24,7 @@ interface GenreItem {
 
 export default function BookmarksPage() {
   // const router = useRouter();
+  const [searchQuery, setSearchQuery] = useState('');
   const [bookmarkedBooks, setBookmarkedBooks] = useState<Book[]>([]);
   const [bookmarkedVideos, setBookmarkedVideos] = useState<Video[]>([]);
   const [notification, setNotification] = useState<{ message: string; show: boolean }>({ message: '', show: false });
@@ -37,6 +38,23 @@ export default function BookmarksPage() {
   const [scheduledDate, setScheduledDate] = useState<string>('');
   const [pagesToRead, setPagesToRead] = useState<number>(0);
 
+  const filteredBooks = bookmarkedBooks.filter((book) =>
+    book.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    book.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (bookGenres[book.cid] && bookGenres[book.cid].some((genre) =>
+      genre.toLowerCase().includes(searchQuery.toLowerCase())
+    ))
+  );
+  
+  const filteredVideos = bookmarkedVideos.filter((video) =>
+    video.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    video.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (videoGenres[video.cid] && videoGenres[video.cid].some((genre) =>
+      genre.toLowerCase().includes(searchQuery.toLowerCase())
+    ))
+  );
+  
+  
   useEffect(() => {
     const fetchUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -314,23 +332,20 @@ export default function BookmarksPage() {
       <Navbar />
       <div className="flex-1 overflow-y-auto pt-16 px-6">
         <h1 className="text-4xl font-serif mt-10 text-black text-left">Bookmarked Content</h1>
-
+  
         {notification.show && (
           <div className="fixed top-4 right-4 z-50 bg-rose-500 text-white px-6 py-3 rounded-lg shadow-lg">
             {notification.message}
           </div>
         )}
-
+  
         {/* Schedule Modal */}
         {showScheduleModal && selectedBook && (
           <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
             <div className="bg-white p-6 rounded-xl w-[400px]">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-medium text-black">Schedule Reading</h3>
-                <button
-                  onClick={handleCloseModal}
-                  className="text-gray-500 hover:text-gray-700"
-                >
+                <button onClick={handleCloseModal} className="text-gray-500 hover:text-gray-700">
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
@@ -354,7 +369,7 @@ export default function BookmarksPage() {
                     className="w-full border rounded-lg p-2 text-gray-900"
                   />
                 </div>
-
+  
                 <div>
                   <label htmlFor="pages" className="block text-sm font-medium text-gray-700 mb-1">Pages to Read</label>
                   <input
@@ -367,7 +382,7 @@ export default function BookmarksPage() {
                     placeholder="Enter number of pages"
                   />
                 </div>
-
+  
                 <div className="flex justify-end space-x-2 pt-4">
                   <button
                     onClick={handleCloseModal}
@@ -387,12 +402,21 @@ export default function BookmarksPage() {
             </div>
           </div>
         )}
-
+  
+        {/* Search Bar */}
+        <input
+          type="text"
+          placeholder="Search Bookmarks..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full p-2 border rounded-lg mb-4 mt-5 text-black"
+        />
+  
         {/* Bookmarked Books */}
-        {bookmarkedBooks.length > 0 && (
+        {filteredBooks.length > 0 ? (
           <div className="space-y-6">
             <h2 className="text-2xl font-semibold text-blue-900">Books</h2>
-            {bookmarkedBooks.map((book) => (
+            {filteredBooks.map((book) => (
               <div key={book.cid} className="flex items-start space-x-6 p-6 bg-white rounded-lg shadow-md hover:bg-gray-50">
                 <div className="flex-shrink-0 w-32 h-48 relative">
                   {book.coverimage ? (
@@ -441,13 +465,13 @@ export default function BookmarksPage() {
               </div>
             ))}
           </div>
-        )}
-
+        ) : null}
+  
         {/* Bookmarked Videos */}
-        {bookmarkedVideos.length > 0 && (
+        {filteredVideos.length > 0 ? (
           <div className="space-y-6 mt-12">
             <h2 className="text-2xl font-semibold text-blue-900">Videos</h2>
-            {bookmarkedVideos.map((video) => (
+            {filteredVideos.map((video) => (
               <div key={video.cid} className="flex items-start space-x-6 p-6 bg-white rounded-lg shadow-md hover:bg-gray-50">
                 <div className="flex-shrink-0" style={{ width: '300px', height: '170px' }}>
                   {video.contenturl && renderYouTubePlayer(video.contenturl, 300, 170)}
@@ -484,13 +508,13 @@ export default function BookmarksPage() {
               </div>
             ))}
           </div>
-        )}
-
-        {/* Empty state for no bookmarks */}
-        {bookmarkedBooks.length === 0 && bookmarkedVideos.length === 0 && (
-          <div className="text-center py-8 text-gray-500">Your collection is empty. Browse books and videos and add them here!</div>
+        ) : null}
+  
+        {/* If no books or videos are found */}
+        {filteredBooks.length === 0 && filteredVideos.length === 0 && (
+          <div>No books or videos found for your search.</div>
         )}
       </div>
     </div>
   );
-}
+}  
