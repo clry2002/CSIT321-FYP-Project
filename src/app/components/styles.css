@@ -399,93 +399,63 @@
   color: blue;
 }
 
+/* Chatbot Read Description Button*/
 
-
-/* Chat History Styles
-.chat-history {
-  width: 100%;
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 20px;
-  border-radius: 8px;
-  background-color: #f9f9f9;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-}
-
-.chat-history h2 {
-  margin-top: 0;
-  color: #333;
-  font-size: 1.5rem;
-}
-
-.clear-history-btn {
-  background-color: #ff6b6b;
-  color: white;
+.audio-button {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background-color: #f0f0f0;
   border: none;
-  padding: 8px 16px;
+  padding: 5px 10px;
   border-radius: 4px;
   cursor: pointer;
-  margin-bottom: 15px;
-  font-weight: bold;
+  margin-top: 8px;
+  transition: background-color 0.2s;
 }
 
-.clear-history-btn:hover {
-  background-color: #ff5252;
+.audio-button:hover {
+  background-color: #e0e0e0;
 }
 
-.messages-container {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-  max-height: 500px;
-  overflow-y: auto;
-  padding-right: 10px;
+.audio-button.speaking {
+  background-color: #e6f7ff;
 }
 
-.message {
-  padding: 12px 16px;
-  border-radius: 8px;
-  max-width: 85%;
+.audio-button.speaking:hover {
+  background-color: #d6f0ff;
 }
 
-.user-message {
-  align-self: flex-end;
-  background-color: #dcf8c6;
-  border-bottom-right-radius: 2px;
+.audio-button.paused {
+  background-color: #fff0e6;
 }
 
-.bot-message {
-  align-self: flex-start;
-  background-color: #fff;
-  border: 1px solid #e0e0e0;
-  border-bottom-left-radius: 2px;
+.audio-button.paused:hover {
+  background-color: #ffe6d6;
 }
 
-.message-header {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 5px;
+.description-text {
   font-size: 0.85rem;
 }
 
-.sender {
-  font-weight: bold;
-  color: #555;
-}
-
-.timestamp {
-  color: #888;
-}
-
-.message-content {
-  line-height: 1.4;
-  word-break: break-word;
-}
-
-.error {
-  color: #e74c3c;
-  padding: 10px;
+.hover-hint {
+  position: absolute;
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 4px 8px;
   border-radius: 4px;
-  background-color: #fdecea;
-  text-align: center;
-} */
+  font-size: 0.75rem;
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 10;
+  opacity: 0;
+  transition: opacity 0.2s;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 5px;
+}
+
+.audio-button:hover .hover-hint {
+  opacity: 1;
+}
