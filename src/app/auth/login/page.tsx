@@ -15,6 +15,7 @@ interface UserData {
   upid: number;
   userprofile: UserProfile;
   suspended: boolean;
+  comments: string;
 }
 
 interface ErrorData {
@@ -49,6 +50,7 @@ export default function LoginPage() {
           .select(`
             upid,
             suspended,
+            comments,
             userprofile!inner (
               upid
             )

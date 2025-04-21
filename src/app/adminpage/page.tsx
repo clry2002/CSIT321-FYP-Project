@@ -36,8 +36,10 @@ export default function AdminPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | null>(null);
-  const [selectedUserType, setSelectedUserType] = useState<number | null>(null);
-  const [showUserTypeDropdown, setShowUserTypeDropdown] = useState(false);
+  const [selectedStatusFilter, setSelectedStatusFilter] = useState<boolean | null>(null);
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+  const [createdAtSort, setCreatedAtSort] = useState<'asc' | 'desc' | null>(null);
+  const [updatedAtSort, setUpdatedAtSort] = useState<'asc' | 'desc' | null>(null);
   const [relationships, setRelationships] = useState<ParentChildRelationship[]>([]);
   const [showModifyModal, setShowModifyModal] = useState(false);
   const [selectedParentForModify, setSelectedParentForModify] = useState<{
@@ -117,9 +119,7 @@ export default function AdminPage() {
     });
   };
 
-  const handleSuspendUser = async () => {
-    if (!selectedUser) return;
-
+  const handleSuspendUser = async (user: UserAccount) => {
     try {
       await handlers.handleSuspendUser(user, suspendComment, (username, suspended, comments) => {
       setUserAccounts(userAccounts.map(u => 
@@ -137,9 +137,7 @@ export default function AdminPage() {
     }
   };
 
-  const handleRevertSuspension = async () => {
-    if (!selectedUser) return;
-
+  const handleRevertSuspension = async (user: UserAccount) => {
     try {
       await handlers.handleRevertSuspension(user, (username, suspended, comments) => {
       setUserAccounts(userAccounts.map(u => 
@@ -253,7 +251,6 @@ export default function AdminPage() {
     updatedAtSort
   );
 
-
   const getChildrenForParent = (parentUsername: string) => {
     // First, get the child usernames from isparentof table for this parent
     const childUsernames = relationships
@@ -303,7 +300,6 @@ export default function AdminPage() {
       children: relationshipMap[parent.username] || []
     }));
   };
-
 
   const handleRemoveChild = async (parentUsername: string, childUsername: string) => {
     try {
@@ -445,34 +441,53 @@ export default function AdminPage() {
         return;
       }
 
-      const userToInsert = {
-        fullname: newChild.fullname,
-        username: newChild.username,
-        age: newChild.age,
-        upid: 3, // Set upid to 3 for Child
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        suspended: false,
-        user_id: newChildAuthUserId
-      };
-
-      const { error } = await supabase
-        .from('user_account')
-        .insert([userToInsert])
-        .select();
-
-      if (error) {
-        console.error('Database error:', error);
-        setNewChildModalMessage({ type: 'error', text: error.message });
+      // Add age validation for children
+      if (newChild.age > 13) {
+        setNewChildModalMessage({ type: 'error', text: 'Child must be 13 years old or younger' });
         return;
       }
 
-      // Create parent-child relationship
+      // First, create the child user account
+      const { data: childData, error: childError } = await supabase
+        .from('user_account')
+        .insert([{
+          fullname: newChild.fullname,
+          username: newChild.username,
+          age: newChild.age,
+          upid: 3, // Set upid to 3 for Child
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          suspended: false,
+          user_id: newChildAuthUserId
+        }])
+        .select('id')
+        .single();
+
+      if (childError) {
+        console.error('Database error:', childError);
+        setNewChildModalMessage({ type: 'error', text: childError.message });
+        return;
+      }
+
+      // Get the parent's ID
+      const { data: parentData, error: parentError } = await supabase
+        .from('user_account')
+        .select('id')
+        .eq('username', selectedParentForModify.username)
+        .single();
+
+      if (parentError) {
+        console.error('Database error:', parentError);
+        setNewChildModalMessage({ type: 'error', text: parentError.message });
+        return;
+      }
+
+      // Create parent-child relationship using IDs
       const { error: relationshipError } = await supabase
         .from('isparentof')
         .insert([{ 
-          parent: selectedParentForModify.username, 
-          child: newChild.username 
+          parent_id: parentData.id, 
+          child_id: childData.id 
         }]);
 
       if (relationshipError) {
@@ -763,7 +778,7 @@ export default function AdminPage() {
                       Age {sortOrder === 'asc' ? '↑' : sortOrder === 'desc' ? '↓' : ''}
                     </th>
                     <th 
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-800 relative"
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-800"
                       onClick={() => setShowUserTypeDropdown(!showUserTypeDropdown)}
                     >
                       <div className="relative">
@@ -831,32 +846,36 @@ export default function AdminPage() {
                               className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setSelectedUserType(null);
-                                setShowUserTypeDropdown(false);
+                                setSelectedStatusFilter(null);
+                                setShowStatusDropdown(false);
                               }}
                             >
-                              All Users
+                              All Status
                             </button>
-                            {userTypes.map(type => (
-                              <button
-                                key={type.id}
-                                className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedUserType(type.id);
-                                  setShowUserTypeDropdown(false);
-                                }}
-                              >
-                                {type.label}
-                              </button>
-                            ))}
+                            <button
+                              className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedStatusFilter(false);
+                                setShowStatusDropdown(false);
+                              }}
+                            >
+                              Active
+                            </button>
+                            <button
+                              className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedStatusFilter(true);
+                                setShowStatusDropdown(false);
+                              }}
+                            >
+                              Suspended
+                            </button>
                           </div>
                         </div>
                       )}
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Created At</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Updated At</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-800">
@@ -915,13 +934,13 @@ export default function AdminPage() {
                           </div>
                         )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className={`px-6 py-4 whitespace-nowrap ${account.suspended ? 'text-red-400' : 'text-white'}`}>
                         {new Date(account.created_at).toLocaleDateString()}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className={`px-6 py-4 whitespace-nowrap ${account.suspended ? 'text-red-400' : 'text-white'}`}>
                         {new Date(account.updated_at).toLocaleDateString()}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-4 whitespace-nowrap min-w-[120px] text-center">
                         <button
                           onClick={() => {
                             if (account.suspended) {
@@ -932,7 +951,7 @@ export default function AdminPage() {
                               setShowSuspendModal(true);
                             }
                           }}
-                          className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          className={`px-6 py-2 inline-flex items-center justify-center text-sm leading-5 font-semibold rounded-full whitespace-nowrap min-w-[100px] ${
                             account.suspended 
                               ? 'bg-red-900 text-red-200 cursor-pointer hover:bg-red-800' 
                               : 'bg-green-900 text-green-200 cursor-pointer hover:bg-green-800'
@@ -997,15 +1016,37 @@ export default function AdminPage() {
               <tbody className="divide-y divide-gray-800">
                 {getGroupedRelationships().slice(0, showAllRelationships ? undefined : 3).map((group, index) => (
                   <tr key={index} className="hover:bg-gray-800">
-                    <td className="px-6 py-4 whitespace-nowrap">{group.parentUsername}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{group.parentName}</td>
+                    <td 
+                      className={`px-6 py-4 whitespace-nowrap cursor-pointer hover:text-blue-400 ${
+                        userAccounts.find(u => u.username === group.parentUsername)?.suspended ? 'text-red-400' : 'text-white'
+                      }`}
+                      onClick={() => handleUserClick(group.parentUsername)}
+                    >
+                      {group.parentUsername}
+                    </td>
+                    <td className={`px-6 py-4 whitespace-nowrap ${
+                      userAccounts.find(u => u.username === group.parentUsername)?.suspended ? 'text-red-400' : 'text-white'
+                    }`}>
+                      {group.parentName}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap">{group.parentAge}</td>
                     <td className="px-6 py-4">
                       <div className="space-y-2">
                         {group.children.map((child, childIndex) => (
                           <div key={childIndex} className="flex items-center space-x-2">
-                            <span className="text-gray-400">{child.username}</span>
-                            <span className="text-gray-500">({child.fullname})</span>
+                            <span 
+                              className={`cursor-pointer hover:text-blue-400 ${
+                                userAccounts.find(u => u.username === child.username)?.suspended ? 'text-red-400' : 'text-gray-400'
+                              }`}
+                              onClick={() => handleUserClick(child.username)}
+                            >
+                              {child.username}
+                            </span>
+                            <span className={`${
+                              userAccounts.find(u => u.username === child.username)?.suspended ? 'text-red-400' : 'text-gray-500'
+                            }`}>
+                              ({child.fullname})
+                            </span>
                             <span className="text-gray-500">- Age: {child.age}</span>
                           </div>
                         ))}
@@ -1041,6 +1082,102 @@ export default function AdminPage() {
               </div>
             )}
           </div>
+        </div>
+
+        {/* Classrooms Table */}
+        <div className="bg-gray-900 rounded-lg shadow-lg p-6 mt-8">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold">Classrooms</h2>
+          </div>
+          
+          {loadingClassrooms ? (
+            <div className="text-center py-4">Loading classrooms...</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-800">
+                <thead>
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Classroom Name</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Description</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Educator</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Students</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-800">
+                  {classrooms.slice(0, showAllClassrooms ? undefined : 3).map((classroom) => (
+                    <tr key={classroom.crid} className="hover:bg-gray-800">
+                      <td 
+                        className="px-6 py-4 whitespace-nowrap cursor-pointer hover:text-blue-400"
+                        onClick={() => {
+                          setShowDiscussionModal(true);
+                          fetchDiscussionData(classroom.crid, classroom.name);
+                        }}
+                      >
+                        {classroom.name}
+                      </td>
+                      <td className="px-6 py-4">{classroom.description}</td>
+                      <td 
+                        className={`px-6 py-4 whitespace-nowrap cursor-pointer hover:text-blue-400 ${
+                          userAccounts.find(u => u.fullname === classroom.educatorName)?.suspended ? 'text-red-400' : 'text-white'
+                        }`}
+                        onClick={() => {
+                          const educator = userAccounts.find(u => u.fullname === classroom.educatorName);
+                          if (educator) {
+                            handleUserClick(educator.username);
+                          }
+                        }}
+                      >
+                        {classroom.educatorName}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="space-y-2">
+                          {classroom.students.map((student, index) => (
+                            <div key={index} className="flex items-center space-x-2">
+                              <span 
+                                className={`cursor-pointer hover:text-blue-400 ${
+                                  userAccounts.find(u => u.username === student.username)?.suspended ? 'text-red-400' : 'text-gray-400'
+                                }`}
+                                onClick={() => handleUserClick(student.username)}
+                              >
+                                {student.username}
+                              </span>
+                              <span className={`${
+                                userAccounts.find(u => u.username === student.username)?.suspended ? 'text-red-400' : 'text-gray-500'
+                              }`}>
+                                ({student.fullname})
+                              </span>
+                              <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                student.invitation_status === 'accepted' 
+                                  ? 'bg-green-900 text-green-200' 
+                                  : student.invitation_status === 'pending'
+                                  ? 'bg-yellow-900 text-yellow-200'
+                                  : 'bg-red-900 text-red-200'
+                              }`}>
+                                {student.invitation_status}
+                              </span>
+                            </div>
+                          ))}
+                          {classroom.students.length === 0 && (
+                            <span className="text-gray-500">No students</span>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {classrooms.length > 3 && (
+                <div className="mt-4 text-center">
+                  <button
+                    onClick={() => setShowAllClassrooms(!showAllClassrooms)}
+                    className="text-blue-400 hover:text-blue-300"
+                  >
+                    {showAllClassrooms ? 'Show Less' : `Show All (${classrooms.length} classrooms)`}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </main>
 
@@ -1163,6 +1300,14 @@ export default function AdminPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
           <div className="bg-gray-900 p-6 rounded-lg w-96">
             <h3 className="text-xl font-bold mb-4">Suspend User?</h3>
+            {selectedUser.suspended && selectedUser.comments && selectedUser.comments !== 'na' && (
+              <div className="mb-4">
+                <div className="text-sm text-gray-400 mb-1">Current Suspension Reason:</div>
+                <div className="p-3 bg-gray-800 rounded text-white mb-4">
+                  {selectedUser.comments}
+                </div>
+              </div>
+            )}
             <textarea
               placeholder="Enter suspension reason..."
               value={suspendComment}
@@ -1181,7 +1326,7 @@ export default function AdminPage() {
                 Cancel
               </button>
               <button
-                onClick={handleSuspendUser}
+                onClick={() => handleSuspendUser(selectedUser)}
                 className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded"
               >
                 Confirm
@@ -1194,8 +1339,16 @@ export default function AdminPage() {
       {/* Revert Suspension Modal */}
       {showRevertModal && selectedUser && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-          <div className="bg-gray-900 p-6 rounded-lg w-96">
+          <div className="bg-gray-900 p-6 rounded-lg w-[400px]">
             <h3 className="text-xl font-bold mb-4">Revert suspension?</h3>
+            <div className="mb-4">
+              <div className="text-sm text-gray-400 mb-1">Reason:</div>
+              <div className="p-3 bg-gray-800 rounded text-white">
+                {selectedUser.comments && selectedUser.comments !== 'na' 
+                  ? selectedUser.comments 
+                  : 'No reason provided'}
+              </div>
+            </div>
             <div className="mt-6 flex justify-end space-x-2">
               <button
                 onClick={() => {
@@ -1207,7 +1360,7 @@ export default function AdminPage() {
                 No
               </button>
               <button
-                onClick={handleRevertSuspension}
+                onClick={() => handleRevertSuspension(selectedUser)}
                 className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded"
               >
                 Yes
@@ -1369,7 +1522,7 @@ export default function AdminPage() {
               </button>
             </div>
             <div className="mb-6">
-              <div className="pb-2 mb-2 border-b border-gray-800">
+              <div className="pb-2 border-b border-gray-800">
                 <h4 className="text-lg font-semibold">Current Children</h4>
               </div>
               <div className="overflow-x-auto">
@@ -1635,5 +1788,3 @@ export default function AdminPage() {
     </div>
   );
 } 
-
-//tt

@@ -1,17 +1,18 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { supabase } from '@/lib/supabase';
 
 export default function SuspendedPage() {
   const router = useRouter();
-  const [suspensionReason, setSuspensionReason] = useState<string>('');
+  const [suspensionReason, setSuspensionReason] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const checkSuspension = async () => {
+    const checkSuspensionStatus = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         
@@ -20,13 +21,14 @@ export default function SuspendedPage() {
           return;
         }
 
-        const { data: userData, error } = await supabase
+        // Get user's suspension details
+        const { data: userData, error: userError } = await supabase
           .from('user_account')
           .select('suspended, comments')
           .eq('user_id', user.id)
           .single();
 
-        if (error) throw error;
+        if (userError) throw userError;
 
         // If user is not suspended, redirect them to login
         if (!userData?.suspended) {
@@ -34,16 +36,15 @@ export default function SuspendedPage() {
           return;
         }
 
-        setSuspensionReason(userData.comments || 'No reason provided');
+        setSuspensionReason(userData.comments);
       } catch (err) {
-        console.error('Error checking suspension:', err);
-        router.push('/auth/login');
+        setError(err instanceof Error ? err.message : 'An error occurred');
       } finally {
         setLoading(false);
       }
     };
 
-    checkSuspension();
+    checkSuspensionStatus();
   }, [router]);
 
   const handleLogout = async () => {
@@ -57,7 +58,7 @@ export default function SuspendedPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
         <div className="text-gray-600">Loading...</div>
       </div>
     );
@@ -67,7 +68,7 @@ export default function SuspendedPage() {
     <div className="min-h-screen bg-gray-100">
       {/* Header */}
       <header className="bg-white shadow-md">
-        <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
             <div className="flex items-center">
               <Image
@@ -90,9 +91,9 @@ export default function SuspendedPage() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-3xl mx-auto px-4 py-12 sm:px-6 lg:px-8">
+      <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="bg-white shadow-lg rounded-lg p-8">
-          <div className="flex items-center justify-center mb-6">
+          <div className="flex items-center justify-center mb-8">
             <div className="h-16 w-16 bg-red-100 rounded-full flex items-center justify-center">
               <svg
                 className="h-8 w-8 text-red-600"
@@ -109,41 +110,47 @@ export default function SuspendedPage() {
               </svg>
             </div>
           </div>
-          
-          <h2 className="text-center text-3xl font-bold text-gray-900 mb-4">
+
+          <h2 className="text-3xl font-bold text-center text-gray-900 mb-6">
             Account Suspended
           </h2>
-          
+
           <div className="text-center mb-8">
-            <p className="text-gray-500">
-              Your account has been suspended. Please review the information below.
+            <p className="text-gray-600 mb-4">
+              Your account has been suspended for the following reason:
             </p>
+            <div className="bg-gray-50 rounded-lg p-4 mb-6">
+              <p className="text-gray-800">
+                {suspensionReason || 'No specific reason provided'}
+              </p>
+            </div>
           </div>
 
-          <div className="bg-gray-50 rounded-lg p-6 mb-8">
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              Reason for Suspension
+          <div className="border-t border-gray-200 pt-8">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              What should you do?
             </h3>
-            <p className="text-gray-600 whitespace-pre-wrap">
-              {suspensionReason}
-            </p>
+            <ul className="list-disc list-inside text-gray-600 space-y-2">
+              <li>
+                Contact our admin team at{' '}
+                <a
+                  href="mailto:admin@coreadability.com"
+                  className="text-blue-600 hover:text-blue-800"
+                >
+                  admin@coreadability.com
+                </a>
+              </li>
+              <li>Include your username and the reason for suspension in your email</li>
+              <li>Provide any relevant information or context about your situation</li>
+              <li>Wait for a response from our admin team</li>
+            </ul>
           </div>
 
-          <div className="bg-blue-50 rounded-lg p-6">
-            <h3 className="text-lg font-medium text-blue-900 mb-2">
-              What should I do?
-            </h3>
-            <p className="text-blue-600">
-              If you believe this suspension was made in error or would like to appeal,
-              please contact our admin team at:{' '}
-              <a
-                href="mailto:admin@coreadability.com"
-                className="underline hover:text-blue-800"
-              >
-                admin@coreadability.com
-              </a>
-            </p>
-          </div>
+          {error && (
+            <div className="mt-6 bg-red-50 text-red-600 p-4 rounded-lg">
+              {error}
+            </div>
+          )}
         </div>
       </main>
     </div>
