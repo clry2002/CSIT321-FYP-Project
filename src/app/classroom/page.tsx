@@ -171,17 +171,19 @@ export default function ClassroomPage() {
     }
   };
 
-  // Handle rejecting the invitation
   const handleRejectInvitation = async (crid: number) => {
+    const confirmReject = window.confirm('Are you sure you want to decline this classroom invitation?');
+    if (!confirmReject) return;
+  
     try {
       const { error } = await supabase
         .from('temp_classroomstudents')
         .update({ invitation_status: 'rejected' })
         .eq('uaid_child', userAccountId)
         .eq('crid', crid);
-
+  
       if (error) throw error;
-
+  
       // Remove the rejected classroom from both sections
       setInvitedClassrooms(prev => prev.filter(classroom => classroom.crid !== crid));
       setActiveClassrooms(prev => prev.filter(classroom => classroom.crid !== crid));
@@ -189,7 +191,7 @@ export default function ClassroomPage() {
     } catch (err) {
       console.error('Error rejecting invitation:', err instanceof Error ? err.message : err);
     }
-  };
+  };  
 
   // Redirect to the classroom board when a user clicks on an active classroom
   const handleClassroomClick = (crid: number) => {
