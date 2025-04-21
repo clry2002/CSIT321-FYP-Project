@@ -1,6 +1,6 @@
 import { PostgrestError } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
-import { UserAccount, NewUser, RelationshipData, StudentData, ClassroomWithStudents } from './types';
+import { UserAccount, RelationshipData, StudentData, ClassroomWithStudents } from './types';
 
 export const fetchUserAccounts = async () => {
   const { data, error } = await supabase
