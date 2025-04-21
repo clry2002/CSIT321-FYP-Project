@@ -435,12 +435,12 @@ function ClientViewChild() {
                     }
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <button
+                    {/* <button
                       onClick={() => setShowFavoriteGenreModal(true)}
                       className="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600"
                     >
                       Edit
-                    </button>
+                    </button> */}
                   </td>
                 </tr>
 
