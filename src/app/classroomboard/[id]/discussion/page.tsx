@@ -14,9 +14,10 @@ type DiscussionEntry = {
 };
 
 const MAX_WORDS = 148;
+const MAX_VISIBLE_CHARACTERS = 200; // Adjust as needed
 
 export default function DiscussionBoardPage() {
-  const { id } = useParams(); // id = crid (classroom ID)
+  const { id } = useParams();
   const [classroomName, setClassroomName] = useState('');
   const [teacherQuestion, setTeacherQuestion] = useState('');
   const [responses, setResponses] = useState<DiscussionEntry[]>([]);
@@ -25,11 +26,12 @@ export default function DiscussionBoardPage() {
   const [submitting, setSubmitting] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [wordCount, setWordCount] = useState(0);
+  const [selectedResponse, setSelectedResponse] = useState<DiscussionEntry | null>(null);
 
   const stickyNoteColors = ['bg-yellow-200', 'bg-pink-200', 'bg-blue-200', 'bg-green-200', 'bg-orange-200', 'bg-purple-200'];
   const rotations = ['-rotate-2', 'rotate-1', '-rotate-1', 'rotate-2'];
-  const stickyNoteWidth = 'w-48'; // Reduced width
-  const stickyNoteMargin = 'mr-4 mb-4'; // Added margin for spacing
+  const stickyNoteWidth = 'w-48';
+  const stickyNoteMargin = 'mr-4 mb-4';
 
   useEffect(() => {
     const fetchDiscussion = async () => {
@@ -102,6 +104,7 @@ export default function DiscussionBoardPage() {
     };
 
     fetchDiscussion();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   useEffect(() => {
@@ -129,7 +132,7 @@ export default function DiscussionBoardPage() {
             .single();
 
           setResponses((prev) => [
-            ...prev, // Append new messages to the end of the array
+            ...prev,
             {
               id: newEntry.did || newEntry.id,
               message: newEntry.response,
@@ -145,6 +148,7 @@ export default function DiscussionBoardPage() {
     return () => {
       supabase.removeChannel(channel);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -166,17 +170,25 @@ export default function DiscussionBoardPage() {
         data: { user },
       } = await supabase.auth.getUser();
 
+      if (!user?.id) {
+        console.error('User ID not found.');
+        return;
+      }
+
       const { error } = await supabase.from('discussionboard').insert([
         {
           crid: parseInt(id as string, 10),
-          uaid: user!.id,
+          uaid: user.id,
           response: newMessage,
         },
       ]);
-      if (error) throw error;
 
-      setNewMessage('');
-      setWordCount(0);
+      if (error) {
+        console.error('Failed to send message:', error.message);
+      } else {
+        setNewMessage('');
+        setWordCount(0);
+      }
     } catch (error) {
       console.error('Failed to send message:', error);
     } finally {
@@ -194,12 +206,22 @@ export default function DiscussionBoardPage() {
         .delete()
         .eq('did', responseId);
 
-      if (error) throw error;
-
-      setResponses((prev) => prev.filter((entry) => entry.id !== responseId));
+      if (error) {
+        console.error('Failed to delete response:', error.message);
+      } else {
+        setResponses((prev) => prev.filter((entry) => entry.id !== responseId));
+      }
     } catch (err) {
       console.error('Failed to delete response:', err);
     }
+  };
+
+  const handleReadMore = (entry: DiscussionEntry) => {
+    setSelectedResponse(entry);
+  };
+
+  const handleCloseModal = () => {
+    setSelectedResponse(null);
   };
 
   if (loading) {
@@ -214,38 +236,48 @@ export default function DiscussionBoardPage() {
     <main className="min-h-screen w-full bg-gradient-to-br from-yellow-100 via-pink-100 to-blue-100 flex flex-col items-center pb-16">
       <Navbar />
 
-      {/* Fixed Classroom Name and Description */}
-      <div className="bg-white rounded-xl shadow p-6 max-w-3xl w-full mt-25 text-center">
+      <div className="bg-white rounded-xl shadow p-6 max-w-5xl w-full mt-25 text-center">
         <h2 className="text-2xl font-bold text-blue-700 mb-2"> {classroomName}</h2>
         <h3 className="text-lg font-semibold text-blue-700 mb-3"> Teacher&apos;s Question</h3>
         <p className="text-2xl font-bold text-gray-800">{teacherQuestion || 'No question available yet.'}</p>
       </div>
 
-      {/* Container for Sticky Notes */}
       <div className="py-8 flex justify-center w-full">
-        <div className="bg-gray-100 rounded-lg shadow-inner p-6 max-w-5xl w-full flex flex-col items-center">
+        <div className="bg-gray-100 rounded-lg shadow-inner p-6 max-w-6xl w-full flex flex-col items-center">
           <h3 className="text-lg font-semibold text-blue-700 mb-3"> Student&apos;s Response</h3>
           <div className="flex flex-row flex-wrap justify-center items-start gap-4">
             {responses.map((entry, idx) => {
               const color = stickyNoteColors[idx % stickyNoteColors.length];
               const rotation = rotations[idx % rotations.length];
+              const isLong = entry.message.length > MAX_VISIBLE_CHARACTERS;
+              const displayedMessage = isLong ? `${entry.message.slice(0, MAX_VISIBLE_CHARACTERS)}...` : entry.message;
 
               return (
                 <div
                   key={`${entry.id}-${entry.created_at}`}
-                  className={`p-4 ${stickyNoteWidth} ${stickyNoteMargin} shadow-md rounded-lg ${color} ${rotation} transition-transform duration-300 shrink-0 hover:scale-105 hover:shadow-xl cursor-grab`}
+                  className={`p-4 ${stickyNoteWidth} ${stickyNoteMargin} shadow-md rounded-lg ${color} ${rotation} transition-transform duration-300 shrink-0 hover:scale-105 hover:shadow-xl cursor-grab relative flex flex-col justify-between`}
                 >
-                  <p className="text-lg text-gray-800 break-words">{entry.message}</p>
-                  <div className="mt-2 text-sm text-gray-600 flex justify-between items-center">
-                    <span>– {entry.sender_name}</span>
+                  <p className="text-lg text-gray-800 break-words">{displayedMessage}</p>
+                  <div className="flex flex-col items-end mt-2">
+                    {isLong && (
+                      <button
+                        type="button"
+                        onClick={() => handleReadMore(entry)}
+                        className="text-blue-500 text-sm hover:underline mb-1" // Added mb-1 for spacing
+                      >
+                        Read More
+                      </button>
+                    )}
                     {entry.uaid === currentUserId && (
                       <button
+                        type="button"
                         onClick={() => handleDelete(entry.id)}
-                        className="text-red-500 hover:underline"
+                        className="text-red-500 hover:underline text-sm"
                       >
                         Delete
                       </button>
                     )}
+                    <span className="text-sm text-gray-600 self-start">– {entry.sender_name}</span>
                   </div>
                 </div>
               );
@@ -254,9 +286,26 @@ export default function DiscussionBoardPage() {
         </div>
       </div>
 
-      {/* Response Form at the bottom */}
+      {selectedResponse && (
+        <div className="fixed top-0 left-0 w-full h-full bg-black bg-opacity-50 flex justify-center items-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-8 max-w-md w-full relative">
+            <button
+              type="button"
+              onClick={handleCloseModal}
+              className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
+            >
+              <svg className="h-6 w-6 fill-current" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            </button>
+            <h3 className="text-lg font-semibold text-blue-700 mb-2">Full Response by {selectedResponse.sender_name}</h3>
+            <p className="text-gray-800 break-words">{selectedResponse.message}</p>
+          </div>
+        </div>
+      )}
+
       <div className="fixed bottom-0 left-0 w-full bg-white bg-opacity-90 py-3 px-6 z-20 shadow-inner flex justify-center">
-        <form onSubmit={handleSubmit} className="flex flex-col md:flex-row items-center gap-4 max-w-3xl w-full">
+        <form onSubmit={handleSubmit} className="flex flex-col md:flex-row items-center gap-4 max-w-5xl w-full">
           <div className="flex-1">
             <textarea
               placeholder={`Type your response here! (Max ${MAX_WORDS} words)`}
