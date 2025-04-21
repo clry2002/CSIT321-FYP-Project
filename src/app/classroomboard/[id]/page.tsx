@@ -24,83 +24,128 @@ type Content = {
 export default function ClassroomBoardPage() {
   const [classroom, setClassroom] = useState<Classroom | null>(null);
   const [content, setContent] = useState<Content | null>(null); 
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [userAccountId, setUserAccountId] = useState<string | null>(null); 
-  const [isUserAuthenticated, setIsUserAuthenticated] = useState(false); 
-  const [hasAccess, setHasAccess] = useState(false); 
+  const [hasAccess, setHasAccess] = useState<boolean | null>(null);
   const { id } = useParams(); 
   const router = useRouter(); 
 
+  // Combined authentication and data loading process
   useEffect(() => {
-    const fetchUserAccountId = async () => {
+    console.log("Starting authentication and data loading process...");
+    
+    const loadClassroomData = async () => {
+      setIsLoading(true);
+      
       try {
-        const { data, error: userError } = await supabase.auth.getUser();
-        if (userError) throw userError;
-
-        if (!data?.user) {
-          setIsUserAuthenticated(false);
+        // Check user authentication
+        const { data: authData, error: authError } = await supabase.auth.getUser();
+        
+        if (authError || !authData?.user) {
+          console.error('Authentication error:', authError);
+          setIsLoading(false);
           return;
         }
-
-        setIsUserAuthenticated(true);
-        const { data: userAccountData, error } = await supabase
+        
+        console.log("User authenticated, fetching user account ID...");
+        
+        // Retrieve user account ID
+        const { data: userAccountData, error: userAccountError } = await supabase
           .from('user_account')
           .select('id')
-          .eq('user_id', data.user.id)
+          .eq('user_id', authData.user.id)
           .single();
-
-        if (error) throw error;
-
-        if (userAccountData) setUserAccountId(userAccountData.id);
-      } catch (err) {
-        console.error('Error fetching user account ID:', err instanceof Error ? err.message : err);
-      }
-    };
-
-    fetchUserAccountId();
-  }, []);
-
-  useEffect(() => {
-    const fetchClassroomDetails = async () => {
-      if (!id || !userAccountId) return;
-
-      try {
-        const { data, error } = await supabase
+        
+        if (userAccountError || !userAccountData) {
+          console.error('Error fetching user account:', userAccountError);
+          setIsLoading(false);
+          return;
+        }
+        
+        const currentUserAccountId = userAccountData.id;
+        setUserAccountId(currentUserAccountId);
+        console.log(`User account ID: ${currentUserAccountId}`);
+        
+        // Check classroom access
+        const { data: invitationData, error: invitationError } = await supabase
+          .from('temp_classroomstudents')
+          .select('uaid_child, invitation_status')
+          .eq('crid', id)
+          .eq('uaid_child', currentUserAccountId)
+          .single();
+        
+        if (invitationError || !invitationData) {
+          console.error('Invitation check error:', invitationError);
+          setError('No invitation found for this classroom');
+          setHasAccess(false);
+          setIsLoading(false);
+          return;
+        }
+        
+        const { invitation_status } = invitationData;
+        if (invitation_status === 'pending' || invitation_status === 'null' || invitation_status === 'rejected') {
+          console.log(`Access denied. Invitation status: ${invitation_status}`);
+          setError(`Your invitation status is ${invitation_status}. Access denied.`);
+          setHasAccess(false);
+          setIsLoading(false);
+          return;
+        }
+      
+        setHasAccess(true);
+        console.log("Access granted, fetching classroom data...");
+        
+        // Retrieve classroom details
+        const { data: classroomData, error: classroomError } = await supabase
           .from('temp_classroom')
           .select('crid, name, description, uaid_educator, cid')
           .eq('crid', id)
           .single();
-
-        if (error) throw error;
-
-        const educatorData = await supabase
+        
+        if (classroomError) {
+          console.error('Classroom data error:', classroomError);
+          setError('Failed to fetch classroom details');
+          setIsLoading(false);
+          return;
+        }
+        
+        // Retrieve educator details
+        const { data: educatorData, error: educatorError } = await supabase
           .from('user_account')
           .select('fullname')
-          .eq('id', data.uaid_educator)
+          .eq('id', classroomData.uaid_educator)
           .single();
-
-        if (educatorData.error) throw educatorData.error;
-
+        
+        if (educatorError) {
+          console.error('Educator data error:', educatorError);
+          setError('Failed to fetch educator details');
+          setIsLoading(false);
+          return;
+        }
+        
+        // Set classroom data
         setClassroom({
-          crid: data.crid,
-          name: data.name,
-          description: data.description,
-          educatorFullName: educatorData.data?.fullname || 'Unknown Educator',
-          cid: data.cid
+          crid: classroomData.crid,
+          name: classroomData.name,
+          description: classroomData.description,
+          educatorFullName: educatorData?.fullname || 'Unknown Educator',
+          cid: classroomData.cid
         });
-
-        // If cid is null, do not fetch content
-        if (data.cid !== null) {
+        
+        // Retrieve content if available
+        if (classroomData.cid !== null) {
+          console.log(`Fetching content for CID: ${classroomData.cid}`);
+          
           const { data: contentData, error: contentError } = await supabase
             .from('temp_content')
             .select('coverimage, title, cfid, contenturl')
-            .eq('cid', data.cid) // Automatically fetch content based on cid
+            .eq('cid', classroomData.cid)
             .single();
-
-          if (contentError) throw contentError;
-
-          if (contentData) {
+          
+          if (contentError) {
+            console.error('Content data error:', contentError);
+            // Don't set error - classroom can exist without content
+          } else if (contentData) {
             setContent({
               coverimage: contentData.coverimage,
               title: contentData.title,
@@ -109,43 +154,18 @@ export default function ClassroomBoardPage() {
             });
           }
         }
-
-        const { data: invitationData, error: invitationError } = await supabase
-          .from('temp_classroomstudents')
-          .select('uaid_child, invitation_status')
-          .eq('crid', id)
-          .eq('uaid_child', userAccountId)
-          .single();
-
-        if (invitationError || !invitationData) {
-          setError('No accepted invitation found or error: ' + invitationError?.message);
-          setLoading(false);
-          return;
-        }
-
-        const { invitation_status } = invitationData;
-        if (invitation_status === 'pending') {
-          setError('Your invitation status is not accepted.');
-          setLoading(false);
-          return;
-        }
-
-        if (invitation_status === 'null' || invitation_status === 'rejected') {
-          setError('You do not have access to this classroom.');
-          setLoading(false);
-          return;
-        }
-
-        setHasAccess(true);
-        setLoading(false);
-      } catch {
-        setError('Failed to fetch classroom details');
-        setLoading(false);
+        
+        console.log("All data loaded successfully");
+      } catch (err) {
+        console.error('Unexpected error during data loading:', err);
+        setError('An unexpected error occurred');
+      } finally {
+        setIsLoading(false);
       }
     };
-
-    fetchClassroomDetails();
-  }, [id, userAccountId]);
+    
+    loadClassroomData();
+  }, [id]);
 
   const handleRedirectToDetail = (cid: number, cfid: number) => {
     if (cfid === 1) {
@@ -155,22 +175,22 @@ export default function ClassroomBoardPage() {
     }
   };
 
-  if (!isUserAuthenticated) {
+  // Display loading state when page is loading
+  if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-screen bg-yellow-100">
-        <div className="text-2xl text-yellow-600">You must be logged in to view this classroom.</div>
+      <div className="flex flex-col h-screen bg-blue-100">
+        <Navbar />
+        <div className="flex justify-center items-center h-full">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <div className="text-2xl text-blue-600">Loading Classroom...</div>
+          </div>
+        </div>
       </div>
     );
   }
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-screen bg-blue-100">
-        <div className="text-2xl text-blue-600">Loading Classroom...</div>
-      </div>
-    );
-  }
-
+  // Display error message if any
   if (error) {
     return (
       <div className="flex flex-col h-screen bg-red-100">
@@ -190,7 +210,28 @@ export default function ClassroomBoardPage() {
     );
   }
 
-  if (!hasAccess) {
+  // Check if user is authenticated
+  if (!userAccountId) {
+    return (
+      <div className="flex flex-col h-screen bg-yellow-100">
+        <Navbar />
+        <div className="flex justify-center items-center h-full">
+          <div className="text-2xl text-yellow-600">You must be logged in to view this classroom.</div>
+        </div>
+        <div className="flex justify-center mt-4">
+          <button
+            onClick={() => router.push('/login')}
+            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            Go to Login
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Check if user has access to the classroom
+  if (hasAccess === false) {
     return (
       <div className="flex flex-col h-screen bg-red-100">
         <Navbar />
@@ -209,10 +250,22 @@ export default function ClassroomBoardPage() {
     );
   }
 
+  // Check if classroom data was fetched
   if (!classroom) {
     return (
-      <div className="flex justify-center items-center h-screen bg-yellow-100">
-        <div className="text-2xl text-yellow-600">No classroom found.</div>
+      <div className="flex flex-col h-screen bg-yellow-100">
+        <Navbar />
+        <div className="flex justify-center items-center h-full">
+          <div className="text-2xl text-yellow-600">No classroom found.</div>
+        </div>
+        <div className="flex justify-center mt-4">
+          <button
+            onClick={() => router.push('/classroom')}
+            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            Go Back
+          </button>
+        </div>
       </div>
     );
   }
@@ -268,8 +321,15 @@ export default function ClassroomBoardPage() {
                   <h4 className="text-xl font-semibold text-gray-600 mb-2">Books to read!</h4>
                   <Image
                     src={content.coverimage}
+                    width={500}
+                    height={667}
                     alt={content.title}
-                    className="w-full h-64 object-cover rounded-lg mb-4"
+                    className="rounded-lg"
+                    style={{ 
+                      objectFit: 'contain',
+                      width: '100%',
+                      height: 'auto'
+                    }}
                   />
                   <h4
                     onClick={() => classroom.cid !== null && handleRedirectToDetail(classroom.cid, content.cfid)}
