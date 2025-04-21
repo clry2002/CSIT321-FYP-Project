@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import Navbar from '../../../components/Navbar';
@@ -27,6 +27,7 @@ export default function DiscussionBoardPage() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [wordCount, setWordCount] = useState(0);
   const [selectedResponse, setSelectedResponse] = useState<DiscussionEntry | null>(null);
+  const responsesContainerRef = useRef<HTMLDivElement>(null);
 
   const stickyNoteColors = ['bg-yellow-200', 'bg-pink-200', 'bg-blue-200', 'bg-green-200', 'bg-orange-200', 'bg-purple-200'];
   const rotations = ['-rotate-2', 'rotate-1', '-rotate-1', 'rotate-2'];
@@ -141,6 +142,10 @@ export default function DiscussionBoardPage() {
               uaid: newEntry.uaid,
             },
           ]);
+          // Scroll to the bottom when a new response arrives
+          setTimeout(() => {
+            responsesContainerRef.current?.scrollIntoView({ behavior: 'smooth' });
+          }, 100);
         }
       )
       .subscribe();
@@ -188,6 +193,10 @@ export default function DiscussionBoardPage() {
       } else {
         setNewMessage('');
         setWordCount(0);
+        // Scroll to the bottom after submitting a new response
+        setTimeout(() => {
+          responsesContainerRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
       }
     } catch (error) {
       console.error('Failed to send message:', error);
@@ -282,6 +291,7 @@ export default function DiscussionBoardPage() {
                 </div>
               );
             })}
+            <div ref={responsesContainerRef} className="w-full" /> {/* Anchor for scrolling */}
           </div>
         </div>
       </div>
