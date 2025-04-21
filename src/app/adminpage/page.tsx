@@ -4,299 +4,12 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { supabase } from '@/lib/supabase';
-import { PostgrestError } from '@supabase/supabase-js';
-
-interface UserAccount {
-  fullname: string;
-  username: string;
-  age: number;
-  upid: number;
-  created_at: string;
-  updated_at: string;
-  suspended: boolean;
-  comments?: string;
-  user_id?: string;
-  id?: string;
-}
-
-interface NewUser {
-  fullname: string;
-  username: string;
-  age: number | null;
-  upid: number;
-  email: string;
-  password: string;
-}
-
-interface ParentChildRelationship {
-  parent: string;
-  child: string;
-}
-
-interface RelationshipData {
-  parent_id: string;
-  child_id: string;
-  parent: {
-    username: string;
-    fullname: string;
-  };
-  child: {
-    username: string;
-    fullname: string;
-  };
-}
-
-interface ClassroomData {
-  crid: number;
-  name: string;
-  description: string;
-  educatorName: string;
-  students: {
-    username: string;
-    fullname: string;
-    invitation_status: string;
-  }[];
-}
-
-interface StudentData {
-  invitation_status: string;
-  user_account: {
-    username: string;
-    fullname: string;
-  };
-}
-
-interface ClassroomWithStudents {
-  crid: number;
-  name: string;
-  description: string;
-  uaid_educator: string;
-}
-
-interface DiscussionEntry {
-  id: number;
-  message: string;
-  sender_name: string;
-  created_at: string;
-}
-
-interface DiscussionData {
-  classroomName: string;
-  teacherQuestion: string;
-  responses: DiscussionEntry[];
-}
-
-interface EditingCell {
-  username: string;
-  field: string;
-  value: string | number;
-}
-
-interface UserDetailsModalProps {
-  user: UserAccount | null;
-  onClose: () => void;
-  onStatusClick: (user: UserAccount) => void;
-  onEdit: (username: string, field: string, value: string | number) => void;
-  userTypes: { id: number; label: string; }[];
-  getUpidLabel: (upid: number) => string;
-}
-
-const UserDetailsModal: React.FC<UserDetailsModalProps> = ({
-  user,
-  onClose,
-  onStatusClick,
-  onEdit,
-  userTypes,
-  getUpidLabel,
-}) => {
-  type EditingCell = {
-    username: string;
-    field: string;
-    value: string | number;
-  };
-  
-  const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
-
-  const getEditableUserTypes = (currentUpid: number) => {
-    if (currentUpid === 3) return [];
-    return userTypes.filter(type => type.id !== 3);
-  };
-
-  if (!user) return null;
-
-  const handleEditingChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    if (editingCell) {
-      setEditingCell({ ...editingCell, value: parseInt(e.target.value) });
-    }
-  };
-
-  const startEditing = (field: string, value: string | number) => {
-    setEditingCell({ username: user.username, field, value });
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-gray-900 p-6 rounded-lg w-[1000px]">
-        <div className="flex justify-between items-center mb-6">
-          <div className="flex items-center space-x-4">
-            <h3 className="text-2xl font-bold">User Details</h3>
-            <button
-              onClick={() => onStatusClick(user)}
-              className={`px-6 py-2 inline-flex items-center justify-center text-sm leading-5 font-semibold rounded-full whitespace-nowrap min-w-[100px] ${
-                user.suspended 
-                  ? 'bg-red-900 text-red-200 hover:bg-red-800' 
-                  : 'bg-green-900 text-green-200 hover:bg-green-800'
-              }`}
-            >
-              {user.suspended ? 'Suspended' : 'Active'}
-            </button>
-          </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-white">✕</button>
-        </div>
-
-        <div className="space-y-4">
-          {editingCell ? (
-            <div className="bg-gray-800 p-4 rounded-lg">
-              <div className="mb-2">
-                <label className="text-sm text-gray-400">
-                  Editing {editingCell.field === 'upid' ? 'User Type' : editingCell.field.charAt(0).toUpperCase() + editingCell.field.slice(1)}
-                </label>
-              </div>
-              {editingCell.field === 'upid' ? (
-                <select
-                  value={editingCell.value as number}
-                  onChange={(e) => setEditingCell({ ...editingCell, value: parseInt(e.target.value) })}
-                  className="w-full bg-gray-700 text-white rounded px-3 py-2 mb-4"
-                  autoFocus
-                >
-                  {getEditableUserTypes(user.upid).map((type) => (
-                    <option key={type.id} value={type.id}>
-                      {type.label}
-                    </option>
-                  ))}
-                </select>
-              ) : editingCell.field === 'age' ? (
-                <input
-                  type="number"
-                  value={editingCell.value as number}
-                  onChange={(e) => setEditingCell({ ...editingCell, value: parseInt(e.target.value) })}
-                  className="w-full bg-gray-700 text-white rounded px-3 py-2 mb-4"
-                  autoFocus
-                />
-              ) : (
-                <input
-                  type="text"
-                  value={editingCell.value as string}
-                  onChange={(e) => setEditingCell({ ...editingCell, value: e.target.value })}
-                  className="w-full bg-gray-700 text-white rounded px-3 py-2 mb-4"
-                  autoFocus
-                />
-              )}
-              <div className="flex justify-end space-x-2">
-                <button
-                  onClick={() => setEditingCell(null)}
-                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-white"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => {
-                    onEdit(user.username, editingCell.field, editingCell.value);
-                    setEditingCell(null);
-                  }}
-                  className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded text-white"
-                >
-                  Save Changes
-                </button>
-              </div>
-            </div>
-          ) : (
-            <>
-              <div className="grid grid-cols-7 gap-4">
-                <div 
-                  className="col-span-2 bg-gray-800 p-4 rounded-lg cursor-pointer hover:bg-gray-700"
-                  onClick={() => setEditingCell({ username: user.username, field: 'fullname', value: user.fullname })}
-                >
-                  <div className="text-sm text-gray-400 mb-1">FULL NAME</div>
-                  <div className="text-white break-all">{user.fullname}</div>
-                </div>
-                <div 
-                  className="col-span-2 bg-gray-800 p-4 rounded-lg cursor-pointer hover:bg-gray-700"
-                  onClick={() => setEditingCell({ username: user.username, field: 'username', value: user.username })}
-                >
-                  <div className="text-sm text-gray-400 mb-1">USERNAME</div>
-                  <div className="text-white break-all">{user.username}</div>
-                </div>
-                <div 
-                  className="bg-gray-800 p-4 rounded-lg cursor-pointer hover:bg-gray-700"
-                  onClick={() => setEditingCell({ username: user.username, field: 'age', value: user.age })}
-                >
-                  <div className="text-sm text-gray-400 mb-1">AGE</div>
-                  <div className="text-white">{user.age}</div>
-                </div>
-                <div 
-                  className={`col-span-2 bg-gray-800 p-4 rounded-lg ${user.upid === 3 ? '' : 'cursor-pointer hover:bg-gray-700'}`}
-                >
-                  <div className="text-sm text-gray-400 mb-1">USER TYPE</div>
-                  {user.upid === 3 ? (
-                    <div className="text-white">{getUpidLabel(user.upid)}</div>
-                  ) : (
-                    editingCell?.username === user.username && editingCell?.field === 'upid' ? (
-                      <div className="flex items-center space-x-2">
-                        <select
-                          value={editingCell.value as number}
-                          onChange={handleEditingChange}
-                          className="w-full bg-gray-700 text-white rounded px-3 py-2 mb-4"
-                          autoFocus
-                        >
-                          {userTypes.filter(type => type.id !== 3).map((type) => (
-                            <option key={type.id} value={type.id}>
-                              {type.label}
-                            </option>
-                          ))}
-                        </select>
-                        <button
-                          onClick={() => onEdit(user.username, 'upid', editingCell.value)}
-                          className="text-green-500 hover:text-green-400"
-                        >
-                          ✓
-                        </button>
-                        <button
-                          onClick={() => setEditingCell(null)}
-                          className="text-red-500 hover:text-red-400"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ) : (
-                      <div 
-                        onClick={() => startEditing('upid', user.upid)}
-                        className="text-white cursor-pointer"
-                      >
-                        {getUpidLabel(user.upid)}
-                      </div>
-                    )
-                  )}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-gray-800 p-4 rounded-lg">
-                  <div className="text-sm text-gray-400 mb-1">CREATED AT</div>
-                  <div className="text-white">{new Date(user.created_at).toLocaleString()}</div>
-                </div>
-                <div className="bg-gray-800 p-4 rounded-lg">
-                  <div className="text-sm text-gray-400 mb-1">UPDATED AT</div>
-                  <div className="text-white">{new Date(user.updated_at).toLocaleString()}</div>
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
+import { UserAccount, NewUser, ParentChildRelationship, ClassroomData, DiscussionData } from './types';
+import * as api from './api';
+import * as handlers from './handlers';
+import * as utils from './utils';
+import UserDetailsModal from './components/UserDetailsModal';
+import ResetPasswordModal from './components/ResetPasswordModal';
 
 export default function AdminPage() {
   const router = useRouter();
@@ -313,14 +26,13 @@ export default function AdminPage() {
     fullname: '',
     username: '',
     age: null,
-    upid: 4,
+    upid: 1,
     email: '',
     password: '',
   });
   const [modalMessage, setModalMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const [authUserId, setAuthUserId] = useState<string | null>(null);
   const [step, setStep] = useState<'auth' | 'details'>('auth');
-  const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | null>(null);
@@ -362,254 +74,64 @@ export default function AdminPage() {
   const [showUserModal, setShowUserModal] = useState(false);
   const [selectedUserTypeFilter, setSelectedUserTypeFilter] = useState<number | null>(null);
   const [showUserTypeDropdown, setShowUserTypeDropdown] = useState(false);
-
-  const userTypes = [
-    { id: 1, label: 'Publisher' },
-    { id: 2, label: 'Parent' },
-    { id: 3, label: 'Child' },
-    { id: 5, label: 'Teacher' }
-  ];
-
-  const getUpidLabel = (upid: number) => {
-    switch (upid) {
-      case 1: return 'Publisher';
-      case 2: return 'Parent';
-      case 3: return 'Child';
-      case 5: return 'Teacher';
-      default: return 'Unknown';
-    }
-  };
+  const [deleteSuccessMessage, setDeleteSuccessMessage] = useState<string | null>(null);
+  const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
+  const [selectedUserForPasswordReset, setSelectedUserForPasswordReset] = useState<UserAccount | null>(null);
+  const [showRemoveChildModal, setShowRemoveChildModal] = useState(false);
+  const [childToRemove, setChildToRemove] = useState<{ username: string; fullname: string; parentUsername: string } | null>(null);
+  const [removeChildSuccess, setRemoveChildSuccess] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchUserAccounts();
-    fetchRelationships();
-    fetchClassrooms();
+    fetchData();
   }, []);
 
-  const fetchUserAccounts = async () => {
+  const fetchData = async () => {
     try {
-      const { data, error } = await supabase
-        .from('user_account')
-        .select('fullname, username, age, upid, created_at, updated_at, suspended, comments');
+      const [accountsData, relationshipsData, classroomsData] = await Promise.all([
+        api.fetchUserAccounts(),
+        api.fetchRelationships(),
+        api.fetchClassrooms()
+      ]);
 
-      if (error) throw error;
-      setUserAccounts(data || []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred while fetching user accounts');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchRelationships = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('isparentof')
-        .select(`
-          parent_id,
-          child_id,
-          parent:user_account!fk_parent_id(username, fullname),
-          child:user_account!fk_child_id(username, fullname)
-        `) as { data: RelationshipData[] | null, error: PostgrestError | null };
-
-      if (error) throw error;
-
-      // Transform the data to match the expected format
-      const transformedRelationships = (data || []).map(rel => ({
+      setUserAccounts(accountsData);
+      setRelationships(relationshipsData.map(rel => ({
         parent: rel.parent.username,
         child: rel.child.username
-      }));
-
-      setRelationships(transformedRelationships);
+      })));
+      setClassrooms(classroomsData);
     } catch (err) {
-      console.error('Error fetching relationships:', err);
-      setError(err instanceof Error ? err.message : 'An error occurred while fetching relationships');
-    }
-  };
-
-  const fetchClassrooms = async () => {
-    try {
-      // First, get all classrooms
-      const { data: classroomData, error: classroomError } = await supabase
-        .from('temp_classroom')
-        .select(`
-          crid,
-          name,
-          description,
-          uaid_educator
-        `) as { data: ClassroomWithStudents[] | null, error: PostgrestError | null };
-
-      if (classroomError) throw classroomError;
-
-      // For each classroom, get the educator's name and students
-      const classroomsWithDetails = await Promise.all((classroomData || []).map(async (classroom) => {
-        // Get educator name
-        const { data: educatorData } = await supabase
-          .from('user_account')
-          .select('fullname')
-          .eq('id', classroom.uaid_educator)
-          .single() as { data: { fullname: string } | null };
-
-        // Get students
-        const { data: studentData } = await supabase
-          .from('temp_classroomstudents')
-          .select(`
-            invitation_status,
-            user_account:uaid_child(
-              username,
-              fullname
-            )
-          `)
-          .eq('crid', classroom.crid) as { data: StudentData[] | null };
-
-        const students = (studentData || []).map(student => ({
-          username: student.user_account.username,
-          fullname: student.user_account.fullname,
-          invitation_status: student.invitation_status
-        }));
-
-        return {
-          crid: classroom.crid,
-          name: classroom.name,
-          description: classroom.description,
-          educatorName: educatorData?.fullname || 'Unknown Educator',
-          students
-        };
-      }));
-
-      setClassrooms(classroomsWithDetails);
-    } catch (err) {
-      console.error('Error fetching classrooms:', err);
-      setError(err instanceof Error ? err.message : 'An error occurred while fetching classrooms');
+      setError(err instanceof Error ? err.message : 'An error occurred while fetching data');
     } finally {
+      setLoading(false);
       setLoadingClassrooms(false);
     }
   };
 
-  const handleCreateAuth = async () => {
-    try {
-      setModalMessage(null);
-      
-      if (!newUser.email || !newUser.password) {
-        setModalMessage({ type: 'error', text: 'Please enter both email and password' });
-        return;
-      }
-
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: newUser.email,
-        password: newUser.password,
-      });
-
-      if (authError) {
-        console.error('Auth error:', authError);
-        setModalMessage({ type: 'error', text: authError.message });
-        return;
-      }
-
-      setAuthUserId(authData.user?.id || null);
-      setModalMessage({ type: 'success', text: 'Authentication created successfully!' });
-      setStep('details');
-    } catch (err) {
-      console.error('Auth error:', err);
-      setModalMessage({ 
-        type: 'error', 
-        text: err instanceof Error ? err.message : 'An error occurred during authentication'
-      });
-    }
+  const handleCreateAuth = () => {
+    handlers.handleCreateAuth(newUser, setModalMessage, setAuthUserId, setStep);
   };
 
-  const handleCreateAccount = async () => {
-    try {
-      setModalMessage(null);
-
-      if (!newUser.fullname || !newUser.username || newUser.age === null || !authUserId) {
-        setModalMessage({ type: 'error', text: 'Please fill in all fields' });
-        return;
-      }
-
-      // Add age validation
-      if (newUser.age < 18) {
-        setModalMessage({ type: 'error', text: 'Age must be 18 or older' });
-        return;
-      }
-
-      const userToInsert = {
-        fullname: newUser.fullname,
-        username: newUser.username,
-        age: newUser.age,
-        upid: newUser.upid,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        suspended: false,
-        user_id: authUserId
-      };
-
-      const { error } = await supabase
-        .from('user_account')
-        .insert([userToInsert])
-        .select();
-
-      if (error) {
-        console.error('Database error:', error);
-        setModalMessage({ type: 'error', text: error.message });
-        return;
-      }
-
-      setModalMessage({ type: 'success', text: 'User account created successfully!' });
-      
-      // Refresh the table and redirect after a short delay
-      setTimeout(async () => {
-        await fetchUserAccounts();
+  const handleCreateAccount = () => {
+    handlers.handleCreateAccount(newUser, authUserId, setModalMessage, () => {
+      fetchData();
         setShowNewUserModal(false);
         router.refresh();
-      }, 1500);
-    } catch (err) {
-      console.error('Account creation error:', err);
-      setModalMessage({ 
-        type: 'error', 
-        text: err instanceof Error ? err.message : 'An error occurred while creating the account'
-      });
-    }
-  };
-
-  const resetForm = () => {
-    setNewUser({
-      fullname: '',
-      username: '',
-      age: null,
-      upid: 4,
-      email: '',
-      password: '',
     });
-    setAuthUserId(null);
-    setStep('auth');
-    setModalMessage(null);
-    setIsCreatingParent(false);
   };
 
   const handleSuspendUser = async (user: UserAccount) => {
     try {
-      const { error } = await supabase
-        .from('user_account')
-        .update({ 
-          suspended: true,
-          comments: suspendComment,
-          updated_at: new Date().toISOString()
-        })
-        .eq('username', user.username);
-
-      if (error) throw error;
-
+      await handlers.handleSuspendUser(user, suspendComment, (username, suspended, comments) => {
       setUserAccounts(userAccounts.map(u => 
-        u.username === user.username 
-          ? { ...u, suspended: true, comments: suspendComment }
+          u.username === username 
+            ? { ...u, suspended, comments }
           : u
       ));
-      
       setShowSuspendModal(false);
       setSelectedUser(null);
       setSuspendComment('');
       setShowUserModal(false);
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred while suspending user');
     }
@@ -617,186 +139,117 @@ export default function AdminPage() {
 
   const handleRevertSuspension = async (user: UserAccount) => {
     try {
-      const { error } = await supabase
-        .from('user_account')
-        .update({ 
-          suspended: false,
-          comments: 'na',
-          updated_at: new Date().toISOString()
-        })
-        .eq('username', user.username);
-
-      if (error) throw error;
-
+      await handlers.handleRevertSuspension(user, (username, suspended, comments) => {
       setUserAccounts(userAccounts.map(u => 
-        u.username === user.username 
-          ? { ...u, suspended: false, comments: 'na' }
+          u.username === username 
+            ? { ...u, suspended, comments }
           : u
       ));
-      
       setShowRevertModal(false);
       setSelectedUser(null);
       setShowUserModal(false);
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred while reverting suspension');
     }
   };
 
-  const handleDeleteUsers = async () => {
-    if (selectedRows.length === 0) return;
-
-    try {
-      setDeleteUserError(null);
-
-      // Check if any of the selected users are parents
-      const selectedUsers = userAccounts.filter(user => selectedRows.includes(user.username));
-      const parentsToDelete = selectedUsers.filter(user => user.upid === 2);
-
-      // If there are parents to delete, get their children
-      if (parentsToDelete.length > 0) {
-        for (const parent of parentsToDelete) {
-          const children = getChildrenForParent(parent.username);
-          
-          // First, delete parent-child relationships
-          for (const child of children) {
-            // Get the parent and child IDs
-            const { data: parentData } = await supabase
-              .from('user_account')
-              .select('id')
-              .eq('username', parent.username)
-              .single();
-
-            const { data: childData } = await supabase
-              .from('user_account')
-              .select('id')
-              .eq('username', child.username)
-              .single();
-
-            if (parentData && childData) {
-              // Delete the relationship
-              const { error: relationshipError } = await supabase
-                .from('isparentof')
-                .delete()
-                .match({ 
-                  parent_id: parentData.id, 
-                  child_id: childData.id 
-                });
-              
-              if (relationshipError) throw relationshipError;
-            }
-
-            // Delete the child's auth user
-            const childUser = userAccounts.find(u => u.username === child.username);
-            if (childUser?.user_id) {
-              const { error: authError } = await supabase.auth.admin.deleteUser(
-                childUser.user_id
-              );
-              if (authError) throw authError;
-            }
-
-            // Delete the child's user account
-            const { error: childError } = await supabase
-              .from('user_account')
-              .delete()
-              .eq('username', child.username);
-            
-            if (childError) throw childError;
-          }
-
-          // Delete the parent's auth user
-          if (parent.user_id) {
-            const { error: authError } = await supabase.auth.admin.deleteUser(
-              parent.user_id
-            );
-            if (authError) throw authError;
-          }
-        }
-      }
-
-      // Delete remaining selected users' auth accounts
-      for (const user of selectedUsers.filter(user => user.upid !== 2)) {
-        if (user.user_id) {
-          const { error: authError } = await supabase.auth.admin.deleteUser(
-            user.user_id
-          );
-          if (authError) throw authError;
-        }
-      }
-
-      // Delete the selected users from user_account table
-      const { error } = await supabase
-        .from('user_account')
-        .delete()
-        .in('username', selectedRows);
-
-      if (error) throw error;
-
+  const handleDeleteUsers = () => {
+    const deletedUsers = userAccounts.filter(user => selectedRows.includes(user.username));
+    handlers.handleDeleteUsers(selectedRows, userAccounts, () => {
       setUserAccounts(userAccounts.filter(user => !selectedRows.includes(user.username)));
       setSelectedRows([]);
       setShowDeleteModal(false);
-    } catch (err) {
-      console.error('Error deleting users:', err);
-      setDeleteUserError(err instanceof Error ? err.message : 'An error occurred while deleting users');
-    }
+      setDeleteSuccessMessage(`Successfully deleted ${deletedUsers.map(u => u.fullname).join(', ')}`);
+      setTimeout(() => {
+        setDeleteSuccessMessage(null);
+        router.refresh();
+      }, 3000);
+    }, setDeleteUserError);
   };
 
   const handleUpdateUser = async (username: string, field: string, value: string | number) => {
     try {
-      const { error } = await supabase
-        .from('user_account')
-        .update({ 
-          [field]: value,
-          updated_at: new Date().toISOString()
-        })
-        .eq('username', username);
-
-      if (error) throw error;
-
-      setUserAccounts(userAccounts.map(user => 
-        user.username === username 
-          ? { ...user, [field]: value }
-          : user
-      ));
-      
-      setEditingCell(null);
+      await handlers.handleUpdateUser(username, field, value, (username, field, value) => {
+        setUserAccounts(userAccounts.map(user => 
+          user.username === username 
+            ? { ...user, [field]: value }
+            : user
+        ));
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred while updating user');
     }
   };
 
-  const filteredAndSortedUsers = userAccounts
-    .filter(user => {
-      const matchesSearch = 
-        user.fullname.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        user.username.toLowerCase().includes(searchQuery.toLowerCase());
-      
-      const matchesStatus = selectedStatusFilter === null || user.suspended === selectedStatusFilter;
-      
-      const matchesUserType = selectedUserTypeFilter === null || user.upid === selectedUserTypeFilter;
-      
-      return matchesSearch && matchesStatus && matchesUserType;
-    })
-    .sort((a, b) => {
-      if (sortOrder === null && createdAtSort === null && updatedAtSort === null) return 0;
-      
-      if (sortOrder !== null) {
-        return sortOrder === 'asc' ? a.age - b.age : b.age - a.age;
+  const handleResetPassword = (user: UserAccount) => {
+    setSelectedUserForPasswordReset(user);
+    setShowResetPasswordModal(true);
+    setShowUserModal(false); // Close the user details modal
+  };
+
+  const handleLogout = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      router.push('/');
+    } catch (err) {
+      console.error('Error logging out:', err);
+    }
+  };
+
+  const handleUserClick = async (username: string) => {
+    try {
+      // First try to find the user in userAccounts
+      const user = userAccounts.find(u => u.username === username || u.fullname === username);
+      if (user) {
+        setSelectedUser(user);
+        setShowUserModal(true);
+        return;
       }
+
+      // If not found in userAccounts, fetch from database
+      const { data, error } = await supabase
+        .from('user_account')
+        .select('*')
+        .or(`username.eq.${username},fullname.eq.${username}`)
+        .single();
+
+      if (error) throw error;
       
-      if (createdAtSort !== null) {
-        return createdAtSort === 'asc' 
-          ? new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-          : new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      if (data) {
+        setSelectedUser(data as UserAccount);
+        setShowUserModal(true);
       }
-      
-      if (updatedAtSort !== null) {
-        return updatedAtSort === 'asc'
-          ? new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime()
-          : new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
-      }
-      
-      return 0;
-    });
+    } catch (err) {
+      console.error('Error fetching user details:', err);
+    }
+  };
+
+  const fetchDiscussionData = async (classroomId: number, classroomName: string) => {
+    setLoadingDiscussion(true);
+    try {
+      const discussionData = await api.fetchDiscussionData(classroomId);
+      setSelectedDiscussion({
+        classroomName,
+        ...discussionData
+      });
+    } catch (err) {
+      console.error('Error fetching discussion data:', err);
+    } finally {
+      setLoadingDiscussion(false);
+    }
+  };
+
+  const filteredAndSortedUsers = utils.filterAndSortUsers(
+    userAccounts,
+    searchQuery,
+    selectedStatusFilter,
+    selectedUserTypeFilter,
+    sortOrder,
+    createdAtSort,
+    updatedAtSort
+  );
 
   const getChildrenForParent = (parentUsername: string) => {
     // First, get the child usernames from isparentof table for this parent
@@ -861,7 +314,7 @@ export default function AdminPage() {
 
       const { data: childData, error: childError } = await supabase
         .from('user_account')
-        .select('id')
+        .select('id, user_id')
         .eq('username', childUsername)
         .single();
 
@@ -871,31 +324,76 @@ export default function AdminPage() {
         throw new Error('Could not find parent or child account');
       }
 
-      // First remove the relationship using the IDs
+      // Delete in order of dependencies to avoid foreign key constraint errors
+
+      // 1. Delete from userInteractions2 if exists
+      const { error: interactionsError } = await supabase
+        .from('userInteractions2')
+        .delete()
+        .eq('child_id', childData.id);
+
+      if (interactionsError) {
+        console.warn('Warning: Could not delete user interactions. This might be ok if none existed:', interactionsError);
+      }
+
+      // 2. Delete from temp_classroomstudents if exists
+      const { error: classroomError } = await supabase
+        .from('temp_classroomstudents')
+        .delete()
+        .eq('uaid_child', childData.id);
+
+      if (classroomError) {
+        console.warn('Warning: Could not delete classroom relationships. This might be ok if none existed:', classroomError);
+      }
+
+      // 3. Delete from isparentof
       const { error: relationshipError } = await supabase
         .from('isparentof')
         .delete()
-        .match({ 
-          parent_id: parentData.id, 
-          child_id: childData.id 
-        });
+        .eq('child_id', childData.id);
 
       if (relationshipError) throw relationshipError;
 
-      // Delete the child's user account
+      // 4. Delete from child_details
+      const { error: detailsError } = await supabase
+        .from('child_details')
+        .delete()
+        .eq('child_id', childData.id);
+
+      if (detailsError) {
+        console.warn('Warning: Could not delete child details. This might be ok if none existed:', detailsError);
+      }
+
+      // 5. Delete the auth user if it exists
+      if (childData.user_id) {
+        try {
+          await api.deleteAuthUser(childData.user_id);
+        } catch (authError) {
+          console.warn('Warning: Could not delete auth user. This might be ok if already deleted:', authError);
+        }
+      }
+
+      // 6. Finally delete from user_account
       const { error: deleteError } = await supabase
         .from('user_account')
         .delete()
-        .eq('username', childUsername);
+        .eq('id', childData.id);
 
       if (deleteError) throw deleteError;
-      
-      // Refresh both user accounts and relationships after removing
-      await fetchUserAccounts();
-      await fetchRelationships();
+
+      // Refresh the data
+      await fetchData();
+
+      // Show success message
+      setRemoveChildSuccess(`Successfully removed child account: ${childToRemove?.fullname}`);
+      setTimeout(() => setRemoveChildSuccess(null), 3000);
 
       // Reset any errors
       setError(null);
+      
+      // Close the confirmation modal
+      setShowRemoveChildModal(false);
+      setChildToRemove(null);
     } catch (err) {
       console.error('Error removing child:', err);
       setError(err instanceof Error ? err.message : 'An error occurred while removing child');
@@ -998,12 +496,62 @@ export default function AdminPage() {
         return;
       }
 
+      // Create child_details record with default values
+      const { error: detailsError } = await supabase
+        .from('child_details')
+        .insert([{
+          child_id: childData.id,
+          favourite_genres: [], // Initialize with empty array
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }]);
+
+      if (detailsError) {
+        console.error('Child details error:', detailsError);
+        setNewChildModalMessage({ type: 'error', text: detailsError.message });
+        return;
+      }
+
+      // Try to initialize userInteractions2 with default values for each genre
+      // But don't block the account creation if this fails
+      try {
+        const { data: genres } = await supabase
+          .from('temp_genre')
+          .select('gid, genrename');
+
+        if (genres && genres.length > 0) {
+          const currentDate = new Date().toISOString();
+          const interactions = genres.map(genre => ({
+            child_id: childData.id,
+            genreid: genre.gid,
+            score: 0,
+            created_at: currentDate,
+            updated_at: currentDate,
+            total_books_read: 0,
+            total_pages_read: 0,
+            total_time_spent: 0,
+            average_rating: 0
+          }));
+
+          // Insert interactions in batches
+          const batchSize = 50;
+          for (let i = 0; i < interactions.length; i += batchSize) {
+            const batch = interactions.slice(i, i + batchSize);
+            await supabase
+              .from('userInteractions2')
+              .insert(batch);
+          }
+        }
+      } catch (interactionErr) {
+        // Log the error but don't prevent account creation
+        console.warn('Non-critical warning: Could not initialize genre interactions. This is expected for admin-created accounts:', interactionErr);
+      }
+
       setNewChildModalMessage({ type: 'success', text: 'Child account created and linked successfully!' });
       
       // Refresh the data and reset form
       setTimeout(async () => {
-        await fetchUserAccounts();
-        await fetchRelationships();
+        await fetchData();
         resetNewChildForm();
         setNewChildStep('auth');
       }, 1500);
@@ -1030,14 +578,19 @@ export default function AdminPage() {
     setNewChildModalMessage(null);
   };
 
-  const handleLogout = async () => {
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-      router.push('/');
-    } catch (err) {
-      console.error('Error logging out:', err);
-    }
+  const resetForm = () => {
+    setNewUser({
+      fullname: '',
+      username: '',
+      age: null,
+      upid: 1,
+      email: '',
+      password: '',
+    });
+    setAuthUserId(null);
+    setStep('auth');
+    setModalMessage(null);
+    setIsCreatingParent(false);
   };
 
   const handleDeleteParent = async () => {
@@ -1068,8 +621,7 @@ export default function AdminPage() {
       if (parentError) throw parentError;
 
       // Refresh the data
-      await fetchUserAccounts();
-      await fetchRelationships();
+      await fetchData();
       
       // Close the modals
       setShowDeleteParentModal(false);
@@ -1081,110 +633,74 @@ export default function AdminPage() {
     }
   };
 
-  const fetchDiscussionData = async (classroomId: number, classroomName: string) => {
-    setLoadingDiscussion(true);
-    try {
-      // Fetch teacher's question
-      const { data: questionData, error: questionError } = await supabase
-        .from('discussionboard')
-        .select('question')
-        .eq('crid', classroomId)
-        .not('question', 'is', null)
-        .order('created_at', { ascending: true })
-        .limit(1);
-      
-      if (questionError) throw questionError;
+  const handleDeleteFromUserDetails = async (user: UserAccount) => {
+    if (user.upid === 3) { // If it's a child account
+      try {
+        // Get parent info first
+        const { data: parentRelation, error: parentError } = await supabase
+          .from('isparentof')
+          .select('parent_id')
+          .eq('child_id', user.id)
+          .single();
 
-      // Fetch student responses
-      const { data: responsesData, error: responsesError } = await supabase
-        .from('discussionboard')
-        .select('did, response, uaid, created_at')
-        .eq('crid', classroomId)
-        .not('response', 'is', null)
-        .order('created_at', { ascending: true });
+        if (parentError) {
+          console.error('Error finding parent:', parentError);
+          setError('Error finding parent relationship');
+          return;
+        }
 
-      if (responsesError) throw responsesError;
-
-      // Enrich responses with sender names
-      const enriched = await Promise.all(
-        (responsesData || []).map(async (entry) => {
-          const { data: profileData, error: profileError } = await supabase
+        if (parentRelation) {
+          const { data: parentData, error: parentUserError } = await supabase
             .from('user_account')
-            .select('fullname')
-            .eq('user_id', entry.uaid)
+            .select('username')
+            .eq('id', parentRelation.parent_id)
             .single();
 
-          if (profileError) {
-            console.error('Error fetching profile data:', profileError);
-            return {
-              id: entry.did,
-              message: entry.response,
-              sender_name: 'Unknown',
-              created_at: entry.created_at,
-            };
+          if (parentUserError) {
+            console.error('Error finding parent user:', parentUserError);
+            setError('Error finding parent user');
+            return;
           }
 
-          return {
-            id: entry.did,
-            message: entry.response,
-            sender_name: profileData?.fullname || 'Unknown',
-            created_at: entry.created_at,
-          };
-        })
-      );
-
-      setSelectedDiscussion({
-        classroomName,
-        teacherQuestion: questionData && questionData.length > 0 ? questionData[0].question : '',
-        responses: enriched
-      });
-    } catch (err) {
-      console.error('Error fetching discussion data:', err);
-    } finally {
-      setLoadingDiscussion(false);
-    }
-  };
-
-  const handleUserClick = async (username: string) => {
-    try {
-      // First try to find the user in userAccounts
-      const user = userAccounts.find(u => u.username === username || u.fullname === username);
-      if (user) {
-        setSelectedUser(user);
-        setShowUserModal(true);
-        return;
+          if (parentData) {
+            // Set up the confirmation modal with complete information
+            setChildToRemove({
+              username: user.username,
+              fullname: user.fullname,
+              parentUsername: parentData.username
+            });
+            setShowRemoveChildModal(true);
+            return;
+          }
+        }
+      } catch (err) {
+        console.error('Error preparing child deletion:', err);
+        setError('Error preparing child deletion');
       }
-
-      // If not found in userAccounts, fetch from database
-      const { data, error } = await supabase
-        .from('user_account')
-        .select('*')
-        .or(`username.eq.${username},fullname.eq.${username}`)
-        .single();
-
-      if (error) throw error;
-
-      if (data) {
-        setSelectedUser(data as UserAccount);
-        setShowUserModal(true);
-      }
-    } catch (err) {
-      console.error('Error fetching user details:', err);
     }
-  };
 
-  const handleEditingChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    if (editingCell) {
-      setEditingCell({ ...editingCell, value: parseInt(e.target.value) });
-    }
-  };
-
-  const startEditing = (username: string, field: string, value: string | number) => {
-    setEditingCell({ username, field, value });
+    // For non-child accounts, proceed with normal deletion
+    setSelectedRows([user.username]);
+    setShowUserModal(false);
+    setShowDeleteModal(true);
   };
 
   return (
     <div className="min-h-screen bg-black text-white">
+      {/* Success Popup */}
+      {deleteSuccessMessage && (
+        <div className="fixed top-4 right-4 bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-fade-in-out">
+          {deleteSuccessMessage}
+        </div>
+      )}
+
+      {/* Success Popup for Remove Child */}
+      {removeChildSuccess && (
+        <div className="fixed top-4 right-4 bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-fade-in-out">
+          {removeChildSuccess}
+        </div>
+      )}
+
       {/* Header */}
       <header className="p-4 border-b border-gray-800 bg-gray-900">
         <div className="flex justify-between items-center">
@@ -1266,7 +782,7 @@ export default function AdminPage() {
                       onClick={() => setShowUserTypeDropdown(!showUserTypeDropdown)}
                     >
                       <div className="relative">
-                        User Type {selectedUserTypeFilter !== null ? `(${getUpidLabel(selectedUserTypeFilter)})` : ''}
+                        User Type {selectedUserTypeFilter !== null ? `(${utils.getUpidLabel(selectedUserTypeFilter)})` : ''}
                         {showUserTypeDropdown && (
                           <div className="absolute top-full left-0 mt-1 w-48 bg-gray-800 rounded-lg shadow-lg z-50">
                             <div className="py-1">
@@ -1280,7 +796,7 @@ export default function AdminPage() {
                               >
                                 All Types
                               </button>
-                              {userTypes.map(type => (
+                              {utils.userTypes.map(type => (
                                 <button
                                   key={type.id}
                                   className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700"
@@ -1380,146 +896,42 @@ export default function AdminPage() {
                         />
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        {editingCell?.username === account.username && editingCell?.field === 'fullname' ? (
-                          <div className="flex items-center space-x-2">
-                            <input
-                              type="text"
-                              value={editingCell.value as string}
-                              onChange={(e) => setEditingCell({ ...editingCell, value: e.target.value })}
-                              className="bg-gray-800 rounded px-2 py-1 w-full text-white"
-                              autoFocus
-                            />
-                            <button
-                              onClick={() => handleUpdateUser(account.username, 'fullname', editingCell.value)}
-                              className="text-green-500 hover:text-green-400"
-                            >
-                              ✓
-                            </button>
-                            <button
-                              onClick={() => setEditingCell(null)}
-                              className="text-red-500 hover:text-red-400"
-                            >
-                              ✕
-                            </button>
-                          </div>
-                        ) : (
-                          <div
-                            onClick={() => setEditingCell({ username: account.username, field: 'fullname', value: account.fullname })}
-                            className={`cursor-pointer hover:bg-gray-700 px-2 py-1 rounded ${
-                              account.suspended ? 'text-red-400' : 'text-white'
-                            }`}
-                          >
-                            {account.fullname}
-                          </div>
-                        )}
+                        <div
+                          onClick={() => handleUserClick(account.username)}
+                          className={`cursor-pointer hover:bg-gray-700 px-2 py-1 rounded ${
+                            account.suspended ? 'text-red-400' : 'text-white'
+                          }`}
+                        >
+                          {account.fullname}
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        {editingCell?.username === account.username && editingCell?.field === 'username' ? (
-                          <div className="flex items-center space-x-2">
-                            <input
-                              type="text"
-                              value={editingCell.value as string}
-                              onChange={(e) => setEditingCell({ ...editingCell, value: e.target.value })}
-                              className="bg-gray-800 rounded px-2 py-1 w-full text-white"
-                              autoFocus
-                            />
-                            <button
-                              onClick={() => handleUpdateUser(account.username, 'username', editingCell.value)}
-                              className="text-green-500 hover:text-green-400"
-                            >
-                              ✓
-                            </button>
-                            <button
-                              onClick={() => setEditingCell(null)}
-                              className="text-red-500 hover:text-red-400"
-                            >
-                              ✕
-                            </button>
-                          </div>
-                        ) : (
-                          <div
-                            onClick={() => setEditingCell({ username: account.username, field: 'username', value: account.username })}
-                            className={`cursor-pointer hover:bg-gray-700 px-2 py-1 rounded ${
-                              account.suspended ? 'text-red-400' : 'text-white'
-                            }`}
-                          >
-                            {account.username}
-                          </div>
-                        )}
+                        <div
+                          onClick={() => handleUserClick(account.username)}
+                          className={`cursor-pointer hover:bg-gray-700 px-2 py-1 rounded ${
+                            account.suspended ? 'text-red-400' : 'text-white'
+                          }`}
+                        >
+                          {account.username}
+                        </div>
                       </td>
                       <td className={`px-6 py-4 whitespace-nowrap ${account.suspended ? 'text-red-400' : 'text-white'}`}>
-                        {editingCell?.username === account.username && editingCell?.field === 'age' ? (
-                          <div className="flex items-center space-x-2">
-                            <input
-                              type="number"
-                              value={editingCell.value as number}
-                              onChange={(e) => setEditingCell({ ...editingCell, value: parseInt(e.target.value) })}
-                              className="bg-gray-800 rounded px-2 py-1 w-full text-white"
-                              autoFocus
-                            />
-                            <button
-                              onClick={() => handleUpdateUser(account.username, 'age', editingCell.value)}
-                              className="text-green-500 hover:text-green-400"
-                            >
-                              ✓
-                            </button>
-                            <button
-                              onClick={() => setEditingCell(null)}
-                              className="text-red-500 hover:text-red-400"
-                            >
-                              ✕
-                            </button>
-                          </div>
-                        ) : (
-                          <div
-                            onClick={() => setEditingCell({ username: account.username, field: 'age', value: account.age })}
-                            className="cursor-pointer hover:bg-gray-700 px-2 py-1 rounded"
-                          >
-                            {account.age}
-                          </div>
-                        )}
+                        <div
+                          onClick={() => handleUserClick(account.username)}
+                          className="cursor-pointer hover:bg-gray-700 px-2 py-1 rounded"
+                        >
+                          {account.age}
+                        </div>
                       </td>
                       <td className={`px-6 py-4 whitespace-nowrap ${account.suspended ? 'text-red-400' : 'text-white'}`}>
                         {account.upid === 3 ? (
                           <div className="px-2 py-1 rounded">
-                            {getUpidLabel(account.upid)}
+                            {utils.getUpidLabel(account.upid)}
                           </div>
                         ) : (
-                          editingCell?.username === account.username && editingCell?.field === 'upid' ? (
-                            <div className="flex items-center space-x-2">
-                              <select
-                                value={editingCell.value as number}
-                                onChange={handleEditingChange}
-                                className="bg-gray-800 rounded px-2 py-1 w-full text-white"
-                                autoFocus
-                              >
-                                {userTypes.filter(type => type.id !== 3).map((type) => (
-                                  <option key={type.id} value={type.id}>
-                                    {type.label}
-                                  </option>
-                                ))}
-                              </select>
-                              <button
-                                onClick={() => handleUpdateUser(account.username, 'upid', editingCell.value)}
-                                className="text-green-500 hover:text-green-400"
-                              >
-                                ✓
-                              </button>
-                              <button
-                                onClick={() => setEditingCell(null)}
-                                className="text-red-500 hover:text-red-400"
-                              >
-                                ✕
-                              </button>
-                            </div>
-                          ) : (
-                            <div
-                              onClick={() => startEditing(account.username, 'upid', account.upid)}
-                              className="cursor-pointer hover:bg-gray-700 px-2 py-1 rounded"
-                            >
-                              {getUpidLabel(account.upid)}
-                            </div>
-                          )
+                          <div className="px-2 py-1 rounded">
+                            {utils.getUpidLabel(account.upid)}
+                          </div>
                         )}
                       </td>
                       <td className={`px-6 py-4 whitespace-nowrap ${account.suspended ? 'text-red-400' : 'text-white'}`}>
@@ -1849,7 +1261,7 @@ export default function AdminPage() {
                         onChange={(e) => setNewUser({...newUser, upid: parseInt(e.target.value)})}
                         className="flex-1 p-2 bg-gray-800 rounded"
                       >
-                        {userTypes.map(type => (
+                        {utils.userTypes.map(type => (
                           <option key={type.id} value={type.id}>
                             {type.label}
                           </option>
@@ -2097,8 +1509,8 @@ export default function AdminPage() {
       {/* Modify Relationships Modal */}
       {showModifyModal && selectedParentForModify && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-          <div className="bg-gray-900 p-6 rounded-lg w-[800px]">
-            <div className="flex justify-between items-center mb-4">
+          <div className="bg-gray-900 p-6 rounded-lg w-[800px] max-h-[80vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4 border-b border-gray-800 pb-4">
               <h3 className="text-xl font-bold">
                 Modify Children for {selectedParentForModify.name}
               </h3>
@@ -2110,7 +1522,9 @@ export default function AdminPage() {
               </button>
             </div>
             <div className="mb-6">
-              <h4 className="text-lg font-semibold mb-2">Current Children</h4>
+              <div className="pb-2 mb-2 border-b border-gray-800">
+                <h4 className="text-lg font-semibold">Current Children</h4>
+              </div>
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-800">
                   <thead>
@@ -2129,7 +1543,14 @@ export default function AdminPage() {
                         <td className="px-6 py-4 whitespace-nowrap">{child.age}</td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <button
-                            onClick={() => handleRemoveChild(selectedParentForModify.username, child.username)}
+                            onClick={() => {
+                              setChildToRemove({
+                                username: child.username,
+                                fullname: child.fullname,
+                                parentUsername: selectedParentForModify.username
+                              });
+                              setShowRemoveChildModal(true);
+                            }}
                             className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded"
                           >
                             Remove
@@ -2234,6 +1655,42 @@ export default function AdminPage() {
         </div>
       )}
 
+      {/* Remove Child Confirmation Modal */}
+      {showRemoveChildModal && childToRemove && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
+          <div className="bg-gray-900 p-6 rounded-lg w-[500px]">
+            <h3 className="text-xl font-bold mb-4">Confirm Remove Child</h3>
+            <p className="mb-4 text-red-400">
+              Warning: This action will permanently delete the child account &quot;{childToRemove.fullname}&quot;. This action cannot be undone.
+            </p>
+            <p className="mb-6 text-gray-300">
+              All associated data including reading history, preferences, and classroom relationships will be deleted.
+            </p>
+            <div className="flex justify-end space-x-4">
+              <button
+                onClick={() => {
+                  setShowRemoveChildModal(false);
+                  setChildToRemove(null);
+                }}
+                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  handleRemoveChild(childToRemove.parentUsername, childToRemove.username);
+                  setShowRemoveChildModal(false);
+                  setShowUserModal(false);
+                }}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded"
+              >
+                Remove Child
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Discussion Modal */}
       {showDiscussionModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -2311,12 +1768,23 @@ export default function AdminPage() {
             setShowUserModal(false);
           }}
           onEdit={handleUpdateUser}
-          userTypes={userTypes}
-          getUpidLabel={getUpidLabel}
+          onDelete={handleDeleteFromUserDetails}
+          onResetPassword={handleResetPassword}
+          userTypes={utils.userTypes}
+          getUpidLabel={utils.getUpidLabel}
+        />
+      )}
+
+      {/* Reset Password Modal */}
+      {showResetPasswordModal && selectedUserForPasswordReset && (
+        <ResetPasswordModal
+          user={selectedUserForPasswordReset}
+          onClose={() => {
+            setShowResetPasswordModal(false);
+            setSelectedUserForPasswordReset(null);
+          }}
         />
       )}
     </div>
   );
 } 
-
-// merge error test

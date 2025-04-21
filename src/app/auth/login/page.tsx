@@ -14,6 +14,7 @@ interface UserProfile {
 interface UserData {
   upid: number;
   userprofile: UserProfile;
+  suspended: boolean;
 }
 
 interface ErrorData {
@@ -47,16 +48,23 @@ export default function LoginPage() {
           .from('user_account')
           .select(`
             upid,
+            suspended,
             userprofile!inner (
               upid
             )
           `)
           .eq('user_id', data.user.id)
-          .single() as { data: UserData | null, error: ErrorData | null }; // Fixed type
+          .single() as { data: UserData | null, error: ErrorData | null };
 
         if (userError) {
           console.error('Error fetching user type:', userError.message);
           throw new Error('Failed to fetch user profile');
+        }
+
+        // Check if user is suspended
+        if (userData?.suspended) {
+          router.push('/suspended');
+          return;
         }
 
         // Route based on upid from userprofile
