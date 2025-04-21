@@ -48,6 +48,7 @@ function SearchResults({ query }: { query: string }) {
   const [childId, setChildId] = useState<string | null>(null);
   const [isBlockedGenreSearch, setIsBlockedGenreSearch] = useState(false);
   const [isBlockedGenresFetched, setIsBlockedGenresFetched] = useState(false);
+  const [searchInitiated, setSearchInitiated] = useState(false);
 
   useEffect(() => {
     const fetchChildProfile = async () => {
@@ -124,6 +125,9 @@ function SearchResults({ query }: { query: string }) {
         setIsLoading(false);
         return;
       }
+
+      setIsLoading(true);
+      setSearchInitiated(true);
 
       try {
         const { data: genreNamesData, error: genreNameError } = await supabase
@@ -319,7 +323,7 @@ function SearchResults({ query }: { query: string }) {
                 </div>
                 <div className="p-4 relative">
                   <Link href={`/videodetail/${video.cid}`}>
-                    <h3 className="font-medium text-lg text-black cursor-pointer">{video.title}</h3>
+                    <h3 className="font-medium text-lg text-black cursor-pointer pr-12">{video.title}</h3>
                   </Link>
                   <p className="text-sm text-gray-600 mt-1">{video.description}</p>
                   <div className="mt-2 flex items-center text-sm text-gray-500">
@@ -342,7 +346,7 @@ function SearchResults({ query }: { query: string }) {
           })}
         </div>
       ) : (
-        !isBlockedGenreSearch && (
+        !isBlockedGenreSearch && searchInitiated && (
           <div className="text-center py-8 text-gray-500">No videos found matching your search</div>
         )
       )}
