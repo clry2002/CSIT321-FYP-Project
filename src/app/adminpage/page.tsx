@@ -739,7 +739,17 @@ export default function AdminPage() {
         {/* User Accounts Table */}
         <div className="bg-gray-900 rounded-lg shadow-lg p-6">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold">User Accounts</h2>
+            <div className="flex items-center space-x-4">
+              <h2 className="text-2xl font-bold">User Accounts</h2>
+              {showAllUsers && (
+                <button
+                  onClick={() => setShowAllUsers(false)}
+                  className="text-blue-400 hover:text-blue-300"
+                >
+                  Show Less
+                </button>
+              )}
+            </div>
             <div className="flex items-center space-x-4">
               <input
                 type="text"
@@ -748,13 +758,6 @@ export default function AdminPage() {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="px-4 py-2 bg-gray-800 rounded-lg text-white placeholder-gray-400"
               />
-              <button
-                onClick={() => setShowDeleteModal(true)}
-                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg"
-                disabled={selectedRows.length === 0}
-              >
-                Delete User{selectedRows.length > 1 ? 's' : ''}
-              </button>
               <button
                 onClick={() => setShowNewUserModal(true)}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
@@ -774,214 +777,213 @@ export default function AdminPage() {
             <div className="text-center py-4">Loading...</div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-800">
-                <thead>
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                      Select
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Full Name</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Username</th>
-                    <th 
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-800"
-                      onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : sortOrder === 'desc' ? null : 'asc')}
-                    >
-                      Age {sortOrder === 'asc' ? '↑' : sortOrder === 'desc' ? '↓' : ''}
-                    </th>
-                    <th 
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-800"
-                      onClick={() => setShowUserTypeDropdown(!showUserTypeDropdown)}
-                    >
-                      <div className="relative">
-                        User Type {selectedUserTypeFilter !== null ? `(${utils.getUpidLabel(selectedUserTypeFilter)})` : ''}
-                        {showUserTypeDropdown && (
+              <div className="max-h-[600px] overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-gray-800 [&::-webkit-scrollbar-thumb]:bg-gray-600 [&::-webkit-scrollbar-thumb]:rounded">
+                <table className="min-w-full divide-y divide-gray-800">
+                  <thead className="bg-gray-900 sticky top-0 z-10">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Full Name</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Username</th>
+                      <th 
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-800"
+                        onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : sortOrder === 'desc' ? null : 'asc')}
+                      >
+                        Age {sortOrder === 'asc' ? '↑' : sortOrder === 'desc' ? '↓' : ''}
+                      </th>
+                      <th 
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-800"
+                        onClick={() => setShowUserTypeDropdown(!showUserTypeDropdown)}
+                      >
+                        <div className="relative">
+                          User Type {selectedUserTypeFilter !== null ? `(${utils.getUpidLabel(selectedUserTypeFilter)})` : ''}
+                          {showUserTypeDropdown && (
+                            <div className="absolute top-full left-0 mt-1 w-48 bg-gray-800 rounded-lg shadow-lg z-50">
+                              <div className="py-1">
+                                <button
+                                  className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedUserTypeFilter(null);
+                                    setShowUserTypeDropdown(false);
+                                  }}
+                                >
+                                  All Types
+                                </button>
+                                {utils.userTypes.map(type => (
+                                  <button
+                                    key={type.id}
+                                    className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedUserTypeFilter(type.id);
+                                      setShowUserTypeDropdown(false);
+                                    }}
+                                  >
+                                    {type.label}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </th>
+                      <th 
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-800"
+                        onClick={() => {
+                          setCreatedAtSort(createdAtSort === 'asc' ? 'desc' : createdAtSort === 'desc' ? null : 'asc');
+                          setUpdatedAtSort(null);
+                          setSortOrder(null);
+                        }}
+                      >
+                        Created At {createdAtSort === 'asc' ? '↑' : createdAtSort === 'desc' ? '↓' : ''}
+                      </th>
+                      <th 
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-800"
+                        onClick={() => {
+                          setUpdatedAtSort(updatedAtSort === 'asc' ? 'desc' : updatedAtSort === 'desc' ? null : 'asc');
+                          setCreatedAtSort(null);
+                          setSortOrder(null);
+                        }}
+                      >
+                        Updated At {updatedAtSort === 'asc' ? '↑' : updatedAtSort === 'desc' ? '↓' : ''}
+                      </th>
+                      <th 
+                        className="px-6 py-3 text-center text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-800 relative"
+                        onClick={() => setShowStatusDropdown(!showStatusDropdown)}
+                      >
+                        Status {selectedStatusFilter !== null ? `(${selectedStatusFilter ? 'Suspended' : 'Active'})` : ''}
+                        {showStatusDropdown && (
                           <div className="absolute top-full left-0 mt-1 w-48 bg-gray-800 rounded-lg shadow-lg z-50">
                             <div className="py-1">
                               <button
                                 className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  setSelectedUserTypeFilter(null);
-                                  setShowUserTypeDropdown(false);
+                                  setSelectedStatusFilter(null);
+                                  setShowStatusDropdown(false);
                                 }}
                               >
-                                All Types
+                                All Status
                               </button>
-                              {utils.userTypes.map(type => (
-                                <button
-                                  key={type.id}
-                                  className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedUserTypeFilter(type.id);
-                                    setShowUserTypeDropdown(false);
-                                  }}
-                                >
-                                  {type.label}
-                                </button>
-                              ))}
+                              <button
+                                className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedStatusFilter(false);
+                                  setShowStatusDropdown(false);
+                                }}
+                              >
+                                Active
+                              </button>
+                              <button
+                                className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedStatusFilter(true);
+                                  setShowStatusDropdown(false);
+                                }}
+                              >
+                                Suspended
+                              </button>
                             </div>
                           </div>
                         )}
-                      </div>
-                    </th>
-                    <th 
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-800"
-                      onClick={() => {
-                        setCreatedAtSort(createdAtSort === 'asc' ? 'desc' : createdAtSort === 'desc' ? null : 'asc');
-                        setUpdatedAtSort(null);
-                        setSortOrder(null);
-                      }}
-                    >
-                      Created At {createdAtSort === 'asc' ? '↑' : createdAtSort === 'desc' ? '↓' : ''}
-                    </th>
-                    <th 
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-800"
-                      onClick={() => {
-                        setUpdatedAtSort(updatedAtSort === 'asc' ? 'desc' : updatedAtSort === 'desc' ? null : 'asc');
-                        setCreatedAtSort(null);
-                        setSortOrder(null);
-                      }}
-                    >
-                      Updated At {updatedAtSort === 'asc' ? '↑' : updatedAtSort === 'desc' ? '↓' : ''}
-                    </th>
-                    <th 
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-800 relative"
-                      onClick={() => setShowStatusDropdown(!showStatusDropdown)}
-                    >
-                      Status {selectedStatusFilter !== null ? `(${selectedStatusFilter ? 'Suspended' : 'Active'})` : ''}
-                      {showStatusDropdown && (
-                        <div className="absolute top-full left-0 mt-1 w-48 bg-gray-800 rounded-lg shadow-lg z-50">
-                          <div className="py-1">
-                            <button
-                              className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedStatusFilter(null);
-                                setShowStatusDropdown(false);
-                              }}
-                            >
-                              All Status
-                            </button>
-                            <button
-                              className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedStatusFilter(false);
-                                setShowStatusDropdown(false);
-                              }}
-                            >
-                              Active
-                            </button>
-                            <button
-                              className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedStatusFilter(true);
-                                setShowStatusDropdown(false);
-                              }}
-                            >
-                              Suspended
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-800">
-                  {filteredAndSortedUsers.slice(0, showAllUsers ? undefined : 3).map((account, index) => (
-                    <tr key={index} className="hover:bg-gray-800">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <input
-                          type="checkbox"
-                          checked={selectedRows.includes(account.username)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedRows([...selectedRows, account.username]);
-                            } else {
-                              setSelectedRows(selectedRows.filter(username => username !== account.username));
-                            }
-                          }}
-                          className="rounded bg-gray-800 border-gray-700"
-                        />
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div
-                          onClick={() => handleUserClick(account.username)}
-                          className={`cursor-pointer hover:bg-gray-700 px-2 py-1 rounded ${
-                            account.suspended ? 'text-red-400' : 'text-white'
-                          }`}
-                        >
-                          {account.fullname}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div
-                          onClick={() => handleUserClick(account.username)}
-                          className={`cursor-pointer hover:bg-gray-700 px-2 py-1 rounded ${
-                            account.suspended ? 'text-red-400' : 'text-white'
-                          }`}
-                        >
-                          {account.username}
-                        </div>
-                      </td>
-                      <td className={`px-6 py-4 whitespace-nowrap ${account.suspended ? 'text-red-400' : 'text-white'}`}>
-                        <div
-                          onClick={() => handleUserClick(account.username)}
-                          className="cursor-pointer hover:bg-gray-700 px-2 py-1 rounded"
-                        >
-                          {account.age}
-                        </div>
-                      </td>
-                      <td className={`px-6 py-4 whitespace-nowrap ${account.suspended ? 'text-red-400' : 'text-white'}`}>
-                        {account.upid === 3 ? (
-                          <div className="px-2 py-1 rounded">
-                            {utils.getUpidLabel(account.upid)}
-                          </div>
-                        ) : (
-                          <div className="px-2 py-1 rounded">
-                            {utils.getUpidLabel(account.upid)}
-                          </div>
-                        )}
-                      </td>
-                      <td className={`px-6 py-4 whitespace-nowrap ${account.suspended ? 'text-red-400' : 'text-white'}`}>
-                        {new Date(account.created_at).toLocaleDateString()}
-                      </td>
-                      <td className={`px-6 py-4 whitespace-nowrap ${account.suspended ? 'text-red-400' : 'text-white'}`}>
-                        {new Date(account.updated_at).toLocaleDateString()}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap min-w-[120px] text-center">
-                        <button
-                          onClick={() => {
-                            if (account.suspended) {
-                              setSelectedUser(account);
-                              setShowRevertModal(true);
-                            } else {
-                              setSelectedUser(account);
-                              setShowSuspendModal(true);
-                            }
-                          }}
-                          className={`px-6 py-2 inline-flex items-center justify-center text-sm leading-5 font-semibold rounded-full whitespace-nowrap min-w-[100px] ${
-                            account.suspended 
-                              ? 'bg-red-900 text-red-200 cursor-pointer hover:bg-red-800' 
-                              : 'bg-green-900 text-green-200 cursor-pointer hover:bg-green-800'
-                          }`}
-                        >
-                          {account.suspended ? 'Suspended' : 'Active'}
-                        </button>
-                      </td>
+                      </th>
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-400 uppercase tracking-wider">Action</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-              {filteredAndSortedUsers.length > 3 && (
+                  </thead>
+                  <tbody className="divide-y divide-gray-800">
+                    {filteredAndSortedUsers.slice(0, showAllUsers ? undefined : 3).map((account, index) => (
+                      <tr key={index} className="hover:bg-gray-800">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div
+                            onClick={() => handleUserClick(account.username)}
+                            className={`cursor-pointer hover:bg-gray-700 px-2 py-1 rounded ${
+                              account.suspended ? 'text-red-400' : 'text-white'
+                            }`}
+                          >
+                            {account.fullname}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div
+                            onClick={() => handleUserClick(account.username)}
+                            className={`cursor-pointer hover:bg-gray-700 px-2 py-1 rounded ${
+                              account.suspended ? 'text-red-400' : 'text-white'
+                            }`}
+                          >
+                            {account.username}
+                          </div>
+                        </td>
+                        <td className={`px-6 py-4 whitespace-nowrap ${account.suspended ? 'text-red-400' : 'text-white'}`}>
+                          <div
+                            onClick={() => handleUserClick(account.username)}
+                            className="cursor-pointer hover:bg-gray-700 px-2 py-1 rounded"
+                          >
+                            {account.age}
+                          </div>
+                        </td>
+                        <td className={`px-6 py-4 whitespace-nowrap ${account.suspended ? 'text-red-400' : 'text-white'}`}>
+                          {account.upid === 3 ? (
+                            <div className="px-2 py-1 rounded">
+                              {utils.getUpidLabel(account.upid)}
+                            </div>
+                          ) : (
+                            <div className="px-2 py-1 rounded">
+                              {utils.getUpidLabel(account.upid)}
+                            </div>
+                          )}
+                        </td>
+                        <td className={`px-6 py-4 whitespace-nowrap ${account.suspended ? 'text-red-400' : 'text-white'}`}>
+                          {new Date(account.created_at).toLocaleDateString()}
+                        </td>
+                        <td className={`px-6 py-4 whitespace-nowrap ${account.suspended ? 'text-red-400' : 'text-white'}`}>
+                          {new Date(account.updated_at).toLocaleDateString()}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          <button
+                            onClick={() => {
+                              if (account.suspended) {
+                                setSelectedUser(account);
+                                setShowRevertModal(true);
+                              } else {
+                                setSelectedUser(account);
+                                setShowSuspendModal(true);
+                              }
+                            }}
+                            className={`px-6 py-2 inline-flex items-center justify-center text-sm leading-5 font-semibold rounded-full whitespace-nowrap min-w-[100px] ${
+                              account.suspended 
+                                ? 'bg-red-900 text-red-200 cursor-pointer hover:bg-red-800' 
+                                : 'bg-green-900 text-green-200 cursor-pointer hover:bg-green-800'
+                            }`}
+                          >
+                            {account.suspended ? 'Suspended' : 'Active'}
+                          </button>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          <button
+                            onClick={() => {
+                              setSelectedRows([account.username]);
+                              setShowDeleteModal(true);
+                            }}
+                            className="text-gray-400 hover:text-red-500 transition-colors"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                            </svg>
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {filteredAndSortedUsers.length > 3 && !showAllUsers && (
                 <div className="mt-4 text-center">
                   <button
-                    onClick={() => setShowAllUsers(!showAllUsers)}
+                    onClick={() => setShowAllUsers(true)}
                     className="text-blue-400 hover:text-blue-300"
                   >
-                    {showAllUsers ? 'Show Less' : `Show All (${filteredAndSortedUsers.length} users)`}
+                    Show All ({filteredAndSortedUsers.length} users)
                   </button>
                 </div>
               )}
@@ -992,7 +994,17 @@ export default function AdminPage() {
         {/* Parent-Child Relationship Table */}
         <div className="bg-gray-900 rounded-lg shadow-lg p-6 mt-8">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold">Parent-Child Relationship</h2>
+            <div className="flex items-center space-x-4">
+              <h2 className="text-2xl font-bold">Parent-Child Relationship</h2>
+              {showAllRelationships && (
+                <button
+                  onClick={() => setShowAllRelationships(false)}
+                  className="text-blue-400 hover:text-blue-300"
+                >
+                  Show Less
+                </button>
+              )}
+            </div>
             <button
               onClick={() => {
                 setNewUser({
@@ -1014,81 +1026,83 @@ export default function AdminPage() {
           </div>
           
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-800">
-              <thead>
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Parent Username</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Parent Name</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Parent Age</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Children</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-800">
-                {getGroupedRelationships().slice(0, showAllRelationships ? undefined : 3).map((group, index) => (
-                  <tr key={index} className="hover:bg-gray-800">
-                    <td 
-                      className={`px-6 py-4 whitespace-nowrap cursor-pointer hover:text-blue-400 ${
-                        userAccounts.find(u => u.username === group.parentUsername)?.suspended ? 'text-red-400' : 'text-white'
-                      }`}
-                      onClick={() => handleUserClick(group.parentUsername)}
-                    >
-                      {group.parentUsername}
-                    </td>
-                    <td className={`px-6 py-4 whitespace-nowrap ${
-                      userAccounts.find(u => u.username === group.parentUsername)?.suspended ? 'text-red-400' : 'text-white'
-                    }`}>
-                      {group.parentName}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">{group.parentAge}</td>
-                    <td className="px-6 py-4">
-                      <div className="space-y-2">
-                        {group.children.map((child, childIndex) => (
-                          <div key={childIndex} className="flex items-center space-x-2">
-                            <span 
-                              className={`cursor-pointer hover:text-blue-400 ${
-                                userAccounts.find(u => u.username === child.username)?.suspended ? 'text-red-400' : 'text-gray-400'
-                              }`}
-                              onClick={() => handleUserClick(child.username)}
-                            >
-                              {child.username}
-                            </span>
-                            <span className={`${
-                              userAccounts.find(u => u.username === child.username)?.suspended ? 'text-red-400' : 'text-gray-500'
-                            }`}>
-                              ({child.fullname})
-                            </span>
-                            <span className="text-gray-500">- Age: {child.age}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <button
-                        onClick={() => {
-                          setSelectedParentForModify({
-                            username: group.parentUsername,
-                            name: group.parentName,
-                            age: group.parentAge
-                          });
-                          setShowModifyModal(true);
-                        }}
-                        className="bg-orange-600 hover:bg-orange-700 text-white px-3 py-1 rounded"
-                      >
-                        Modify
-                      </button>
-                    </td>
+            <div className="max-h-[600px] overflow-y-auto">
+              <table className="min-w-full divide-y divide-gray-800">
+                <thead className="bg-gray-900 sticky top-0 z-10">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Parent Username</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Parent Name</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Parent Age</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Children</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Action</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-            {getGroupedRelationships().length > 3 && (
+                </thead>
+                <tbody className="divide-y divide-gray-800">
+                  {getGroupedRelationships().slice(0, showAllRelationships ? undefined : 3).map((group, index) => (
+                    <tr key={index} className="hover:bg-gray-800">
+                      <td 
+                        className={`px-6 py-4 whitespace-nowrap cursor-pointer hover:text-blue-400 ${
+                          userAccounts.find(u => u.username === group.parentUsername)?.suspended ? 'text-red-400' : 'text-white'
+                        }`}
+                        onClick={() => handleUserClick(group.parentUsername)}
+                      >
+                        {group.parentUsername}
+                      </td>
+                      <td className={`px-6 py-4 whitespace-nowrap ${
+                        userAccounts.find(u => u.username === group.parentUsername)?.suspended ? 'text-red-400' : 'text-white'
+                      }`}>
+                        {group.parentName}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">{group.parentAge}</td>
+                      <td className="px-6 py-4">
+                        <div className="space-y-2">
+                          {group.children.map((child, childIndex) => (
+                            <div key={childIndex} className="flex items-center space-x-2">
+                              <span 
+                                className={`cursor-pointer hover:text-blue-400 ${
+                                  userAccounts.find(u => u.username === child.username)?.suspended ? 'text-red-400' : 'text-gray-400'
+                                }`}
+                                onClick={() => handleUserClick(child.username)}
+                              >
+                                {child.username}
+                              </span>
+                              <span className={`${
+                                userAccounts.find(u => u.username === child.username)?.suspended ? 'text-red-400' : 'text-gray-500'
+                              }`}>
+                                ({child.fullname})
+                              </span>
+                              <span className="text-gray-500">- Age: {child.age}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <button
+                          onClick={() => {
+                            setSelectedParentForModify({
+                              username: group.parentUsername,
+                              name: group.parentName,
+                              age: group.parentAge
+                            });
+                            setShowModifyModal(true);
+                          }}
+                          className="bg-orange-600 hover:bg-orange-700 text-white px-3 py-1 rounded"
+                        >
+                          Modify
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {getGroupedRelationships().length > 3 && !showAllRelationships && (
               <div className="mt-4 text-center">
                 <button
-                  onClick={() => setShowAllRelationships(!showAllRelationships)}
+                  onClick={() => setShowAllRelationships(true)}
                   className="text-blue-400 hover:text-blue-300"
                 >
-                  {showAllRelationships ? 'Show Less' : `Show All (${getGroupedRelationships().length} relationships)`}
+                  Show All ({getGroupedRelationships().length} relationships)
                 </button>
               </div>
             )}
@@ -1098,92 +1112,104 @@ export default function AdminPage() {
         {/* Classrooms Table */}
         <div className="bg-gray-900 rounded-lg shadow-lg p-6 mt-8">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold">Classrooms</h2>
+            <div className="flex items-center space-x-4">
+              <h2 className="text-2xl font-bold">Classrooms</h2>
+              {showAllClassrooms && (
+                <button
+                  onClick={() => setShowAllClassrooms(false)}
+                  className="text-blue-400 hover:text-blue-300"
+                >
+                  Show Less
+                </button>
+              )}
+            </div>
           </div>
           
           {loadingClassrooms ? (
             <div className="text-center py-4">Loading classrooms...</div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-800">
-                <thead>
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Classroom Name</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Description</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Educator</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Students</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-800">
-                  {classrooms.slice(0, showAllClassrooms ? undefined : 3).map((classroom) => (
-                    <tr key={classroom.crid} className="hover:bg-gray-800">
-                      <td 
-                        className="px-6 py-4 whitespace-nowrap cursor-pointer hover:text-blue-400"
-                        onClick={() => {
-                          setShowDiscussionModal(true);
-                          fetchDiscussionData(classroom.crid, classroom.name);
-                        }}
-                      >
-                        {classroom.name}
-                      </td>
-                      <td className="px-6 py-4">{classroom.description}</td>
-                      <td 
-                        className={`px-6 py-4 whitespace-nowrap cursor-pointer hover:text-blue-400 ${
-                          userAccounts.find(u => u.fullname === classroom.educatorName)?.suspended ? 'text-red-400' : 'text-white'
-                        }`}
-                        onClick={() => {
-                          const educator = userAccounts.find(u => u.fullname === classroom.educatorName);
-                          if (educator) {
-                            handleUserClick(educator.username);
-                          }
-                        }}
-                      >
-                        {classroom.educatorName}
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="space-y-2">
-                          {classroom.students.map((student, index) => (
-                            <div key={index} className="flex items-center space-x-2">
-                              <span 
-                                className={`cursor-pointer hover:text-blue-400 ${
-                                  userAccounts.find(u => u.username === student.username)?.suspended ? 'text-red-400' : 'text-gray-400'
-                                }`}
-                                onClick={() => handleUserClick(student.username)}
-                              >
-                                {student.username}
-                              </span>
-                              <span className={`${
-                                userAccounts.find(u => u.username === student.username)?.suspended ? 'text-red-400' : 'text-gray-500'
-                              }`}>
-                                ({student.fullname})
-                              </span>
-                              <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                student.invitation_status === 'accepted' 
-                                  ? 'bg-green-900 text-green-200' 
-                                  : student.invitation_status === 'pending'
-                                  ? 'bg-yellow-900 text-yellow-200'
-                                  : 'bg-red-900 text-red-200'
-                              }`}>
-                                {student.invitation_status}
-                              </span>
-                            </div>
-                          ))}
-                          {classroom.students.length === 0 && (
-                            <span className="text-gray-500">No students</span>
-                          )}
-                        </div>
-                      </td>
+              <div className="max-h-[600px] overflow-y-auto">
+                <table className="min-w-full divide-y divide-gray-800">
+                  <thead className="bg-gray-900 sticky top-0 z-10">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Classroom Name</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Description</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Educator</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Students</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-              {classrooms.length > 3 && (
+                  </thead>
+                  <tbody className="divide-y divide-gray-800">
+                    {classrooms.slice(0, showAllClassrooms ? undefined : 3).map((classroom) => (
+                      <tr key={classroom.crid} className="hover:bg-gray-800">
+                        <td 
+                          className="px-6 py-4 whitespace-nowrap cursor-pointer hover:text-blue-400"
+                          onClick={() => {
+                            setShowDiscussionModal(true);
+                            fetchDiscussionData(classroom.crid, classroom.name);
+                          }}
+                        >
+                          {classroom.name}
+                        </td>
+                        <td className="px-6 py-4">{classroom.description}</td>
+                        <td 
+                          className={`px-6 py-4 whitespace-nowrap cursor-pointer hover:text-blue-400 ${
+                            userAccounts.find(u => u.fullname === classroom.educatorName)?.suspended ? 'text-red-400' : 'text-white'
+                          }`}
+                          onClick={() => {
+                            const educator = userAccounts.find(u => u.fullname === classroom.educatorName);
+                            if (educator) {
+                              handleUserClick(educator.username);
+                            }
+                          }}
+                        >
+                          {classroom.educatorName}
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="space-y-2">
+                            {classroom.students.map((student, index) => (
+                              <div key={index} className="flex items-center space-x-2">
+                                <span 
+                                  className={`cursor-pointer hover:text-blue-400 ${
+                                    userAccounts.find(u => u.username === student.username)?.suspended ? 'text-red-400' : 'text-gray-400'
+                                  }`}
+                                  onClick={() => handleUserClick(student.username)}
+                                >
+                                  {student.username}
+                                </span>
+                                <span className={`${
+                                  userAccounts.find(u => u.username === student.username)?.suspended ? 'text-red-400' : 'text-gray-500'
+                                }`}>
+                                  ({student.fullname})
+                                </span>
+                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                  student.invitation_status === 'accepted' 
+                                    ? 'bg-green-900 text-green-200' 
+                                    : student.invitation_status === 'pending'
+                                    ? 'bg-yellow-900 text-yellow-200'
+                                    : 'bg-red-900 text-red-200'
+                                }`}>
+                                  {student.invitation_status}
+                                </span>
+                              </div>
+                            ))}
+                            {classroom.students.length === 0 && (
+                              <span className="text-gray-500">No students</span>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {classrooms.length > 3 && !showAllClassrooms && (
                 <div className="mt-4 text-center">
                   <button
-                    onClick={() => setShowAllClassrooms(!showAllClassrooms)}
+                    onClick={() => setShowAllClassrooms(true)}
                     className="text-blue-400 hover:text-blue-300"
                   >
-                    {showAllClassrooms ? 'Show Less' : `Show All (${classrooms.length} classrooms)`}
+                    Show All ({classrooms.length} classrooms)
                   </button>
                 </div>
               )}
@@ -1194,7 +1220,7 @@ export default function AdminPage() {
 
       {/* New User Modal */}
       {showNewUserModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 overflow-hidden">
           <div className="bg-gray-900 p-6 rounded-lg w-[800px]">
             <h3 className="text-xl font-bold mb-4">
               {step === 'auth' ? 'Step 1: Create Authentication' : 'Step 2: User Details'}
@@ -1308,7 +1334,7 @@ export default function AdminPage() {
 
       {/* Suspend User Modal */}
       {showSuspendModal && selectedUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 overflow-hidden">
           <div className="bg-gray-900 p-6 rounded-lg w-96">
             <h3 className="text-xl font-bold mb-4">Suspend User?</h3>
             {selectedUser.suspended && selectedUser.comments && selectedUser.comments !== 'na' && (
@@ -1349,7 +1375,7 @@ export default function AdminPage() {
 
       {/* Revert Suspension Modal */}
       {showRevertModal && selectedUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 overflow-hidden">
           <div className="bg-gray-900 p-6 rounded-lg w-[400px]">
             <h3 className="text-xl font-bold mb-4">Revert suspension?</h3>
             <div className="mb-4">
@@ -1383,7 +1409,7 @@ export default function AdminPage() {
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 overflow-hidden">
           <div className="bg-gray-900 p-6 rounded-lg w-[600px]">
             <h3 className="text-xl font-bold mb-4">Confirm Deletion</h3>
             {deleteUserError && (
@@ -1452,7 +1478,7 @@ export default function AdminPage() {
 
       {/* Logout Confirmation Modal */}
       {showLogoutModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 overflow-hidden">
           <div className="bg-gray-900 p-6 rounded-lg w-96">
             <h3 className="text-xl font-bold mb-4">Confirm Logout</h3>
             <p className="mb-4">Are you sure you want to logout?</p>
@@ -1476,7 +1502,7 @@ export default function AdminPage() {
 
       {/* Delete Parent Confirmation Modal */}
       {showDeleteParentModal && selectedParentForModify && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 overflow-hidden">
           <div className="bg-gray-900 p-6 rounded-lg w-[600px]">
             <h3 className="text-xl font-bold mb-4">Delete Parent Account</h3>
             {deleteParentError && (
@@ -1519,8 +1545,8 @@ export default function AdminPage() {
 
       {/* Modify Relationships Modal */}
       {showModifyModal && selectedParentForModify && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-          <div className="bg-gray-900 p-6 rounded-lg w-[800px] max-h-[80vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 overflow-hidden">
+          <div className="bg-gray-900 p-6 rounded-lg w-[800px] max-h-[80vh]">
             <div className="flex justify-between items-center mb-4 border-b border-gray-800 pb-4">
               <h3 className="text-xl font-bold">
                 Modify Children for {selectedParentForModify.name}
@@ -1532,124 +1558,125 @@ export default function AdminPage() {
                 Delete Parent
               </button>
             </div>
-            <div className="mb-6">
-              <div className="pb-2 border-b border-gray-800">
-                <h4 className="text-lg font-semibold">Current Children</h4>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-800">
-                  <thead>
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Username</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Full Name</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Age</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-800">
-                    {getChildrenForParent(selectedParentForModify.username).map((child, index) => (
-                      <tr key={index} className="hover:bg-gray-800">
-                        <td className="px-6 py-4 whitespace-nowrap">{child.username}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">{child.fullname}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">{child.age}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <button
-                            onClick={() => {
-                              setChildToRemove({
-                                username: child.username,
-                                fullname: child.fullname,
-                                parentUsername: selectedParentForModify.username
-                              });
-                              setShowRemoveChildModal(true);
-                            }}
-                            className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded"
-                          >
-                            Remove
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <div className="mb-6">
-              <h4 className="text-lg font-semibold mb-2">Add New Child</h4>
-              
-              {newChildModalMessage && (
-                <div className={`mb-4 p-3 rounded ${
-                  newChildModalMessage.type === 'success' 
-                    ? 'bg-green-900 text-green-200' 
-                    : 'bg-red-900 text-red-200'
-                }`}>
-                  {newChildModalMessage.text}
+            <div className="overflow-y-auto max-h-[calc(80vh-120px)] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-gray-800 [&::-webkit-scrollbar-thumb]:bg-gray-600 [&::-webkit-scrollbar-thumb]:rounded pr-2">
+              <div className="mb-6">
+                <div className="pb-2 border-b border-gray-800">
+                  <h4 className="text-lg font-semibold">Current Children</h4>
                 </div>
-              )}
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-800">
+                    <thead>
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Username</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Full Name</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Age</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-800">
+                      {getChildrenForParent(selectedParentForModify.username).map((child, index) => (
+                        <tr key={index} className="hover:bg-gray-800">
+                          <td className="px-6 py-4 whitespace-nowrap">{child.username}</td>
+                          <td className="px-6 py-4 whitespace-nowrap">{child.fullname}</td>
+                          <td className="px-6 py-4 whitespace-nowrap">{child.age}</td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <button
+                              onClick={() => {
+                                setChildToRemove({
+                                  username: child.username,
+                                  fullname: child.fullname,
+                                  parentUsername: selectedParentForModify.username
+                                });
+                                setShowRemoveChildModal(true);
+                              }}
+                              className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded"
+                            >
+                              Remove
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
 
-              <div className="space-y-4">
-                {newChildStep === 'auth' ? (
-                  <div className="flex items-center space-x-4">
-                    <input
-                      type="email"
-                      placeholder="Email"
-                      value={newChild.email}
-                      onChange={(e) => setNewChild({...newChild, email: e.target.value})}
-                      className="flex-1 p-2 bg-gray-800 rounded"
-                    />
-                    <input
-                      type="password"
-                      placeholder="Password"
-                      value={newChild.password}
-                      onChange={(e) => setNewChild({...newChild, password: e.target.value})}
-                      className="flex-1 p-2 bg-gray-800 rounded"
-                    />
-                    <button
-                      onClick={handleCreateChildAuth}
-                      className="w-12 h-12 bg-green-600 hover:bg-green-700 text-white rounded flex items-center justify-center"
-                      disabled={!newChild.email || !newChild.password}
-                    >
-                      →
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex items-center space-x-4">
-                    <input
-                      type="text"
-                      placeholder="Full Name"
-                      value={newChild.fullname}
-                      onChange={(e) => setNewChild({...newChild, fullname: e.target.value})}
-                      className="flex-1 p-2 bg-gray-800 rounded"
-                    />
-                    <input
-                      type="text"
-                      placeholder="Username"
-                      value={newChild.username}
-                      onChange={(e) => setNewChild({...newChild, username: e.target.value})}
-                      className="flex-1 p-2 bg-gray-800 rounded"
-                    />
-                    <input
-                      type="number"
-                      placeholder="Age"
-                      value={newChild.age === null ? '' : newChild.age}
-                      onChange={(e) => setNewChild({
-                        ...newChild, 
-                        age: e.target.value ? parseInt(e.target.value) : null
-                      })}
-                      className="w-24 p-2 bg-gray-800 rounded"
-                    />
-                    <button
-                      onClick={handleCreateChildAccount}
-                      className="w-12 h-12 bg-green-600 hover:bg-green-700 text-white rounded flex items-center justify-center"
-                      disabled={!newChild.fullname || !newChild.username || newChild.age === null}
-                    >
-                      →
-                    </button>
+              <div className="mb-6">
+                <h4 className="text-lg font-semibold mb-2">Add New Child</h4>
+                
+                {newChildModalMessage && (
+                  <div className={`mb-4 p-3 rounded ${
+                    newChildModalMessage.type === 'success' 
+                      ? 'bg-green-900 text-green-200' 
+                      : 'bg-red-900 text-red-200'
+                  }`}>
+                    {newChildModalMessage.text}
                   </div>
                 )}
+
+                <div className="space-y-4">
+                  {newChildStep === 'auth' ? (
+                    <div className="flex items-center space-x-4">
+                      <input
+                        type="email"
+                        placeholder="Email"
+                        value={newChild.email}
+                        onChange={(e) => setNewChild({...newChild, email: e.target.value})}
+                        className="flex-1 p-2 bg-gray-800 rounded"
+                      />
+                      <input
+                        type="password"
+                        placeholder="Password"
+                        value={newChild.password}
+                        onChange={(e) => setNewChild({...newChild, password: e.target.value})}
+                        className="flex-1 p-2 bg-gray-800 rounded"
+                      />
+                      <button
+                        onClick={handleCreateChildAuth}
+                        className="w-12 h-12 bg-green-600 hover:bg-green-700 text-white rounded flex items-center justify-center"
+                        disabled={!newChild.email || !newChild.password}
+                      >
+                        →
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center space-x-4">
+                      <input
+                        type="text"
+                        placeholder="Full Name"
+                        value={newChild.fullname}
+                        onChange={(e) => setNewChild({...newChild, fullname: e.target.value})}
+                        className="flex-1 p-2 bg-gray-800 rounded"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Username"
+                        value={newChild.username}
+                        onChange={(e) => setNewChild({...newChild, username: e.target.value})}
+                        className="flex-1 p-2 bg-gray-800 rounded"
+                      />
+                      <input
+                        type="number"
+                        placeholder="Age"
+                        value={newChild.age === null ? '' : newChild.age}
+                        onChange={(e) => setNewChild({
+                          ...newChild, 
+                          age: e.target.value ? parseInt(e.target.value) : null
+                        })}
+                        className="w-24 p-2 bg-gray-800 rounded"
+                      />
+                      <button
+                        onClick={handleCreateChildAccount}
+                        className="w-12 h-12 bg-green-600 hover:bg-green-700 text-white rounded flex items-center justify-center"
+                        disabled={!newChild.fullname || !newChild.username || newChild.age === null}
+                      >
+                        →
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-
             <div className="mt-6 flex justify-end space-x-2">
               <button
                 onClick={() => {
@@ -1668,7 +1695,7 @@ export default function AdminPage() {
 
       {/* Remove Child Confirmation Modal */}
       {showRemoveChildModal && childToRemove && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 overflow-hidden">
           <div className="bg-gray-900 p-6 rounded-lg w-[500px]">
             <h3 className="text-xl font-bold mb-4">Confirm Remove Child</h3>
             <p className="mb-4 text-red-400">
@@ -1704,8 +1731,8 @@ export default function AdminPage() {
 
       {/* Discussion Modal */}
       {showDiscussionModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-gray-900 p-6 rounded-lg w-[800px] max-h-[80vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 overflow-hidden">
+          <div className="bg-gray-900 p-6 rounded-lg w-[800px] max-h-[80vh]">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-2xl font-bold">
                 {selectedDiscussion?.classroomName} - Discussion Board
@@ -1762,39 +1789,43 @@ export default function AdminPage() {
 
       {/* User Details Modal */}
       {showUserModal && selectedUser && (
-        <UserDetailsModal
-          user={selectedUser}
-          onClose={() => {
-            setShowUserModal(false);
-            setSelectedUser(null);
-          }}
-          onStatusClick={(user) => {
-            if (user.suspended) {
-              setShowRevertModal(true);
-              setSelectedUser(user);
-            } else {
-              setShowSuspendModal(true);
-              setSelectedUser(user);
-            }
-            setShowUserModal(false);
-          }}
-          onEdit={handleUpdateUser}
-          onDelete={handleDeleteFromUserDetails}
-          onResetPassword={handleResetPassword}
-          userTypes={utils.userTypes}
-          getUpidLabel={utils.getUpidLabel}
-        />
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 overflow-hidden">
+          <UserDetailsModal
+            user={selectedUser}
+            onClose={() => {
+              setShowUserModal(false);
+              setSelectedUser(null);
+            }}
+            onStatusClick={(user) => {
+              if (user.suspended) {
+                setShowRevertModal(true);
+                setSelectedUser(user);
+              } else {
+                setShowSuspendModal(true);
+                setSelectedUser(user);
+              }
+              setShowUserModal(false);
+            }}
+            onEdit={handleUpdateUser}
+            onDelete={handleDeleteFromUserDetails}
+            onResetPassword={handleResetPassword}
+            userTypes={utils.userTypes}
+            getUpidLabel={utils.getUpidLabel}
+          />
+        </div>
       )}
 
       {/* Reset Password Modal */}
       {showResetPasswordModal && selectedUserForPasswordReset && (
-        <ResetPasswordModal
-          user={selectedUserForPasswordReset}
-          onClose={() => {
-            setShowResetPasswordModal(false);
-            setSelectedUserForPasswordReset(null);
-          }}
-        />
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 overflow-hidden">
+          <ResetPasswordModal
+            user={selectedUserForPasswordReset}
+            onClose={() => {
+              setShowResetPasswordModal(false);
+              setSelectedUserForPasswordReset(null);
+            }}
+          />
+        </div>
       )}
     </div>
   );
