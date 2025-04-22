@@ -125,35 +125,67 @@ export const handleDeleteUsers = async (
 
     // Delete remaining selected users
     for (const user of nonParentUsers) {
-      if (user.upid === 3) {
-        // For child users, first get parent-child relationship
-        const { data: parentData, error: parentError } = await supabase
+      if (user.upid === 3) { // For child users
+        // Get the child's ID first
+        const { data: childData, error: childError } = await supabase
           .from('user_account')
-          .select('id')
+          .select('id, user_id')
           .eq('username', user.username)
           .single();
 
-        if (parentError) throw parentError;
+        if (childError) throw childError;
 
-        if (parentData?.id) {
-          // First remove the relationship using the ID
+        if (childData?.id) {
+          // 1. Delete from userInteractions2 if exists
+          const { error: interactionsError } = await supabase
+            .from('userInteractions2')
+            .delete()
+            .eq('child_id', childData.id);
+
+          if (interactionsError) {
+            console.warn('Warning: Could not delete user interactions. This might be ok if none existed:', interactionsError);
+          }
+
+          // 2. Delete from temp_classroomstudents if exists
+          const { error: classroomError } = await supabase
+            .from('temp_classroomstudents')
+            .delete()
+            .eq('uaid_child', childData.id);
+
+          if (classroomError) {
+            console.warn('Warning: Could not delete classroom relationships. This might be ok if none existed:', classroomError);
+          }
+
+          // 3. Delete from isparentof
           const { error: relationshipError } = await supabase
             .from('isparentof')
             .delete()
-            .match({ 
-              child_id: parentData.id 
-            });
+            .eq('child_id', childData.id);
 
           if (relationshipError) throw relationshipError;
+
+          // 4. Delete from child_details
+          const { error: detailsError } = await supabase
+            .from('child_details')
+            .delete()
+            .eq('child_id', childData.id);
+
+          if (detailsError) {
+            console.warn('Warning: Could not delete child details. This might be ok if none existed:', detailsError);
+          }
+
+          // 5. Delete the auth user if it exists
+          if (childData.user_id) {
+            try {
+              await api.deleteAuthUser(childData.user_id);
+            } catch (authError) {
+              console.warn('Warning: Could not delete auth user. This might be ok if already deleted:', authError);
+            }
+          }
         }
       }
 
-      // Delete the user's auth account if it exists
-      if (user.user_id) {
-        await api.deleteAuthUser(user.user_id);
-      }
-      
-      // Delete the user account
+      // Finally delete the user account
       await api.deleteUser(user.username);
     }
 
