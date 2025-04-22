@@ -9,14 +9,22 @@ interface Content {
   title: string;
   credit: string;
   genrename: string;
+  status: string;
+  denyreason?: string;
 }
 
-interface PublishedContent {
+interface RawContent {
   cid: number;
   title: string;
   credit: string;
-  cfid: number; // 1 for video, 2 for book
-  genrename: string;
+  cfid: number;
+  status: string;
+  denyreason?: string;
+  genre: Array<{
+    temp_genre: {
+      genrename: string;
+    };
+  }>;
 }
 
 export default function PublisherPage() {
@@ -27,6 +35,8 @@ export default function PublisherPage() {
   const [uaidPublisher, setUaidPublisher] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [publisherName, setPublisherName] = useState<string>('');
+  const [showDenyReasonModal, setShowDenyReasonModal] = useState(false);
+  const [selectedContent, setSelectedContent] = useState<Content | null>(null);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -66,33 +76,53 @@ export default function PublisherPage() {
       }
 
       try {
-        const { data, error } = await supabase.rpc('view_published_book', {
-          uaid_publisher: uaidPublisher,
-        });
+        // Fetch content with genre information
+        const { data, error } = await supabase
+          .from('temp_content')
+          .select(`
+            *,
+            genre:temp_contentgenres(
+              temp_genre(genrename)
+            )
+          `)
+          .eq('uaid_publisher', uaidPublisher);
 
         if (error) {
-          console.error('Error executing RPC function:', error.message);
+          console.error('Error fetching content:', error.message);
           return;
         }
 
         console.log('Fetched content:', data);
 
-        const contentList = data as PublishedContent[];
+        // Transform the data to match our interface
+        const transformedData = (data as RawContent[]).map((item) => ({
+          cid: item.cid,
+          title: item.title,
+          credit: item.credit,
+          cfid: item.cfid,
+          status: item.status,
+          denyreason: item.denyreason,
+          genrename: item.genre[0]?.temp_genre?.genrename || 'Unknown'
+        }));
 
-        const filteredBooks = contentList.filter((content) => content.cfid === 2);
-        const filteredVideos = contentList.filter((content) => content.cfid === 1);
+        const filteredBooks = transformedData.filter((content) => content.cfid === 2);
+        const filteredVideos = transformedData.filter((content) => content.cfid === 1);
 
         const formattedBooks: Content[] = filteredBooks.map((content) => ({
           cid: content.cid,
           title: content.title,
           credit: content.credit,
           genrename: content.genrename,
+          status: content.status,
+          denyreason: content.denyreason,
         }));
         const formattedVideos: Content[] = filteredVideos.map((content) => ({
           cid: content.cid,
           title: content.title,
           credit: content.credit,
           genrename: content.genrename,
+          status: content.status,
+          denyreason: content.denyreason,
         }));
 
         setBooks(formattedBooks);
@@ -177,15 +207,76 @@ export default function PublisherPage() {
             <tbody>
               {books.length > 0 ? (
                 books.map((book, index) => (
-                  <tr key={index} className="hover:bg-gray-50">
-                    <td className="px-4 py-2 border">{book.title}</td>
-                    <td className="px-4 py-2 border">{book.credit}</td>
-                    <td className="px-4 py-2 border">{book.genrename}</td>
+                  <tr 
+                    key={index} 
+                    className={`hover:bg-opacity-90 ${
+                      book.status === 'pending' 
+                        ? 'bg-yellow-100' 
+                        : book.status === 'denied'
+                        ? 'bg-red-100'
+                        : book.status === 'approved'
+                        ? 'bg-green-100'
+                        : 'hover:bg-gray-50'
+                    }`}
+                  >
+                    <td className="px-4 py-2 border">
+                      <span
+                        onClick={() => router.push(`/publisherbookdetail/${book.cid}`)}
+                        className={`cursor-pointer hover:underline ${
+                          book.status === 'pending' 
+                            ? 'text-yellow-700' 
+                            : book.status === 'denied'
+                            ? 'text-red-700'
+                            : book.status === 'approved'
+                            ? 'text-green-700'
+                            : 'text-gray-600'
+                        }`}
+                      >
+                        {book.title}
+                        {book.status === 'pending' && (
+                          <span className="ml-2 text-yellow-700 font-medium">(Pending)</span>
+                        )}
+                        {book.status === 'denied' && (
+                          <span
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedContent(book);
+                              setShowDenyReasonModal(true);
+                            }}
+                            className="ml-2 text-red-700 font-medium cursor-pointer hover:underline"
+                          >
+                            (Denied)
+                          </span>
+                        )}
+                      </span>
+                    </td>
+                    <td className={`px-4 py-2 border ${
+                      book.status === 'pending' 
+                        ? 'text-yellow-700' 
+                        : book.status === 'denied'
+                        ? 'text-red-700'
+                        : book.status === 'approved'
+                        ? 'text-green-700'
+                        : 'text-gray-600'
+                    }`}>
+                      {book.credit}
+                    </td>
+                    <td className={`px-4 py-2 border ${
+                      book.status === 'pending' 
+                        ? 'text-yellow-700' 
+                        : book.status === 'denied'
+                        ? 'text-red-700'
+                        : book.status === 'approved'
+                        ? 'text-green-700'
+                        : 'text-gray-600'
+                    }`}>
+                      {book.genrename}
+                    </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={3} className="text-center py-4">No published books yet.</td>
+                  <td colSpan={3} className="text-center py-4">No books yet.</td>
                 </tr>
               )}
             </tbody>
@@ -212,15 +303,76 @@ export default function PublisherPage() {
             <tbody>
               {videos.length > 0 ? (
                 videos.map((video, index) => (
-                  <tr key={index} className="hover:bg-gray-50">
-                    <td className="px-4 py-2 border">{video.title}</td>
-                    <td className="px-4 py-2 border">{video.credit}</td>
-                    <td className="px-4 py-2 border">{video.genrename}</td>
+                  <tr 
+                    key={index} 
+                    className={`hover:bg-opacity-90 ${
+                      video.status === 'pending' 
+                        ? 'bg-yellow-100' 
+                        : video.status === 'denied'
+                        ? 'bg-red-100'
+                        : video.status === 'approved'
+                        ? 'bg-green-100'
+                        : 'hover:bg-gray-50'
+                    }`}
+                  >
+                    <td className="px-4 py-2 border">
+                      <span
+                        onClick={() => router.push(`/publishervideodetail/${video.cid}`)}
+                        className={`cursor-pointer hover:underline ${
+                          video.status === 'pending' 
+                            ? 'text-yellow-700' 
+                            : video.status === 'denied'
+                            ? 'text-red-700'
+                            : video.status === 'approved'
+                            ? 'text-green-700'
+                            : 'text-gray-600'
+                        }`}
+                      >
+                        {video.title}
+                        {video.status === 'pending' && (
+                          <span className="ml-2 text-yellow-700 font-medium">(Pending)</span>
+                        )}
+                        {video.status === 'denied' && (
+                          <span
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedContent(video);
+                              setShowDenyReasonModal(true);
+                            }}
+                            className="ml-2 text-red-700 font-medium cursor-pointer hover:underline"
+                          >
+                            (Denied)
+                          </span>
+                        )}
+                      </span>
+                    </td>
+                    <td className={`px-4 py-2 border ${
+                      video.status === 'pending' 
+                        ? 'text-yellow-700' 
+                        : video.status === 'denied'
+                        ? 'text-red-700'
+                        : video.status === 'approved'
+                        ? 'text-green-700'
+                        : 'text-gray-600'
+                    }`}>
+                      {video.credit}
+                    </td>
+                    <td className={`px-4 py-2 border ${
+                      video.status === 'pending' 
+                        ? 'text-yellow-700' 
+                        : video.status === 'denied'
+                        ? 'text-red-700'
+                        : video.status === 'approved'
+                        ? 'text-green-700'
+                        : 'text-gray-600'
+                    }`}>
+                      {video.genrename}
+                    </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={3} className="text-center py-4">No published videos yet.</td>
+                  <td colSpan={3} className="text-center py-4">No videos yet.</td>
                 </tr>
               )}
             </tbody>
@@ -233,6 +385,33 @@ export default function PublisherPage() {
           </button>
         </div>
       </div>
+
+      {/* Deny Reason Modal */}
+      {showDenyReasonModal && selectedContent && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg w-[500px]">
+            <h3 className="text-xl font-bold mb-4 text-gray-900">Content Denied</h3>
+            <p className="text-gray-600 mb-4">
+              <span className="font-semibold">Title:</span> {selectedContent.title}
+            </p>
+            <div className="bg-gray-100 p-4 rounded-lg mb-4">
+              <p className="text-gray-900 font-semibold mb-2">Reason for denial:</p>
+              <p className="text-gray-700">{selectedContent.denyreason}</p>
+            </div>
+            <div className="flex justify-end">
+              <button
+                onClick={() => {
+                  setShowDenyReasonModal(false);
+                  setSelectedContent(null);
+                }}
+                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

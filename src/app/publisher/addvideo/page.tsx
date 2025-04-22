@@ -15,6 +15,7 @@ const AddVideos: React.FC = () => {
   const [showErrorPopup, setShowErrorPopup] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [titleAvailable, setTitleAvailable] = useState<boolean | null>(null);
+  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -133,7 +134,7 @@ const AddVideos: React.FC = () => {
           minimumage: minimumAge,
           description,
           contenturl: videoUrl, // Use YouTube URL here
-          status: 'approved',
+          status: 'pending', // Changed from 'approved' to 'pending'
           uaid_publisher, // Use the UUID (uaid) as the foreign key reference
         },
       ])
@@ -160,13 +161,22 @@ const AddVideos: React.FC = () => {
       return;
     }
 
-    alert('Video uploaded successfully!');
+    // Show success popup instead of alert
+    setShowSuccessPopup(true);
+  };
+
+  const handleAddAnother = () => {
     setTitle('');
     setGenre('');
     setDescription('');
     setVideoUrl('');
     setMinimumAge('');
     setCredits('');
+    setShowSuccessPopup(false);
+  };
+
+  const handleReturnHome = () => {
+    router.push('/publisherpage');
   };
 
   const handleCancel = () => {
@@ -182,6 +192,37 @@ const AddVideos: React.FC = () => {
   return (
     <div className="flex flex-col h-screen bg-gray-100 p-6">
       <h1 className="text-2xl font-serif text-black mb-6">Add a New Video</h1>
+
+      {/* Success Popup */}
+      {showSuccessPopup && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4">
+            <div className="text-center">
+              <div className="mb-4 text-green-600">
+                <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Success!</h3>
+              <p className="text-sm text-gray-500 mb-6">Your video has been submitted successfully and is pending approval.</p>
+              <div className="flex space-x-4">
+                <button
+                  onClick={handleAddAnother}
+                  className="flex-1 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors"
+                >
+                  Add Another
+                </button>
+                <button
+                  onClick={handleReturnHome}
+                  className="flex-1 bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors"
+                >
+                  Return Home
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Error Popup */}
       {showErrorPopup && (
