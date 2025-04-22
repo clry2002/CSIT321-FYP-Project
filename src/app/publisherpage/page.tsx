@@ -134,27 +134,7 @@ export default function PublisherPage() {
 
       {/* Main Content */}
       <div className="flex-1 overflow-y-auto px-6 space-y-5">
-        {/* Top Genres Section */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-white rounded-lg shadow-md p-4">
-            <h2 className="text-lg font-serif mb-3 text-black">Top Book Genres</h2>
-            <ul className="list-disc list-inside text-gray-600 text-sm">
-              <li>Genre 1: 5 books</li>
-              <li>Genre 2: 3 books</li>
-              <li>Genre 3: 2 books</li>
-            </ul>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-md p-4">
-            <h2 className="text-lg font-serif mb-3 text-black">Top Video Genres</h2>
-            <ul className="list-disc list-inside text-gray-600 text-sm">
-              <li>Genre A: 4 videos</li>
-              <li>Genre B: 3 videos</li>
-              <li>Genre C: 1 video</li>
-            </ul>
-          </div>
-        </div>
-
+        
         {/* Books Analytics Section */}
         <div className="bg-white rounded-lg shadow-md p-4">
           <h2 className="text-lg font-serif mb-3 text-black">Books Analytics</h2>
