@@ -169,6 +169,43 @@ const ParentDataFetcher = () => {
       if (!childToRemove) {
         throw new Error('Child not found');
       }
+
+      // Validate whether account deletion will succeed
+      if (childToRemove.user_id) {
+        try {
+          // First validate that the API endpoint is reachable and working
+          const testResponse = await fetch('/api/admin/delete-user/validate', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              user_id: childToRemove.user_id,
+              account_id: childToRemove.id
+            }),
+          });
+  
+          if (!testResponse.ok) {
+            const contentType = testResponse.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+              const errorData = await testResponse.json();
+              throw new Error(errorData.error || `Validation failed: ${testResponse.status}`);
+            } else {
+              const text = await testResponse.text();
+              throw new Error(`Validation failed: ${testResponse.status}. Response: ${text.substring(0, 100)}...`);
+            }
+          }
+          
+          await testResponse.json(); // Consume the response
+        } catch (validationError: unknown) {
+          console.error('Validation error:', validationError);
+          const errorMessage = validationError instanceof Error 
+            ? validationError.message 
+            : 'Unknown validation error';
+          throw new Error(`Cannot proceed with deletion: ${errorMessage}`);
+        }
+      }
+
       // Delete from isparentof table first
       const { error: relationError } = await supabase
         .from('isparentof')
@@ -200,16 +237,24 @@ const ParentDataFetcher = () => {
         body: JSON.stringify({ user_id: childToRemove.user_id, account_id: childToRemove.id }),
       });
 
-      const result = await response.json();
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to delete child account');
+        let errorMessage = `Server error: ${response.status}`;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch {
+        }
+        throw new Error(errorMessage);
       }
+      
+      await response.json(); // Consume the response
+    }
+    
       // Update local state without refetching
       setChildren(children.filter(child => child.id !== id));
       setNotificationMessage('Child account successfully deleted');
       setShowNotification(true);
       setTimeout(() => setShowNotification(false), 3000);
-    }
   } catch (err) {
     console.error('Error deleting child:', err);
     setError(err instanceof Error ? err.message : 'Error deleting child account');
