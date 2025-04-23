@@ -63,12 +63,14 @@ export default function ContentReviewPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [filters, setFilters] = useState({
-    type: 'all', // 'all', 'book', 'video'
+    contentType: 'all', // 'all', 'book', 'video'
+    publisher: 'all',
     genre: 'all',
     minAge: 'all',
     status: 'all' // 'all', 'approved', 'suspended'
   });
   const [genres, setGenres] = useState<string[]>([]);
+  const [publishers, setPublishers] = useState<string[]>([]);
   const [showSuspendModal, setShowSuspendModal] = useState(false);
   const [suspendReason, setSuspendReason] = useState('');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -76,6 +78,7 @@ export default function ContentReviewPage() {
 
   useEffect(() => {
     fetchGenres();
+    fetchPublishers();
     if (activeTab === 'pending') {
       fetchPendingContent();
     } else {
@@ -94,6 +97,21 @@ export default function ContentReviewPage() {
       setGenres(data.map(g => g.genrename));
     } catch (err) {
       console.error('Error fetching genres:', err);
+    }
+  };
+
+  const fetchPublishers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('user_account')
+        .select('fullname')
+        .eq('upid', 1)  // upid = 1 for publishers
+        .order('fullname');
+
+      if (error) throw error;
+      setPublishers(data.map(p => p.fullname));
+    } catch (err) {
+      console.error('Error fetching publishers:', err);
     }
   };
 
@@ -290,10 +308,14 @@ export default function ContentReviewPage() {
       content.publisher.fullname.toLowerCase().includes(searchQuery.toLowerCase()) ||
       content.genre.genrename.toLowerCase().includes(searchQuery.toLowerCase());
 
-    const matchesType = 
-      filters.type === 'all' || 
-      (filters.type === 'book' && content.cfid === 2) ||
-      (filters.type === 'video' && content.cfid === 1);
+    const matchesContentType =
+      filters.contentType === 'all' ||
+      (filters.contentType === 'book' && content.cfid === 2) ||
+      (filters.contentType === 'video' && content.cfid === 1);
+
+    const matchesPublisher =
+      filters.publisher === 'all' ||
+      content.publisher.fullname === filters.publisher;
 
     const matchesGenre = 
       filters.genre === 'all' || 
@@ -307,7 +329,7 @@ export default function ContentReviewPage() {
       filters.status === 'all' ||
       content.status === filters.status;
 
-    return matchesSearch && matchesType && matchesGenre && matchesAge && matchesStatus;
+    return matchesSearch && matchesContentType && matchesPublisher && matchesGenre && matchesAge && matchesStatus;
   });
 
   return (
@@ -386,13 +408,26 @@ export default function ContentReviewPage() {
                     <div>
                       <label className="block text-sm font-medium text-gray-400 mb-2">Content Type</label>
                       <select
-                        value={filters.type}
-                        onChange={(e) => setFilters({...filters, type: e.target.value})}
+                        value={filters.contentType}
+                        onChange={(e) => setFilters({...filters, contentType: e.target.value})}
                         className="w-full bg-gray-700 rounded-lg px-3 py-2 text-white"
                       >
                         <option value="all">All Types</option>
                         <option value="book">Books</option>
                         <option value="video">Videos</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-400 mb-2">Publisher</label>
+                      <select
+                        value={filters.publisher}
+                        onChange={(e) => setFilters({...filters, publisher: e.target.value})}
+                        className="w-full bg-gray-700 rounded-lg px-3 py-2 text-white"
+                      >
+                        <option value="all">All Publishers</option>
+                        {publishers.map((publisher) => (
+                          <option key={publisher} value={publisher}>{publisher}</option>
+                        ))}
                       </select>
                     </div>
                     <div>
