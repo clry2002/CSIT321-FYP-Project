@@ -187,43 +187,29 @@ export default function PublisherPage() {
         </div>
       </div>
 
-      {/* Success Message */}
-      {deleteSuccess && (
-        <div className="fixed top-4 right-4 bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-fade-in-out">
-          {deleteSuccess}
-        </div>
-      )}
-
-      {/* Main Content */}
-      <div className="flex-1 overflow-y-auto px-6 space-y-5">
-        
-        {/* Books Analytics Section */}
-        <div className="bg-white rounded-lg shadow-md p-4">
-          <h2 className="text-lg font-serif mb-3 text-black">Books Analytics</h2>
-          <p className="text-gray-600 text-sm mb-3">
-            Track performance metrics and trends for your published books.
-          </p>
-          <button
-            className="bg-blue-500 text-white px-4 py-2 rounded-lg w-full"
-            onClick={() => router.push('/publisher/book-analytics')}
-          >
-            View Books Analytics
-          </button>
-        </div>
-
-        {/* Videos Analytics Section */}
-        <div className="bg-white rounded-lg shadow-md p-4">
-          <h2 className="text-lg font-serif mb-3 text-black">Videos Analytics</h2>
-          <p className="text-gray-600 text-sm mb-3">
-            Monitor views, engagement, and trends for your published videos.
-          </p>
-          <button
-            className="bg-blue-500 text-white px-4 py-2 rounded-lg w-full"
-            onClick={() => router.push('/publisher/video-analytics')}
-          >
-            View Videos Analytics
-          </button>
-        </div>
+            {/* Analytics Overview */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                <div className="bg-white shadow-md rounded-lg p-6">
+                    <h2 className="text-xl font-semibold text-gray-900 mb-4">Books Analytics</h2>
+                    <p className="text-gray-600 mb-4">Track the performance of your published books.</p>
+                    <button
+                        className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-50"
+                        onClick={() => router.push('/publisher/book-analytics')}
+                    >
+                        View Books Analytics
+                    </button>
+                </div>
+                <div className="bg-white shadow-md rounded-lg p-6">
+                    <h2 className="text-xl font-semibold text-gray-900 mb-4">Videos Analytics</h2>
+                    <p className="text-gray-600 mb-4">Monitor the engagement and views of your videos.</p>
+                    <button
+                        className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-50"
+                        onClick={() => router.push('/publisher/video-analytics')}
+                    >
+                        View Videos Analytics
+                    </button>
+                </div>
+            </div>
 
         {/* Published Books Section */}
         <div className="bg-white rounded-lg shadow-md p-4">
@@ -246,16 +232,12 @@ export default function PublisherPage() {
                         ? 'bg-yellow-100' 
                         : book.status === 'denied'
                         ? 'bg-red-100'
-                        : book.status === 'suspended'
-                        ? 'bg-red-800'
                         : book.status === 'approved'
                         ? 'bg-green-100'
                         : 'hover:bg-gray-50'
                     }`}
                   >
-                    <td className={`px-4 py-2 border ${
-                      book.status === 'suspended' ? 'text-red-100' : ''
-                    }`}>
+                    <td className="px-4 py-2 border">
                       <span
                         onClick={() => router.push(`/publisherbookdetail/${book.cid}`)}
                         className={`cursor-pointer hover:underline ${
@@ -263,8 +245,6 @@ export default function PublisherPage() {
                             ? 'text-yellow-700' 
                             : book.status === 'denied'
                             ? 'text-red-700'
-                            : book.status === 'suspended'
-                            ? 'text-red-100'
                             : book.status === 'approved'
                             ? 'text-green-700'
                             : 'text-gray-600'
@@ -286,22 +266,10 @@ export default function PublisherPage() {
                             (Denied)
                           </span>
                         )}
-                        {book.status === 'suspended' && (
-                          <span
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedContent(book);
-                              setShowDenyReasonModal(true);
-                            }}
-                            className="ml-2 text-red-100 font-medium cursor-pointer hover:underline"
-                          >
-                            (Suspended)
-                          </span>
-                        )}
                       </span>
                     </td>
                     <td className={`px-4 py-2 border ${
-                      book.status === 'suspended' ? 'text-red-100' : book.status === 'pending' 
+                      book.status === 'pending' 
                         ? 'text-yellow-700' 
                         : book.status === 'denied'
                         ? 'text-red-700'
@@ -312,7 +280,7 @@ export default function PublisherPage() {
                       {book.credit}
                     </td>
                     <td className={`px-4 py-2 border ${
-                      book.status === 'suspended' ? 'text-red-100' : book.status === 'pending' 
+                      book.status === 'pending' 
                         ? 'text-yellow-700' 
                         : book.status === 'denied'
                         ? 'text-red-700'
@@ -320,22 +288,7 @@ export default function PublisherPage() {
                         ? 'text-green-700'
                         : 'text-gray-600'
                     }`}>
-                      <div className="flex items-center justify-between">
-                        <span>{book.genrename}</span>
-                        {book.status === 'denied' && (
-                          <button
-                            onClick={() => {
-                              setContentToDelete(book);
-                              setShowDeleteConfirmModal(true);
-                            }}
-                            className="text-red-600 hover:text-red-800 ml-2"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                              <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                            </svg>
-                          </button>
-                        )}
-                      </div>
+                      {book.genrename}
                     </td>
                   </tr>
                 ))
@@ -375,16 +328,12 @@ export default function PublisherPage() {
                         ? 'bg-yellow-100' 
                         : video.status === 'denied'
                         ? 'bg-red-100'
-                        : video.status === 'suspended'
-                        ? 'bg-red-800'
                         : video.status === 'approved'
                         ? 'bg-green-100'
                         : 'hover:bg-gray-50'
                     }`}
                   >
-                    <td className={`px-4 py-2 border ${
-                      video.status === 'suspended' ? 'text-red-100' : ''
-                    }`}>
+                    <td className="px-4 py-2 border">
                       <span
                         onClick={() => router.push(`/publishervideodetail/${video.cid}`)}
                         className={`cursor-pointer hover:underline ${
@@ -392,8 +341,6 @@ export default function PublisherPage() {
                             ? 'text-yellow-700' 
                             : video.status === 'denied'
                             ? 'text-red-700'
-                            : video.status === 'suspended'
-                            ? 'text-red-100'
                             : video.status === 'approved'
                             ? 'text-green-700'
                             : 'text-gray-600'
@@ -415,22 +362,10 @@ export default function PublisherPage() {
                             (Denied)
                           </span>
                         )}
-                        {video.status === 'suspended' && (
-                          <span
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedContent(video);
-                              setShowDenyReasonModal(true);
-                            }}
-                            className="ml-2 text-red-100 font-medium cursor-pointer hover:underline"
-                          >
-                            (Suspended)
-                          </span>
-                        )}
                       </span>
                     </td>
                     <td className={`px-4 py-2 border ${
-                      video.status === 'suspended' ? 'text-red-100' : video.status === 'pending' 
+                      video.status === 'pending' 
                         ? 'text-yellow-700' 
                         : video.status === 'denied'
                         ? 'text-red-700'
@@ -441,7 +376,7 @@ export default function PublisherPage() {
                       {video.credit}
                     </td>
                     <td className={`px-4 py-2 border ${
-                      video.status === 'suspended' ? 'text-red-100' : video.status === 'pending' 
+                      video.status === 'pending' 
                         ? 'text-yellow-700' 
                         : video.status === 'denied'
                         ? 'text-red-700'
@@ -449,22 +384,7 @@ export default function PublisherPage() {
                         ? 'text-green-700'
                         : 'text-gray-600'
                     }`}>
-                      <div className="flex items-center justify-between">
-                        <span>{video.genrename}</span>
-                        {video.status === 'denied' && (
-                          <button
-                            onClick={() => {
-                              setContentToDelete(video);
-                              setShowDeleteConfirmModal(true);
-                            }}
-                            className="text-red-600 hover:text-red-800 ml-2"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                              <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                            </svg>
-                          </button>
-                        )}
-                      </div>
+                      {video.genrename}
                     </td>
                   </tr>
                 ))
@@ -488,16 +408,12 @@ export default function PublisherPage() {
       {showDenyReasonModal && selectedContent && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg w-[500px]">
-            <h3 className="text-xl font-bold mb-4 text-gray-900">
-              {selectedContent.status === 'suspended' ? 'Content Suspended' : 'Content Denied'}
-            </h3>
+            <h3 className="text-xl font-bold mb-4 text-gray-900">Content Denied</h3>
             <p className="text-gray-600 mb-4">
               <span className="font-semibold">Title:</span> {selectedContent.title}
             </p>
             <div className="bg-gray-100 p-4 rounded-lg mb-4">
-              <p className="text-gray-900 font-semibold mb-2">
-                {selectedContent.status === 'suspended' ? 'Reason for suspension:' : 'Reason for denial:'}
-              </p>
+              <p className="text-gray-900 font-semibold mb-2">Reason for denial:</p>
               <p className="text-gray-700">{selectedContent.denyreason}</p>
             </div>
             <div className="flex justify-end">
@@ -514,35 +430,6 @@ export default function PublisherPage() {
           </div>
         </div>
       )}
-
-      {/* Delete Confirmation Modal */}
-      {showDeleteConfirmModal && contentToDelete && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg w-[500px]">
-            <h3 className="text-xl font-bold mb-4 text-gray-900">Delete Content</h3>
-            <p className="text-gray-600 mb-4">
-              Are you sure you want to delete &quot;{contentToDelete.title}&quot;? This action cannot be undone.
-            </p>
-            <div className="flex justify-end space-x-4">
-              <button
-                onClick={() => {
-                  setShowDeleteConfirmModal(false);
-                  setContentToDelete(null);
-                }}
-                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => handleDeleteContent(contentToDelete)}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
-  );
+);
 }
