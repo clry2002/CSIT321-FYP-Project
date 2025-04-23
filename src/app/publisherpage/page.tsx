@@ -142,276 +142,251 @@ export default function PublisherPage() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-gray-100 overflow-hidden">
-      {/* Header Section */}
-      <div className="flex justify-between items-center mb-6 px-6 py-5">
-        <h1 className="text-2xl font-serif text-black">Welcome, {publisherName}!</h1>
-        <div className="flex space-x-3">
-          <button
-            className="bg-gray-900 text-white px-4 py-2 rounded-lg"
-            onClick={() => router.push('/publisher/settings')}
-          >
-            Settings
-          </button>
-          <button
-            className="bg-red-600 text-white px-4 py-2 rounded-lg"
-            onClick={() => router.push('/logout')}
-          >
-            Logout
-          </button>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="flex-1 overflow-y-auto px-6 space-y-5">
-        
-        {/* Books Analytics Section */}
-        <div className="bg-white rounded-lg shadow-md p-4">
-          <h2 className="text-lg font-serif mb-3 text-black">Books Analytics</h2>
-          <p className="text-gray-600 text-sm mb-3">
-            Track performance metrics and trends for your published books.
-          </p>
-          <button
-            className="bg-blue-500 text-white px-4 py-2 rounded-lg w-full"
-            onClick={() => router.push('/publisher/book-analytics')}
-          >
-            View Books Analytics
-          </button>
-        </div>
-
-        {/* Videos Analytics Section */}
-        <div className="bg-white rounded-lg shadow-md p-4">
-          <h2 className="text-lg font-serif mb-3 text-black">Videos Analytics</h2>
-          <p className="text-gray-600 text-sm mb-3">
-            Monitor views, engagement, and trends for your published videos.
-          </p>
-          <button
-            className="bg-blue-500 text-white px-4 py-2 rounded-lg w-full"
-            onClick={() => router.push('/publisher/video-analytics')}
-          >
-            View Videos Analytics
-          </button>
-        </div>
-
-        {/* Published Books Section */}
-        <div className="bg-white rounded-lg shadow-md p-4">
-          <h2 className="text-lg font-serif mb-3 text-black">Published Books</h2>
-          <table className="table-auto w-full text-left text-gray-600 text-sm mb-3 border-collapse">
-            <thead>
-              <tr className="bg-gray-100">
-                <th className="px-4 py-2 border">Title</th>
-                <th className="px-4 py-2 border">Credit</th>
-                <th className="px-4 py-2 border">Genre</th>
-              </tr>
-            </thead>
-            <tbody>
-              {books.length > 0 ? (
-                books.map((book, index) => (
-                  <tr 
-                    key={index} 
-                    className={`hover:bg-opacity-90 ${
-                      book.status === 'pending' 
-                        ? 'bg-yellow-100' 
-                        : book.status === 'denied'
-                        ? 'bg-red-100'
-                        : book.status === 'approved'
-                        ? 'bg-green-100'
-                        : 'hover:bg-gray-50'
-                    }`}
-                  >
-                    <td className="px-4 py-2 border">
-                      <span
-                        onClick={() => router.push(`/publisherbookdetail/${book.cid}`)}
-                        className={`cursor-pointer hover:underline ${
-                          book.status === 'pending' 
-                            ? 'text-yellow-700' 
-                            : book.status === 'denied'
-                            ? 'text-red-700'
-                            : book.status === 'approved'
-                            ? 'text-green-700'
-                            : 'text-gray-600'
-                        }`}
-                      >
-                        {book.title}
-                        {book.status === 'pending' && (
-                          <span className="ml-2 text-yellow-700 font-medium">(Pending)</span>
-                        )}
-                        {book.status === 'denied' && (
-                          <span
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedContent(book);
-                              setShowDenyReasonModal(true);
-                            }}
-                            className="ml-2 text-red-700 font-medium cursor-pointer hover:underline"
-                          >
-                            (Denied)
-                          </span>
-                        )}
-                      </span>
-                    </td>
-                    <td className={`px-4 py-2 border ${
-                      book.status === 'pending' 
-                        ? 'text-yellow-700' 
-                        : book.status === 'denied'
-                        ? 'text-red-700'
-                        : book.status === 'approved'
-                        ? 'text-green-700'
-                        : 'text-gray-600'
-                    }`}>
-                      {book.credit}
-                    </td>
-                    <td className={`px-4 py-2 border ${
-                      book.status === 'pending' 
-                        ? 'text-yellow-700' 
-                        : book.status === 'denied'
-                        ? 'text-red-700'
-                        : book.status === 'approved'
-                        ? 'text-green-700'
-                        : 'text-gray-600'
-                    }`}>
-                      {book.genrename}
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={3} className="text-center py-4">No books yet.</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-          <button
-            className="bg-green-500 text-white px-4 py-2 rounded-lg w-full"
-            onClick={() => router.push('/publisher/addbook')}
-          >
-            + Add Book
-          </button>
-        </div>
-
-        {/* Published Videos Section */}
-        <div className="bg-white rounded-lg shadow-md p-4">
-          <h2 className="text-lg font-serif mb-3 text-black">Published Videos</h2>
-          <table className="table-auto w-full text-left text-gray-600 text-sm mb-3 border-collapse">
-            <thead>
-              <tr className="bg-gray-100">
-                <th className="px-4 py-2 border">Title</th>
-                <th className="px-4 py-2 border">Credit</th>
-                <th className="px-4 py-2 border">Genre</th>
-              </tr>
-            </thead>
-            <tbody>
-              {videos.length > 0 ? (
-                videos.map((video, index) => (
-                  <tr 
-                    key={index} 
-                    className={`hover:bg-opacity-90 ${
-                      video.status === 'pending' 
-                        ? 'bg-yellow-100' 
-                        : video.status === 'denied'
-                        ? 'bg-red-100'
-                        : video.status === 'approved'
-                        ? 'bg-green-100'
-                        : 'hover:bg-gray-50'
-                    }`}
-                  >
-                    <td className="px-4 py-2 border">
-                      <span
-                        onClick={() => router.push(`/publishervideodetail/${video.cid}`)}
-                        className={`cursor-pointer hover:underline ${
-                          video.status === 'pending' 
-                            ? 'text-yellow-700' 
-                            : video.status === 'denied'
-                            ? 'text-red-700'
-                            : video.status === 'approved'
-                            ? 'text-green-700'
-                            : 'text-gray-600'
-                        }`}
-                      >
-                        {video.title}
-                        {video.status === 'pending' && (
-                          <span className="ml-2 text-yellow-700 font-medium">(Pending)</span>
-                        )}
-                        {video.status === 'denied' && (
-                          <span
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedContent(video);
-                              setShowDenyReasonModal(true);
-                            }}
-                            className="ml-2 text-red-700 font-medium cursor-pointer hover:underline"
-                          >
-                            (Denied)
-                          </span>
-                        )}
-                      </span>
-                    </td>
-                    <td className={`px-4 py-2 border ${
-                      video.status === 'pending' 
-                        ? 'text-yellow-700' 
-                        : video.status === 'denied'
-                        ? 'text-red-700'
-                        : video.status === 'approved'
-                        ? 'text-green-700'
-                        : 'text-gray-600'
-                    }`}>
-                      {video.credit}
-                    </td>
-                    <td className={`px-4 py-2 border ${
-                      video.status === 'pending' 
-                        ? 'text-yellow-700' 
-                        : video.status === 'denied'
-                        ? 'text-red-700'
-                        : video.status === 'approved'
-                        ? 'text-green-700'
-                        : 'text-gray-600'
-                    }`}>
-                      {video.genrename}
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={3} className="text-center py-4">No videos yet.</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-          <button
-            className="bg-yellow-500 text-white px-4 py-2 rounded-lg w-full"
-            onClick={() => router.push('/publisher/addvideo')}
-          >
-            + Add Video
-          </button>
-        </div>
-      </div>
-
-      {/* Deny Reason Modal */}
-      {showDenyReasonModal && selectedContent && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg w-[500px]">
-            <h3 className="text-xl font-bold mb-4 text-gray-900">Content Denied</h3>
-            <p className="text-gray-600 mb-4">
-              <span className="font-semibold">Title:</span> {selectedContent.title}
-            </p>
-            <div className="bg-gray-100 p-4 rounded-lg mb-4">
-              <p className="text-gray-900 font-semibold mb-2">Reason for denial:</p>
-              <p className="text-gray-700">{selectedContent.denyreason}</p>
+    <div className="min-h-screen bg-gray-100 py-6">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+            {/* Header Section */}
+            <div className="mb-8 flex justify-between items-center">
+                <div>
+                    <h1 className="text-3xl font-semibold text-gray-900">
+                        Welcome, <span className="font-serif">{publisherName}</span>!
+                    </h1>
+                    <p className="text-gray-500 mt-1">Manage your published content and analytics.</p>
+                </div>
+                <div className="space-x-3">
+                    <button
+                        className="bg-gray-800 hover:bg-gray-900 text-white font-semibold py-2 px-4 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-600 focus:ring-opacity-50"
+                        onClick={() => router.push('/publisher/settings')}
+                    >
+                        Settings
+                    </button>
+                    <button
+                        className="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-opacity-50"
+                        onClick={() => router.push('/logout')}
+                    >
+                        Logout
+                    </button>
+                </div>
             </div>
-            <div className="flex justify-end">
-              <button
-                onClick={() => {
-                  setShowDenyReasonModal(false);
-                  setSelectedContent(null);
-                }}
-                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
-              >
-                Close
-              </button>
+
+            {/* Analytics Overview */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                <div className="bg-white shadow-md rounded-lg p-6">
+                    <h2 className="text-xl font-semibold text-gray-900 mb-4">Books Analytics</h2>
+                    <p className="text-gray-600 mb-4">Track the performance of your published books.</p>
+                    <button
+                        className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-50"
+                        onClick={() => router.push('/publisher/book-analytics')}
+                    >
+                        View Books Analytics
+                    </button>
+                </div>
+                <div className="bg-white shadow-md rounded-lg p-6">
+                    <h2 className="text-xl font-semibold text-gray-900 mb-4">Videos Analytics</h2>
+                    <p className="text-gray-600 mb-4">Monitor the engagement and views of your videos.</p>
+                    <button
+                        className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-50"
+                        onClick={() => router.push('/publisher/video-analytics')}
+                    >
+                        View Videos Analytics
+                    </button>
+                </div>
             </div>
-          </div>
+
+            {/* Published Books Section */}
+            <div className="bg-white shadow-md rounded-lg p-6 mb-8">
+                <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-xl font-semibold text-gray-900">Published Books</h2>
+                    <button
+                        className="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-50"
+                        onClick={() => router.push('/publisher/addbook')}
+                    >
+                        + Add Book
+                    </button>
+                </div>
+                <div className="overflow-x-auto">
+                    <table className="min-w-full leading-normal">
+                        <thead>
+                            <tr className="bg-gray-100 text-gray-700 uppercase text-sm font-semibold">
+                                <th className="py-3 px-6 text-left">Title</th>
+                                <th className="py-3 px-6 text-left">Credit</th>
+                                <th className="py-3 px-6 text-left">Genre</th>
+                                <th className="py-3 px-6 text-center">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody className="text-gray-600 text-sm">
+                            {books.length > 0 ? (
+                                books.map((book, index) => (
+                                    <tr
+                                        key={index}
+                                        className={`hover:bg-gray-50 cursor-pointer ${
+                                            book.status === 'pending'
+                                                ? 'bg-yellow-50'
+                                                : book.status === 'denied'
+                                                ? 'bg-red-50'
+                                                : book.status === 'approved'
+                                                ? 'bg-green-50'
+                                                : ''
+                                        }`}
+                                        onClick={() => router.push(`/publisherbookdetail/${book.cid}`)}
+                                    >
+                                        <td className="py-3 px-6">
+                                            {book.title}
+                                            {book.status === 'pending' && (
+                                                <span className="ml-2 text-yellow-600 font-medium">(Pending)</span>
+                                            )}
+                                            {book.status === 'denied' && (
+                                                <span
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setSelectedContent(book);
+                                                        setShowDenyReasonModal(true);
+                                                    }}
+                                                    className="ml-2 text-red-600 font-medium cursor-pointer hover:underline"
+                                                >
+                                                    (Denied)
+                                                </span>
+                                            )}
+                                        </td>
+                                        <td className="py-3 px-6">{book.credit}</td>
+                                        <td className="py-3 px-6">{book.genrename}</td>
+                                        <td className="py-3 px-6 text-center">
+                                            <span
+                                                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                                    book.status === 'pending'
+                                                        ? 'bg-yellow-100 text-yellow-800'
+                                                        : book.status === 'denied'
+                                                        ? 'bg-red-100 text-red-800'
+                                                        : book.status === 'approved'
+                                                        ? 'bg-green-100 text-green-800'
+                                                        : 'bg-gray-100 text-gray-800'
+                                                }`}
+                                            >
+                                                {book.status.charAt(0).toUpperCase() + book.status.slice(1)}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan={4} className="py-6 px-6 text-center">No books published yet.</td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {/* Published Videos Section */}
+            <div className="bg-white shadow-md rounded-lg p-6 mb-8">
+                <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-xl font-semibold text-gray-900">Published Videos</h2>
+                    <button
+                        className="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-2 px-4 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-opacity-50"
+                        onClick={() => router.push('/publisher/addvideo')}
+                    >
+                        + Add Video
+                    </button>
+                </div>
+                <div className="overflow-x-auto">
+                    <table className="min-w-full leading-normal">
+                        <thead>
+                            <tr className="bg-gray-100 text-gray-700 uppercase text-sm font-semibold">
+                                <th className="py-3 px-6 text-left">Title</th>
+                                <th className="py-3 px-6 text-left">Credit</th>
+                                <th className="py-3 px-6 text-left">Genre</th>
+                                <th className="py-3 px-6 text-center">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody className="text-gray-600 text-sm">
+                            {videos.length > 0 ? (
+                                videos.map((video, index) => (
+                                    <tr
+                                        key={index}
+                                        className={`hover:bg-gray-50 cursor-pointer ${
+                                            video.status === 'pending'
+                                                ? 'bg-yellow-50'
+                                                : video.status === 'denied'
+                                                ? 'bg-red-50'
+                                                : video.status === 'approved'
+                                                ? 'bg-green-50'
+                                                : ''
+                                        }`}
+                                        onClick={() => router.push(`/publishervideodetail/${video.cid}`)}
+                                    >
+                                        <td className="py-3 px-6">
+                                            {video.title}
+                                            {video.status === 'pending' && (
+                                                <span className="ml-2 text-yellow-600 font-medium">(Pending)</span>
+                                            )}
+                                            {video.status === 'denied' && (
+                                                <span
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setSelectedContent(video);
+                                                        setShowDenyReasonModal(true);
+                                                    }}
+                                                    className="ml-2 text-red-600 font-medium cursor-pointer hover:underline"
+                                                >
+                                                    (Denied)
+                                                </span>
+                                            )}
+                                        </td>
+                                        <td className="py-3 px-6">{video.credit}</td>
+                                        <td className="py-3 px-6">{video.genrename}</td>
+                                        <td className="py-3 px-6 text-center">
+                                            <span
+                                                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                                    video.status === 'pending'
+                                                        ? 'bg-yellow-100 text-yellow-800'
+                                                        : video.status === 'denied'
+                                                        ? 'bg-red-100 text-red-800'
+                                                        : video.status === 'approved'
+                                                        ? 'bg-green-100 text-green-800'
+                                                        : 'bg-gray-100 text-gray-800'
+                                                }`}
+                                            >
+                                                {video.status.charAt(0).toUpperCase() + video.status.slice(1)}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan={4} className="py-6 px-6 text-center">No videos published yet.</td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
-      )}
+
+        {/* Deny Reason Modal */}
+        {showDenyReasonModal && selectedContent && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
+                    <h3 className="text-xl font-semibold text-gray-900 mb-4">Content Denied</h3>
+                    <p className="text-gray-600 mb-4">
+                        <span className="font-semibold">Title:</span> {selectedContent.title}
+                    </p>
+                    <div className="bg-gray-100 p-4 rounded-lg mb-4">
+                        <p className="text-gray-900 font-semibold mb-2">Reason for denial:</p>
+                        <p className="text-gray-700">{selectedContent.denyreason}</p>
+                    </div>
+                    <div className="flex justify-end">
+                        <button
+                            onClick={() => {
+                                setShowDenyReasonModal(false);
+                                setSelectedContent(null);
+                            }}
+                            className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-opacity-50"
+                        >
+                            Close
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
     </div>
-  );
+);
 }
