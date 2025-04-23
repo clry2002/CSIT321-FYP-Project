@@ -920,43 +920,39 @@ export default function AdminPage() {
                     {filteredAndSortedUsers.slice(0, showAllUsers ? undefined : 3).map((account, index) => (
                       <tr key={index} className="hover:bg-gray-800">
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div
+                          <span
                             onClick={() => handleUserClick(account.username)}
-                            className={`cursor-pointer hover:bg-gray-700 px-2 py-1 rounded ${
+                            className={`cursor-pointer hover:text-blue-400 ${
                               account.suspended ? 'text-red-400' : 'text-white'
                             }`}
                           >
                             {account.fullname}
-                          </div>
+                          </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div
+                          <span
                             onClick={() => handleUserClick(account.username)}
-                            className={`cursor-pointer hover:bg-gray-700 px-2 py-1 rounded ${
+                            className={`cursor-pointer hover:text-blue-400 ${
                               account.suspended ? 'text-red-400' : 'text-white'
                             }`}
                           >
                             {account.username}
-                          </div>
+                          </span>
                         </td>
-                        <td className={`px-6 py-4 whitespace-nowrap ${account.suspended ? 'text-red-400' : 'text-white'}`}>
-                          <div
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span
                             onClick={() => handleUserClick(account.username)}
-                            className="cursor-pointer hover:bg-gray-700 px-2 py-1 rounded"
+                            className={`cursor-pointer hover:text-blue-400 ${
+                              account.suspended ? 'text-red-400' : 'text-white'
+                            }`}
                           >
                             {account.age}
-                          </div>
+                          </span>
                         </td>
                         <td className={`px-6 py-4 whitespace-nowrap ${account.suspended ? 'text-red-400' : 'text-white'}`}>
-                          {account.upid === 3 ? (
-                            <div className="px-2 py-1 rounded">
-                              {utils.getUpidLabel(account.upid)}
-                            </div>
-                          ) : (
-                            <div className="px-2 py-1 rounded">
-                              {utils.getUpidLabel(account.upid)}
-                            </div>
-                          )}
+                          <span>
+                            {utils.getUpidLabel(account.upid)}
+                          </span>
                         </td>
                         <td className={`px-6 py-4 whitespace-nowrap ${account.suspended ? 'text-red-400' : 'text-white'}`}>
                           {new Date(account.created_at).toLocaleDateString()}
@@ -1068,20 +1064,36 @@ export default function AdminPage() {
                 <tbody className="divide-y divide-gray-800">
                   {getGroupedRelationships().slice(0, showAllRelationships ? undefined : 3).map((group, index) => (
                     <tr key={index} className="hover:bg-gray-800">
-                      <td 
-                        className={`px-6 py-4 whitespace-nowrap cursor-pointer hover:text-blue-400 ${
-                          userAccounts.find(u => u.username === group.parentUsername)?.suspended ? 'text-red-400' : 'text-white'
-                        }`}
-                        onClick={() => handleUserClick(group.parentUsername)}
-                      >
-                        {group.parentUsername}
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span 
+                          className={`cursor-pointer hover:text-blue-400 ${
+                            userAccounts.find(u => u.username === group.parentUsername)?.suspended ? 'text-red-400' : 'text-white'
+                          }`}
+                          onClick={() => handleUserClick(group.parentUsername)}
+                        >
+                          {group.parentUsername}
+                        </span>
                       </td>
-                      <td className={`px-6 py-4 whitespace-nowrap ${
-                        userAccounts.find(u => u.username === group.parentUsername)?.suspended ? 'text-red-400' : 'text-white'
-                      }`}>
-                        {group.parentName}
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span 
+                          className={`cursor-pointer hover:text-blue-400 ${
+                            userAccounts.find(u => u.username === group.parentUsername)?.suspended ? 'text-red-400' : 'text-white'
+                          }`}
+                          onClick={() => handleUserClick(group.parentUsername)}
+                        >
+                          {group.parentName}
+                        </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">{group.parentAge}</td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span 
+                          className={`cursor-pointer hover:text-blue-400 ${
+                            userAccounts.find(u => u.username === group.parentUsername)?.suspended ? 'text-red-400' : 'text-white'
+                          }`}
+                          onClick={() => handleUserClick(group.parentUsername)}
+                        >
+                          {group.parentAge}
+                        </span>
+                      </td>
                       <td className="px-6 py-4">
                         <div className="space-y-2">
                           {group.children.map((child, childIndex) => (

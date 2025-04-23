@@ -350,7 +350,7 @@ export default function ContentReviewPage() {
           <div className="flex items-center">
             <button
               onClick={() => router.push('/adminpage')}
-              className="text-sm text-gray-400 hover:text-white font-medium mr-12"
+              className="text-sm text-gray-400 hover:text-white font-medium mr-12 rounded-full px-4 py-2 hover:bg-gray-800"
             >
               Back to Home
             </button>
@@ -371,7 +371,7 @@ export default function ContentReviewPage() {
         <div className="flex items-center space-x-4">
           <button
             onClick={() => setActiveTab('pending')}
-            className={`px-4 py-2 rounded-lg ${
+            className={`px-6 py-2 rounded-full ${
               activeTab === 'pending' 
                 ? 'bg-blue-600 text-white' 
                 : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
@@ -381,7 +381,7 @@ export default function ContentReviewPage() {
           </button>
           <button
             onClick={() => setActiveTab('all')}
-            className={`px-4 py-2 rounded-lg ${
+            className={`px-6 py-2 rounded-full ${
               activeTab === 'all' 
                 ? 'bg-blue-600 text-white' 
                 : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
@@ -395,7 +395,7 @@ export default function ContentReviewPage() {
             <div className="relative">
               <button
                 onClick={() => setShowFilterDropdown(!showFilterDropdown)}
-                className="px-4 py-2 bg-gray-800 rounded-lg text-white hover:bg-gray-700 flex items-center"
+                className="px-6 py-2 bg-gray-800 rounded-full text-white hover:bg-gray-700 flex items-center"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
@@ -542,7 +542,7 @@ export default function ContentReviewPage() {
                     <div className="flex-grow">
                       <div className="flex justify-between items-start mb-2">
                         <h2 className="text-2xl font-bold">{content.title}</h2>
-                        <span className={`px-3 py-1 rounded-full text-sm ${
+                        <span className={`px-3 py-1 rounded-lg text-sm ${
                           content.cfid === 1 ? 'bg-purple-900 text-purple-200' : 'bg-blue-900 text-blue-200'
                         }`}>
                           {content.cfid === 1 ? 'Video' : 'Book'}
@@ -579,13 +579,13 @@ export default function ContentReviewPage() {
                       <div className="flex space-x-4">
                         <button
                           onClick={() => handlePreview(content)}
-                          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
+                          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-full"
                         >
                           Preview
                         </button>
                         <button
                           onClick={() => handleApprove(content)}
-                          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg"
+                          className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-full"
                         >
                           Approve
                         </button>
@@ -594,7 +594,7 @@ export default function ContentReviewPage() {
                             setSelectedContent(content);
                             setShowRejectModal(true);
                           }}
-                          className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg"
+                          className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-full"
                         >
                           Reject
                         </button>
@@ -632,27 +632,16 @@ export default function ContentReviewPage() {
                     <div className="flex justify-between items-start mb-2">
                       <h2 className="text-2xl font-bold">{content.title}</h2>
                       <div className="flex items-center space-x-2">
-                        <span className={`px-3 py-1 rounded-full text-sm ${
+                        <span className={`px-3 py-1 rounded-lg text-sm ${
                           content.cfid === 1 ? 'bg-purple-900 text-purple-200' : 'bg-blue-900 text-blue-200'
                         }`}>
                           {content.cfid === 1 ? 'Video' : 'Book'}
                         </span>
                         {content.status === 'suspended' && (
-                          <span className="px-3 py-1 rounded-full text-sm bg-red-900 text-red-200">
+                          <span className="px-3 py-1 rounded-lg text-sm bg-red-900 text-red-200">
                             Suspended
                           </span>
                         )}
-                        <button
-                          onClick={() => {
-                            setContentToDelete(content);
-                            setShowDeleteModal(true);
-                          }}
-                          className="text-red-500 hover:text-red-700 ml-2"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                          </svg>
-                        </button>
                       </div>
                     </div>
                     <p className="text-gray-400 mb-4">
@@ -686,14 +675,14 @@ export default function ContentReviewPage() {
                     <div className="flex space-x-4">
                       <button
                         onClick={() => handlePreview(content)}
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-full"
                       >
                         Preview
                       </button>
                       {content.status === 'suspended' ? (
                         <button
                           onClick={() => handleRevertSuspension(content)}
-                          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg"
+                          className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-full"
                         >
                           Revert Suspension
                         </button>
@@ -703,7 +692,7 @@ export default function ContentReviewPage() {
                             setSelectedContent(content);
                             setShowSuspendModal(true);
                           }}
-                          className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg"
+                          className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-full"
                         >
                           Suspend
                         </button>
@@ -738,7 +727,7 @@ export default function ContentReviewPage() {
                   setSelectedContent(null);
                   setSuspendReason('');
                 }}
-                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg"
+                className="px-6 py-2 bg-gray-700 hover:bg-gray-600 rounded-full"
               >
                 Cancel
               </button>
@@ -749,7 +738,7 @@ export default function ContentReviewPage() {
                   }
                 }}
                 disabled={!suspendReason.trim()}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-6 py-2 bg-red-600 hover:bg-red-700 rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Suspend
               </button>
@@ -779,7 +768,7 @@ export default function ContentReviewPage() {
                   setSelectedContent(null);
                   setDenyReason('');
                 }}
-                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg"
+                className="px-6 py-2 bg-gray-700 hover:bg-gray-600 rounded-full"
               >
                 Cancel
               </button>
@@ -792,7 +781,7 @@ export default function ContentReviewPage() {
                   }
                 }}
                 disabled={!denyReason.trim()}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-6 py-2 bg-red-600 hover:bg-red-700 rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Deny
               </button>
@@ -815,13 +804,13 @@ export default function ContentReviewPage() {
                   setShowDeleteModal(false);
                   setContentToDelete(null);
                 }}
-                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg"
+                className="px-6 py-2 bg-gray-700 hover:bg-gray-600 rounded-full"
               >
                 Cancel
               </button>
               <button
                 onClick={() => handleDeleteContent(contentToDelete)}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg"
+                className="px-6 py-2 bg-red-600 hover:bg-red-700 rounded-full"
               >
                 Delete
               </button>
