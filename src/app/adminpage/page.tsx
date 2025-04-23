@@ -80,9 +80,11 @@ export default function AdminPage() {
   const [showRemoveChildModal, setShowRemoveChildModal] = useState(false);
   const [childToRemove, setChildToRemove] = useState<{ username: string; fullname: string; parentUsername: string } | null>(null);
   const [removeChildSuccess, setRemoveChildSuccess] = useState<string | null>(null);
+  const [pendingContentCount, setPendingContentCount] = useState(0);
 
   useEffect(() => {
     fetchData();
+    fetchPendingContentCount();
   }, []);
 
   const fetchData = async () => {
@@ -104,6 +106,20 @@ export default function AdminPage() {
     } finally {
       setLoading(false);
       setLoadingClassrooms(false);
+    }
+  };
+
+  const fetchPendingContentCount = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('temp_content')
+        .select('cid')
+        .eq('status', 'pending');
+
+      if (error) throw error;
+      setPendingContentCount(data?.length || 0);
+    } catch (err) {
+      console.error('Error fetching pending content count:', err);
     }
   };
 
@@ -717,18 +733,27 @@ export default function AdminPage() {
           <div className="flex items-center space-x-6">
             <button
               onClick={() => router.push('/adminpage/content')}
-              className="flex items-center text-gray-400 hover:text-white text-sm font-medium"
+              className="flex items-center text-gray-400 hover:text-white text-sm font-medium relative group mr-12"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-              </svg>
+              <div className="relative">
+                {pendingContentCount > 0 && (
+                  <span className="absolute -top-2 -left-2 bg-red-600 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                    {pendingContentCount}
+                  </span>
+                )}
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                </svg>
+              </div>
               Content Review
             </button>
             <button
               onClick={() => setShowLogoutModal(true)}
-              className="text-sm text-gray-400 hover:text-white font-medium"
+              className="text-gray-400 hover:text-white"
             >
-              Logout
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
             </button>
           </div>
         </div>
@@ -950,13 +975,16 @@ export default function AdminPage() {
                                 setShowSuspendModal(true);
                               }
                             }}
-                            className={`px-6 py-2 inline-flex items-center justify-center text-sm leading-5 font-semibold rounded-full whitespace-nowrap min-w-[100px] ${
+                            className={`relative px-6 py-2 inline-flex items-center justify-center text-sm leading-5 font-semibold rounded-full whitespace-nowrap min-w-[100px] ${
                               account.suspended 
                                 ? 'bg-red-900 text-red-200 cursor-pointer hover:bg-red-800' 
                                 : 'bg-green-900 text-green-200 cursor-pointer hover:bg-green-800'
-                            }`}
+                            } group`}
                           >
                             {account.suspended ? 'Suspended' : 'Active'}
+                            <span className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50">
+                              {account.suspended ? 'Remove suspension' : 'Suspend user'}
+                            </span>
                           </button>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-center">
@@ -1026,7 +1054,7 @@ export default function AdminPage() {
           </div>
           
           <div className="overflow-x-auto">
-            <div className="max-h-[600px] overflow-y-auto">
+            <div className="max-h-[600px] overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-gray-800 [&::-webkit-scrollbar-thumb]:bg-gray-600 [&::-webkit-scrollbar-thumb]:rounded">
               <table className="min-w-full divide-y divide-gray-800">
                 <thead className="bg-gray-900 sticky top-0 z-10">
                   <tr>
@@ -1129,7 +1157,7 @@ export default function AdminPage() {
             <div className="text-center py-4">Loading classrooms...</div>
           ) : (
             <div className="overflow-x-auto">
-              <div className="max-h-[600px] overflow-y-auto">
+              <div className="max-h-[600px] overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-gray-800 [&::-webkit-scrollbar-thumb]:bg-gray-600 [&::-webkit-scrollbar-thumb]:rounded">
                 <table className="min-w-full divide-y divide-gray-800">
                   <thead className="bg-gray-900 sticky top-0 z-10">
                     <tr>

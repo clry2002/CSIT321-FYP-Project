@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Navbar from '../components/Navbar';
 import { supabase } from '@/lib/supabase';
 import Image from 'next/image';
-import type { Book, Video } from '@/types/database.types';
+import type { Book as BaseBook, Video as BaseVideo } from '@/types/database.types';
 // import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 
@@ -20,6 +20,14 @@ type SupabaseUser = {
 interface GenreItem {
   cid: number;
   temp_genre: Array<{genrename: string}> | {genrename: string};
+}
+
+interface Book extends BaseBook {
+  status: string;
+}
+
+interface Video extends BaseVideo {
+  status: string;
 }
 
 export default function BookmarksPage() {
@@ -417,51 +425,61 @@ export default function BookmarksPage() {
           <div className="space-y-6">
             <h2 className="text-2xl font-semibold text-blue-900">Books</h2>
             {filteredBooks.map((book) => (
-              <div key={book.cid} className="flex items-start space-x-6 p-6 bg-white rounded-lg shadow-md hover:bg-gray-50">
-                <div className="flex-shrink-0 w-32 h-48 relative">
-                  {book.coverimage ? (
-                    <Image src={book.coverimage} alt={book.title} fill className="object-cover rounded-md" />
-                  ) : (
-                    <div className="w-full h-full bg-gray-200 flex items-center justify-center rounded-md">
-                      <span className="text-gray-400">No cover</span>
+              <div key={book.cid} className={`flex items-start space-x-6 p-6 bg-white rounded-lg shadow-md ${
+                book.status === 'suspended' ? 'bg-gray-200' : 'hover:bg-gray-50'
+              }`}>
+                {book.status === 'suspended' ? (
+                  <div className="w-full text-center py-8">
+                    <p className="text-xl text-gray-600 font-medium">Content Suspended</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex-shrink-0 w-32 h-48 relative">
+                      {book.coverimage ? (
+                        <Image src={book.coverimage} alt={book.title} fill className="object-cover rounded-md" />
+                      ) : (
+                        <div className="w-full h-full bg-gray-200 flex items-center justify-center rounded-md">
+                          <span className="text-gray-400">No cover</span>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-                <div className="flex-grow">
-                  <h3 className="text-2xl font-semibold text-gray-900 mb-2">
-                    <a href={`/bookdetail/${book.cid}`} className="hover:text-rose-500">
-                      {book.title}
-                    </a>
-                  </h3>
-                  <p className="text-md text-gray-600 mb-2">{book.credit}</p>
-                  {bookGenres[book.cid] && bookGenres[book.cid].length > 0 && (
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {bookGenres[book.cid].map((genre, idx) => (
-                        <span
-                          key={idx}
-                          className="bg-blue-100 text-blue-800 text-sm font-medium px-2.5 py-0.5 rounded"
-                        >
-                          {genre}
-                        </span>
-                      ))}
+                    <div className="flex-grow">
+                      <h3 className="text-2xl font-semibold text-gray-900 mb-2">
+                        <a href={`/bookdetail/${book.cid}`} className="hover:text-rose-500">
+                          {book.title}
+                        </a>
+                      </h3>
+                      <p className="text-md text-gray-600 mb-2">{book.credit}</p>
+                      {bookGenres[book.cid] && bookGenres[book.cid].length > 0 && (
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          {bookGenres[book.cid].map((genre, idx) => (
+                            <span
+                              key={idx}
+                              className="bg-blue-100 text-blue-800 text-sm font-medium px-2.5 py-0.5 rounded"
+                            >
+                              {genre}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      <button
+                        onClick={() => handleScheduleBook(book)}
+                        className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                      >
+                        Schedule Reading
+                      </button>
                     </div>
-                  )}
-                  <button
-                    onClick={() => handleScheduleBook(book)}
-                    className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-                  >
-                    Schedule Reading
-                  </button>
-                </div>
-                <button
-                  className="ml-6 p-2 rounded-full hover:bg-gray-100 text-red-500"
-                  onClick={() => handleRemoveBookmark(book.cid, 2)}
-                  aria-label="Remove bookmark"
-                >
-                  <svg className="w-6 h-6" fill="currentColor" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
+                    <button
+                      className="ml-6 p-2 rounded-full hover:bg-gray-100 text-red-500"
+                      onClick={() => handleRemoveBookmark(book.cid, 2)}
+                      aria-label="Remove bookmark"
+                    >
+                      <svg className="w-6 h-6" fill="currentColor" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </>
+                )}
               </div>
             ))}
           </div>
@@ -472,39 +490,49 @@ export default function BookmarksPage() {
           <div className="space-y-6 mt-12">
             <h2 className="text-2xl font-semibold text-blue-900">Videos</h2>
             {filteredVideos.map((video) => (
-              <div key={video.cid} className="flex items-start space-x-6 p-6 bg-white rounded-lg shadow-md hover:bg-gray-50">
-                <div className="flex-shrink-0" style={{ width: '300px', height: '170px' }}>
-                  {video.contenturl && renderYouTubePlayer(video.contenturl, 300, 170)}
-                </div>
-                <div className="flex-grow">
-                  <h3 className="text-2xl font-semibold text-gray-900 mb-2">
-                    <a href={`/videodetail/${video.cid}`} className="hover:text-rose-500">
-                      {video.title}
-                    </a>
-                  </h3>
-                  <p className="text-md text-gray-600 mb-2">{video.description}</p>
-                  {videoGenres[video.cid] && videoGenres[video.cid].length > 0 && (
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {videoGenres[video.cid].map((genre, idx) => (
-                        <span
-                          key={idx}
-                          className="bg-blue-100 text-blue-800 text-sm font-medium px-2.5 py-0.5 rounded"
-                        >
-                          {genre}
-                        </span>
-                      ))}
+              <div key={video.cid} className={`flex items-start space-x-6 p-6 bg-white rounded-lg shadow-md ${
+                video.status === 'suspended' ? 'bg-gray-200' : 'hover:bg-gray-50'
+              }`}>
+                {video.status === 'suspended' ? (
+                  <div className="w-full text-center py-8">
+                    <p className="text-xl text-gray-600 font-medium">Content Suspended</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex-shrink-0" style={{ width: '300px', height: '170px' }}>
+                      {video.contenturl && renderYouTubePlayer(video.contenturl, 300, 170)}
                     </div>
-                  )}
-                </div>
-                <button
-                  className="ml-6 p-2 rounded-full hover:bg-gray-100 text-red-500"
-                  onClick={() => handleRemoveBookmark(video.cid, 1)}
-                  aria-label="Remove bookmark"
-                >
-                  <svg className="w-6 h-6" fill="currentColor" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
+                    <div className="flex-grow">
+                      <h3 className="text-2xl font-semibold text-gray-900 mb-2">
+                        <a href={`/videodetail/${video.cid}`} className="hover:text-rose-500">
+                          {video.title}
+                        </a>
+                      </h3>
+                      <p className="text-md text-gray-600 mb-2">{video.description}</p>
+                      {videoGenres[video.cid] && videoGenres[video.cid].length > 0 && (
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          {videoGenres[video.cid].map((genre, idx) => (
+                            <span
+                              key={idx}
+                              className="bg-blue-100 text-blue-800 text-sm font-medium px-2.5 py-0.5 rounded"
+                            >
+                              {genre}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      className="ml-6 p-2 rounded-full hover:bg-gray-100 text-red-500"
+                      onClick={() => handleRemoveBookmark(video.cid, 1)}
+                      aria-label="Remove bookmark"
+                    >
+                      <svg className="w-6 h-6" fill="currentColor" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </>
+                )}
               </div>
             ))}
           </div>
