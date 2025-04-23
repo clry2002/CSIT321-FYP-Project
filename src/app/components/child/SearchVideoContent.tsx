@@ -16,13 +16,15 @@ interface Video {
   thumbnail: string;
   views: number;
   timeAgo: string;
+  genre: { temp_genre: { gid: number; genrename: string } }[];
+  genreNames?: string[];
 }
 
 export default function SearchVideoContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const query = searchParams.get('q') || '';
-  
+
   const handleSearch = (searchQuery: string, type: 'books' | 'videos') => {
     if (!searchQuery.trim()) return;
     const path = type === 'books' ? '/searchbooks' : '/searchvideos';
@@ -43,12 +45,12 @@ function SearchResults({ query }: { query: string }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [bookmarkedVideos, setBookmarkedVideos] = useState<Set<string>>(new Set());
-  const [notification, setNotification] = useState<{ message: string; show: boolean }>({ message: '', show: false });
   const [blockedGenres, setBlockedGenres] = useState<Set<number>>(new Set());
   const [childId, setChildId] = useState<string | null>(null);
   const [isBlockedGenreSearch, setIsBlockedGenreSearch] = useState(false);
-  const [isBlockedGenresFetched, setIsBlockedGenresFetched] = useState(false);
   const [searchInitiated, setSearchInitiated] = useState(false);
+  const [isBlockedGenresFetched, setIsBlockedGenresFetched] = useState(false);
+  const [notification, setNotification] = useState<{ message: string; show: boolean }>({ message: '', show: false });
 
   useEffect(() => {
     const fetchChildProfile = async () => {
@@ -99,35 +101,11 @@ function SearchResults({ query }: { query: string }) {
   }, [childId]);
 
   useEffect(() => {
-    const fetchBookmarks = async () => {
-      if (!childId) return;
-
-      const { data, error } = await supabase
-        .from('temp_bookmark')
-        .select('cid')
-        .eq('uaid', childId);
-
-      if (error) {
-        console.error('Error fetching bookmarks:', error);
+    const checkBlockedGenreInQuery = async () => {
+      if (!query || !isBlockedGenresFetched || blockedGenres.size === 0) {
+        setIsBlockedGenreSearch(false);
         return;
       }
-
-      const bookmarkedCids = new Set(data?.map((item) => item.cid.toString()));
-      setBookmarkedVideos(bookmarkedCids);
-    };
-
-    fetchBookmarks();
-  }, [childId]);
-
-  useEffect(() => {
-    const searchVideos = async () => {
-      if (!query || !childId || !isBlockedGenresFetched) {
-        setIsLoading(false);
-        return;
-      }
-
-      setIsLoading(true);
-      setSearchInitiated(true);
 
       try {
         const { data: genreNamesData, error: genreNameError } = await supabase
@@ -160,64 +138,93 @@ function SearchResults({ query }: { query: string }) {
         });
 
         setIsBlockedGenreSearch(queryIncludesBlocked);
+      } catch (error) {
+        console.error('Error checking blocked genres in query:', error);
+      }
+    };
 
-        if (queryIncludesBlocked) {
-          setVideos([]);
-          setIsLoading(false);
-          return;
-        }
+    checkBlockedGenreInQuery();
+  }, [query, blockedGenres, isBlockedGenresFetched]);
 
-        const { data: rawVideos, error: videoError } = await supabase
-          .rpc('search_videos', { searchquery: query });
+  useEffect(() => {
+    const fetchBookmarks = async () => {
+      if (!childId) return;
 
-        if (videoError) {
-          console.error('Error from search_videos function:', videoError);
-          setError(`Error: ${videoError.message}`);
-          return;
-        }
+      const { data, error } = await supabase
+        .from('temp_bookmark')
+        .select('cid')
+        .eq('uaid', childId);
 
-        if (!rawVideos) {
-          setVideos([]);
-          return;
-        }
+      if (error) {
+        console.error('Error fetching bookmarks:', error);
+        return;
+      }
+
+      const bookmarkedCids = new Set(data?.map((item) => item.cid.toString()));
+      setBookmarkedVideos(bookmarkedCids);
+    };
+
+    fetchBookmarks();
+  }, [childId]);
+
+  useEffect(() => {
+    const fetchVideos = async () => {
+      if (!query || !childId || !isBlockedGenresFetched || isBlockedGenreSearch) {
+        setIsLoading(false);
+        setVideos([]); // Ensure no videos are displayed
+        setError(null); // Clear any previous errors
+        return;
+      }
+
+      setIsLoading(true);
+      setSearchInitiated(true);
+      setError(null); // Clear any previous errors
+
+      try {
+        const { data, error } = await supabase
+          .from('temp_content')
+          .select(`
+            *,
+            genre:temp_contentgenres(
+              temp_genre(gid, genrename)
+            )
+          `)
+          .eq('cfid', 1) // Videos only
+          .eq('status', 'approved')
+          .or(`title.ilike.%${query}%,description.ilike.%${query}%`);
+
+        if (error) throw error;
 
         const filteredVideos: Video[] = [];
 
-        for (const video of rawVideos) {
-          const { data: genreData, error: genreError } = await supabase
-            .from('temp_contentgenres')
-            .select('gid')
-            .eq('cid', video.cid);
-
-          if (genreError) {
-            console.error(`Error fetching genres for cid ${video.cid}:`, genreError);
-            continue;
-          }
-
-          const hasBlockedGenre = genreData?.some((g) => blockedGenres.has(g.gid));
-
-          const titleLower = video.title.toLowerCase();
-          const descLower = video.description?.toLowerCase() || '';
-          const containsBlockedWord = Array.from(blockedGenreNames).some((genre) =>
-            titleLower.includes(genre) || descLower.includes(genre)
+        for (const video of data) {
+          const hasBlockedGenre = video.genre?.some(
+            (g: { temp_genre: { gid: number; genrename: string } }) => blockedGenres.has(g.temp_genre.gid)
           );
-
-          if (!hasBlockedGenre && !containsBlockedWord) {
+          if (!hasBlockedGenre) {
             filteredVideos.push(video);
           }
         }
 
-        setVideos(filteredVideos);
+        const videosWithGenreNames = filteredVideos.map(video => ({
+          ...video,
+          genreNames: video.genre?.map(
+            (g: { temp_genre: { gid: number; genrename: string } }) => g.temp_genre.genrename
+          ).filter(Boolean),
+        }));
+
+        setVideos(videosWithGenreNames);
       } catch (err) {
-        console.error('Error searching videos:', err);
-        setError('Failed to search videos');
+        console.error('Error:', err);
+        setError('Failed to fetch videos');
+        setVideos([]); // Ensure no videos are displayed on error
       } finally {
         setIsLoading(false);
       }
     };
 
-    searchVideos();
-  }, [query, blockedGenres, childId, isBlockedGenresFetched]);
+    fetchVideos();
+  }, [query, blockedGenres, childId, isBlockedGenresFetched, isBlockedGenreSearch]);
 
   const handleBookmark = async (video: Video) => {
     if (!childId) {
@@ -283,72 +290,79 @@ function SearchResults({ query }: { query: string }) {
         {query && `Search Results for "${query}"`}
       </div>
 
-      {isBlockedGenreSearch && (
+      {isBlockedGenreSearch ? (
         <div className="text-center py-4 text-red-500">
           This genre has been blocked, please search another genre.
         </div>
-      )}
-
-      {notification.show && !isBlockedGenreSearch && (
-        <div className="fixed top-4 right-4 z-50 bg-rose-500 text-white px-6 py-3 rounded-lg shadow-lg">
-          {notification.message}
-        </div>
-      )}
-
-      {isLoading ? (
-        <div className="text-center py-8">Loading...</div>
-      ) : error ? (
-        <div className="text-center py-8 text-red-500">{error}</div>
-      ) : videos.length > 0 ? (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {videos.map((video) => {
-            const videoId = getVideoId(video.contenturl);
-            const isBookmarked = bookmarkedVideos.has(video.cid.toString());
-
-            return (
-              <div key={video.cid} className="border rounded-lg overflow-hidden">
-                <div className="aspect-video relative">
-                  {videoId ? (
-                    <iframe
-                      src={`https://www.youtube.com/embed/${videoId}`}
-                      title={video.title}
-                      className="absolute inset-0 w-full h-full"
-                      allowFullScreen
-                    />
-                  ) : (
-                    <div className="absolute inset-0 bg-gray-100 flex items-center justify-center">
-                      <p className="text-gray-500">Invalid video link</p>
-                    </div>
-                  )}
-                </div>
-                <div className="p-4 relative">
-                  <Link href={`/videodetail/${video.cid}`}>
-                    <h3 className="font-medium text-lg text-black cursor-pointer pr-12">{video.title}</h3>
-                  </Link>
-                  <p className="text-sm text-gray-600 mt-1">{video.description}</p>
-                  <div className="mt-2 flex items-center text-sm text-gray-500">
-                    <span>{video.timeAgo}</span>
-                  </div>
-                  <button
-                    onClick={() => handleBookmark(video)}
-                    className={`absolute top-4 right-4 p-2 rounded-full ${
-                      isBookmarked ? 'text-rose-500' : 'text-gray-400'
-                    } hover:bg-gray-100`}
-                    aria-label="Toggle bookmark"
-                  >
-                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
       ) : (
-        !isBlockedGenreSearch && searchInitiated && (
-          <div className="text-center py-8 text-gray-500">No videos found matching your search</div>
-        )
+        <>
+          {notification.show && (
+            <div className="fixed top-4 right-4 z-50 bg-rose-500 text-white px-6 py-3 rounded-lg shadow-lg">
+              {notification.message}
+            </div>
+          )}
+
+          {isLoading ? (
+            <div className="text-center py-8">Loading...</div>
+          ) : error ? (
+            <div className="text-center py-8 text-red-500">{error}</div>
+          ) : videos.length > 0 ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {videos.map((video) => {
+                const videoId = getVideoId(video.contenturl);
+                const isBookmarked = bookmarkedVideos.has(video.cid.toString());
+
+                return (
+                  <div key={video.cid} className="border rounded-lg overflow-hidden">
+                    <div className="aspect-video relative">
+                      {videoId ? (
+                        <iframe
+                          src={`https://www.youtube.com/embed/${videoId}`}
+                          title={video.title}
+                          className="absolute inset-0 w-full h-full"
+                          allowFullScreen
+                        />
+                      ) : (
+                        <div className="absolute inset-0 bg-gray-100 flex items-center justify-center">
+                          <p className="text-gray-500">Invalid video link</p>
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-4 relative">
+                      <Link href={`/videodetail/${video.cid}`}>
+                        <h3 className="font-medium text-lg text-black cursor-pointer pr-12">{video.title}</h3>
+                      </Link>
+                      <p className="text-sm text-gray-600 mt-1">{video.description}</p>
+                      {video.genreNames && (
+                        <div className="text-xs text-gray-500 mt-1">
+                          {video.genreNames.join(', ')}
+                        </div>
+                      )}
+                      <div className="mt-2 flex items-center text-sm text-gray-500">
+                        <span>{video.timeAgo}</span>
+                      </div>
+                      <button
+                        onClick={() => handleBookmark(video)}
+                        className={`absolute top-4 right-4 p-2 rounded-full ${
+                          isBookmarked ? 'text-rose-500' : 'text-gray-400'
+                        } hover:bg-gray-100`}
+                        aria-label="Toggle bookmark"
+                      >
+                        <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            searchInitiated && (
+              <div className="text-center py-8 text-gray-500">No videos found matching your search</div>
+            )
+          )}
+        </>
       )}
     </>
   );

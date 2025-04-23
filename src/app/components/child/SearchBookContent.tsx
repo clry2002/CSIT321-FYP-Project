@@ -21,7 +21,7 @@ export default function SearchContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const initialQuery = searchParams.get('q') || '';
-  
+
   const handleSearch = (query: string, type: 'books' | 'videos') => {
     if (!query.trim()) return;
     const path = type === 'books' ? '/searchbooks' : '/searchvideos';
@@ -44,7 +44,7 @@ function SearchResults({ query }: { query: string }) {
   const [bookmarkedBooks, setBookmarkedBooks] = useState<Set<string>>(new Set());
   const [notification, setNotification] = useState<{ message: string; show: boolean }>({ message: '', show: false });
   const [childId, setChildId] = useState<string | null>(null);
-  const [blockedGenreIds, setBlockedGenreIds] = useState<number[]>([]);
+  const [blockedGenreIds, setBlockedGenreIds] = useState<number[] | null>(null);
   const { toggleBookmark, recordBookView } = useInteractions();
 
   useEffect(() => {
@@ -85,6 +85,7 @@ function SearchResults({ query }: { query: string }) {
 
       if (error) {
         console.error('Error fetching blocked genres:', error);
+        setBlockedGenreIds([]); // Initialize as empty array on error
         return;
       }
 
@@ -116,22 +117,31 @@ function SearchResults({ query }: { query: string }) {
   }, [childId]);
 
   useEffect(() => {
-    const searchBooks = async () => {
-      if (!query || childId === null) {
+    const fetchBooks = async () => {
+      if (!query || childId === null || blockedGenreIds === null) {
         setIsLoading(false);
         return;
       }
 
+      setIsLoading(true);
+      setError(null);
+
       try {
-        const { data: rawBooks, error } = await supabase.rpc('search_books', { searchquery: query });
+        const { data, error } = await supabase
+          .from('temp_content')
+          .select(`
+            cid, title, credit, description, coverimage,
+            genre:temp_contentgenres(
+              temp_genre(genrename)
+            )
+          `)
+          .eq('cfid', 2)
+          .eq('status', 'approved')
+          .or(`title.ilike.%${query}%,description.ilike.%${query}%`); // <---- THIS IS THE FIX
 
-        if (error) {
-          console.error('Error from search_books function:', error);
-          setError(`Error: ${error.message}`);
-          return;
-        }
+        if (error) throw error;
 
-        const bookCids = rawBooks.map((book: { cid: number }) => book.cid);
+        const bookCids = data.map((book) => book.cid);
         const { data: genresMap, error: genreError } = await supabase
           .from('temp_contentgenres')
           .select('cid, gid')
@@ -160,22 +170,20 @@ function SearchResults({ query }: { query: string }) {
           .filter(([gid]) => blockedGenreIds.includes(Number(gid)))
           .map(([, name]) => name.toLowerCase());
 
-        const filteredBooks: BookWithGenres[] = rawBooks
-          .filter((book: { cid: number; title: string; description: string; }) => {
+        const filteredBooks: BookWithGenres[] = data
+          .filter((book) => {
             const genreIds = genreLookup[book.cid] || [];
-
             const lowerTitle = book.title?.toLowerCase() || '';
             const lowerDescription = book.description?.toLowerCase() || '';
 
             const mentionsBlockedGenreText = blockedGenreNames.some((genre) =>
               lowerTitle.includes(genre) || lowerDescription.includes(genre)
             );
-
             const hasBlockedGenreId = genreIds.some((gid) => blockedGenreIds.includes(gid));
 
             return !mentionsBlockedGenreText && !hasBlockedGenreId;
           })
-          .map((book: { cid: number; }) => {
+          .map((book) => {
             const genreIds = genreLookup[book.cid] || [];
             const allowedGenreNames = genreIds
               .filter((gid) => !blockedGenreIds.includes(gid))
@@ -184,28 +192,26 @@ function SearchResults({ query }: { query: string }) {
             return { ...book, genreNames: allowedGenreNames };
           });
 
-          if (filteredBooks.length === 0) {
-            if (rawBooks.length > 0) {
-              // Filtered out due to blocked genres
-              setError('This genre has been blocked, please search another genre.');
-            } else {
-              // No results were found in the database
-              setError('No matching books found for your search.');
-            }
+        if (filteredBooks.length === 0) {
+          if (data.length > 0) {
+            setError('This genre has been blocked, please search another genre.');
           } else {
-            setError(null);
+            setError('No matching books found for your search.');
           }
+        } else {
+          setError(null);
+        }
 
         setBooks(filteredBooks);
       } catch (err) {
-        console.error('Error searching books:', err);
-        setError('Failed to search books');
+        console.error('Error:', err);
+        setError('Failed to fetch books');
       } finally {
         setIsLoading(false);
       }
     };
 
-    searchBooks();
+    fetchBooks();
   }, [query, childId, blockedGenreIds]);
 
   const handleBookmarkToggle = async (book: BookWithGenres) => {
