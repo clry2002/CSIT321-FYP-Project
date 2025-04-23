@@ -15,6 +15,7 @@ interface BookWithGenres {
   description: string;
   coverimage: string;
   genreNames?: string[];
+  viewCount?: number;
 }
 
 export default function SearchContent() {
@@ -130,14 +131,14 @@ function SearchResults({ query }: { query: string }) {
         const { data, error } = await supabase
           .from('temp_content')
           .select(`
-            cid, title, credit, description, coverimage,
+            cid, title, credit, description, coverimage, viewCount,
             genre:temp_contentgenres(
               temp_genre(genrename)
             )
           `)
           .eq('cfid', 2)
           .eq('status', 'approved')
-          .or(`title.ilike.%${query}%,description.ilike.%${query}%`); // <---- THIS IS THE FIX
+          .or(`title.ilike.%${query}%,description.ilike.%${query}%`);
 
         if (error) throw error;
 
@@ -189,7 +190,11 @@ function SearchResults({ query }: { query: string }) {
               .filter((gid) => !blockedGenreIds.includes(gid))
               .map((gid) => genreMap[gid])
               .filter(Boolean);
-            return { ...book, genreNames: allowedGenreNames };
+            return { 
+              ...book, 
+              genreNames: allowedGenreNames,
+              viewCount: book.viewCount || 0 // Store viewCount but won't display it
+            };
           });
 
         if (filteredBooks.length === 0) {

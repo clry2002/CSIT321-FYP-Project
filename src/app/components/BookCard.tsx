@@ -89,6 +89,7 @@ const BookCard: React.FC<BookCardProps> = ({
   };
 
   const handleClick = async () => {
+    // This will increment view count in the database
     await recordBookView(contentId);
   };
 

@@ -8,7 +8,8 @@ import ChatBot from '../../components/ChatBot';
 import { supabase } from '@/lib/supabase';
 import type { Book } from '@/types/database.types';
 import { format } from 'date-fns';
-import { handleBookView, handleBookmarkAction, debugUserInteractions } from '@/services/userInteractionsService';
+import { debugUserInteractions } from '@/services/userInteractionsService';
+import { useInteractions } from '@/hooks/useInteractions';
 
 export default function BookDetailPage() {
   const params = useParams();
@@ -27,6 +28,9 @@ export default function BookDetailPage() {
 
   const [childId, setChildId] = useState<number | null>(null);
   const [isBookmarked, setIsBookmarked] = useState<boolean>(false);
+  
+  // Use the interactions hook
+  const { recordBookView, toggleBookmark } = useInteractions();
 
   interface GenreField {
     genrename: string;
@@ -134,15 +138,16 @@ export default function BookDetailPage() {
   }, [childId, params.id]);
 
   const handleViewBook = async () => {
-    if (!book || !book.contenturl || !childId) return;
+    if (!book || !book.contenturl) return;
     
     try {
-      // Record the view interaction (+1 score)
-      await handleBookView(childId.toString(), book.cid.toString());
-      console.log(`Recorded view for book ${book.cid} by user ${childId}`);
+      // Record the view using the hook - this handles both viewCount increment and user interactions
+      await recordBookView(book.cid.toString());
       
       // Debug user interactions after recording the view
-      await debugUserInteractions(childId.toString());
+      if (childId) {
+        await debugUserInteractions(childId.toString());
+      }
       
       // Show notification
       setNotification({ message: 'Viewing book...', show: true });
@@ -155,42 +160,28 @@ export default function BookDetailPage() {
     }
   };
 
-  const toggleBookmark = async () => {
+  const toggleBookmarkHandler = async () => {
     if (!childId || !book) return;
 
     try {
-      if (isBookmarked) {
-        const { error } = await supabase
-          .from('temp_bookmark')
-          .delete()
-          .eq('uaid', childId)
-          .eq('cid', book.cid);
-
-        if (!error) {
-          // Record bookmark removal in recommendation system
-          await handleBookmarkAction(childId.toString(), book.cid.toString(), false);
-          setIsBookmarked(false);
-          setNotification({ message: 'Bookmark removed', show: true });
-          setTimeout(() => setNotification({ message: '', show: false }), 3000);
-          
-          // Debug user interactions after removing the bookmark
+      // Use the toggle bookmark hook that handles both DB operations and interactions
+      const success = await toggleBookmark(book.cid.toString(), !isBookmarked);
+      
+      if (success) {
+        setIsBookmarked(!isBookmarked);
+        setNotification({ 
+          message: isBookmarked ? 'Bookmark removed' : 'Book bookmarked', 
+          show: true 
+        });
+        setTimeout(() => setNotification({ message: '', show: false }), 3000);
+        
+        // Debug user interactions after toggling the bookmark
+        if (childId) {
           await debugUserInteractions(childId.toString());
         }
       } else {
-        const { error } = await supabase
-          .from('temp_bookmark')
-          .insert({ uaid: childId, cid: book.cid });
-
-        if (!error) {
-          // Record bookmark addition in recommendation system
-          await handleBookmarkAction(childId.toString(), book.cid.toString(), true);
-          setIsBookmarked(true);
-          setNotification({ message: 'Book bookmarked', show: true });
-          setTimeout(() => setNotification({ message: '', show: false }), 3000);
-          
-          // Debug user interactions after adding the bookmark
-          await debugUserInteractions(childId.toString());
-        }
+        setNotification({ message: 'Failed to update bookmark', show: true });
+        setTimeout(() => setNotification({ message: '', show: false }), 3000);
       }
     } catch (error) {
       console.error('Error toggling bookmark:', error);
@@ -332,7 +323,7 @@ export default function BookDetailPage() {
                   Schedule Reading
                 </button>
                 <button
-                  onClick={toggleBookmark}
+                  onClick={toggleBookmarkHandler}
                   className={`block w-full text-center ${
                     isBookmarked ? 'bg-yellow-400 hover:bg-yellow-500' : 'bg-gray-300 hover:bg-gray-400'
                   } text-white py-2 rounded-lg transition-colors`}

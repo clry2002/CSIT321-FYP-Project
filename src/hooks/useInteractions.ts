@@ -12,6 +12,7 @@ import {
   cleanupDuplicateInteractions,
   syncExistingBookmarks
 } from '../services/userInteractionsService';
+import { incrementViewCount, getViewCount } from '../services/viewCountService';
 
 // Define types for our function parameters
 type UaidType = string;
@@ -85,7 +86,7 @@ export const useInteractions = () => {
   };
 
   /**
-   * Record a book view and update interactions
+   * Record a book view, update interactions, and increment view count
    */
   const recordBookView = async (cid: CidType) => {
     setLoading(true);
@@ -93,33 +94,49 @@ export const useInteractions = () => {
     
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        setError('User not authenticated');
-        return false;
-      }
       
-      // Get user account ID
-      const { data: userAccount, error: userError } = await supabase
-        .from('user_account')
-        .select('id')
-        .eq('user_id', user.id)
-        .single();
+      if (user) {
+        // Get user account ID
+        const { data: userAccount, error: userError } = await supabase
+          .from('user_account')
+          .select('id')
+          .eq('user_id', user.id)
+          .single();
+          
+        if (userError || !userAccount) {
+          setError('Failed to get user account');
+          // Still continue to increment view count even if user account retrieval fails
+        } else {
+          const uaid = userAccount.id;
+          // Update interactions
+          await handleBookView(uaid, cid);
+        }
         
-      if (userError || !userAccount) {
-        setError('Failed to get user account');
-        return false;
+        // Increment view count with user ID
+        await incrementViewCount(cid, user.id);
+      } else {
+        // Increment view count anonymously
+        await incrementViewCount(cid);
       }
       
-      const uaid = userAccount.id;
-      
-      // Update interactions
-      const success = await handleBookView(uaid, cid);
-      return success;
+      return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
       return false;
     } finally {
       setLoading(false);
+    }
+  };
+
+  /**
+   * Get the current view count for a content item
+   */
+  const getContentViewCount = async (cid: CidType) => {
+    try {
+      return await getViewCount(cid);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error');
+      return 0;
     }
   };
 
@@ -424,6 +441,7 @@ export const useInteractions = () => {
     blockGenreByParent,
     syncFavoriteGenresForUser,
     debugUserScores,
-    syncExistingBookmark
+    syncExistingBookmark,
+    getContentViewCount 
   };
 };

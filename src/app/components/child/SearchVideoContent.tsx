@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import SearchVideosClient from './SearchVideoClient';
+import { useInteractions } from '../../../hooks/useInteractions';
 
 interface Video {
   id: string;
@@ -18,6 +19,7 @@ interface Video {
   timeAgo: string;
   genre: { temp_genre: { gid: number; genrename: string } }[];
   genreNames?: string[];
+  viewCount?: number;
 }
 
 export default function SearchVideoContent() {
@@ -51,6 +53,9 @@ function SearchResults({ query }: { query: string }) {
   const [searchInitiated, setSearchInitiated] = useState(false);
   const [isBlockedGenresFetched, setIsBlockedGenresFetched] = useState(false);
   const [notification, setNotification] = useState<{ message: string; show: boolean }>({ message: '', show: false });
+  
+  // Use the interactions hook
+  const { toggleBookmark, recordBookView } = useInteractions();
 
   useEffect(() => {
     const fetchChildProfile = async () => {
@@ -235,39 +240,32 @@ function SearchResults({ query }: { query: string }) {
 
     const cidStr = video.cid.toString();
     const isBookmarked = bookmarkedVideos.has(cidStr);
-    const updatedBookmarks = new Set(bookmarkedVideos);
-
-    if (isBookmarked) {
-      const { error } = await supabase
-        .from('temp_bookmark')
-        .delete()
-        .eq('uaid', childId)
-        .eq('cid', video.cid);
-
-      if (error) {
-        console.error('Error deleting bookmark:', error);
-        setNotification({ message: 'Failed to remove bookmark', show: true });
-      } else {
+    
+    // Use the toggleBookmark function from useInteractions hook
+    const success = await toggleBookmark(cidStr, !isBookmarked);
+    
+    if (success) {
+      const updatedBookmarks = new Set(bookmarkedVideos);
+      
+      if (isBookmarked) {
         updatedBookmarks.delete(cidStr);
-        setBookmarkedVideos(updatedBookmarks);
         setNotification({ message: 'Video removed from bookmarks', show: true });
-      }
-    } else {
-      const { error } = await supabase
-        .from('temp_bookmark')
-        .upsert([{ uaid: childId, cid: video.cid }], { onConflict: 'uaid,cid' });
-
-      if (error) {
-        console.error('Error saving bookmark:', error);
-        setNotification({ message: 'Failed to save bookmark', show: true });
       } else {
         updatedBookmarks.add(cidStr);
-        setBookmarkedVideos(updatedBookmarks);
         setNotification({ message: 'You saved this video', show: true });
       }
+      
+      setBookmarkedVideos(updatedBookmarks);
+      setTimeout(() => setNotification({ message: '', show: false }), 3000);
+    } else {
+      setNotification({ message: 'Failed to update bookmark', show: true });
+      setTimeout(() => setNotification({ message: '', show: false }), 3000);
     }
+  };
 
-    setTimeout(() => setNotification({ message: '', show: false }), 3000);
+  const handleVideoClick = async (videoId: number) => {
+    // Record the video view using the interaction hook
+    await recordBookView(videoId.toString());
   };
 
   const getVideoId = (contenturl: string) => {
@@ -329,7 +327,10 @@ function SearchResults({ query }: { query: string }) {
                       )}
                     </div>
                     <div className="p-4 relative">
-                      <Link href={`/videodetail/${video.cid}`}>
+                      <Link 
+                        href={`/videodetail/${video.cid}`}
+                        onClick={() => handleVideoClick(video.cid)}
+                      >
                         <h3 className="font-medium text-lg text-black cursor-pointer pr-12">{video.title}</h3>
                       </Link>
                       <p className="text-sm text-gray-600 mt-1">{video.description}</p>
