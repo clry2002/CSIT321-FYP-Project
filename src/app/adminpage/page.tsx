@@ -35,6 +35,8 @@ export default function AdminPage() {
   const [step, setStep] = useState<'auth' | 'details'>('auth');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [parentSearchQuery, setParentSearchQuery] = useState('');
+  const [classroomSearchQuery, setClassroomSearchQuery] = useState('');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | null>(null);
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<boolean | null>(null);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
@@ -81,10 +83,18 @@ export default function AdminPage() {
   const [childToRemove, setChildToRemove] = useState<{ username: string; fullname: string; parentUsername: string } | null>(null);
   const [removeChildSuccess, setRemoveChildSuccess] = useState<string | null>(null);
   const [pendingContentCount, setPendingContentCount] = useState(0);
+  const [showSuspendAllModal, setShowSuspendAllModal] = useState(false);
+  const [selectedProfileToSuspend, setSelectedProfileToSuspend] = useState<string | null>(null);
+  const [showRevertAllModal, setShowRevertAllModal] = useState(false);
+  const [selectedProfileToRevert, setSelectedProfileToRevert] = useState<string | null>(null);
+  const [showPermissionsModal, setShowPermissionsModal] = useState(false);
+  const [selectedProfilePermissions, setSelectedProfilePermissions] = useState<string | null>(null);
+  const [publisherDeletePermission, setPublisherDeletePermission] = useState(false);
 
   useEffect(() => {
     fetchData();
     fetchPendingContentCount();
+    fetchPublisherPermissions();
   }, []);
 
   const fetchData = async () => {
@@ -120,6 +130,35 @@ export default function AdminPage() {
       setPendingContentCount(data?.length || 0);
     } catch (err) {
       console.error('Error fetching pending content count:', err);
+    }
+  };
+
+  const fetchPublisherPermissions = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('publisherpermissions')
+        .select('*')
+        .eq('permission', 'publisher delete all content')
+        .single();
+
+      if (error) throw error;
+      setPublisherDeletePermission(data?.active || false);
+    } catch (err) {
+      console.error('Error fetching publisher permissions:', err);
+    }
+  };
+
+  const handleTogglePublisherPermission = async () => {
+    try {
+      const { error } = await supabase
+        .from('publisherpermissions')
+        .update({ active: !publisherDeletePermission })
+        .eq('permission', 'publisher delete all content');
+
+      if (error) throw error;
+      setPublisherDeletePermission(!publisherDeletePermission);
+    } catch (err) {
+      console.error('Error updating publisher permission:', err);
     }
   };
 
@@ -309,12 +348,27 @@ export default function AdminPage() {
     }[]>);
 
     // Create grouped data for all parents
-    return allParents.map(parent => ({
+    const groupedData = allParents.map(parent => ({
       parentUsername: parent.username,
       parentName: parent.fullname,
       parentAge: parent.age,
       children: relationshipMap[parent.username] || []
     }));
+
+    // Filter based on search query if it exists
+    if (parentSearchQuery) {
+      const lowerQuery = parentSearchQuery.toLowerCase();
+      return groupedData.filter(group => 
+        group.parentUsername.toLowerCase().includes(lowerQuery) ||
+        group.parentName.toLowerCase().includes(lowerQuery) ||
+        group.children.some(child => 
+          child.username.toLowerCase().includes(lowerQuery) ||
+          child.fullname.toLowerCase().includes(lowerQuery)
+        )
+      );
+    }
+
+    return groupedData;
   };
 
   const handleRemoveChild = async (parentUsername: string, childUsername: string) => {
@@ -701,6 +755,64 @@ export default function AdminPage() {
     setShowDeleteModal(true);
   };
 
+  const handleSuspendAllUsers = async (profileName: string) => {
+    try {
+      // Get the profile ID
+      const profileId = utils.userTypes.find(type => type.label === profileName)?.id;
+      if (!profileId) throw new Error('Invalid profile type');
+
+      // Suspend all non-suspended users of this profile type
+      const { error: updateError } = await supabase
+        .from('user_account')
+        .update({ 
+          suspended: true,
+          comments: `Mass suspension of ${profileName} profiles`,
+          updated_at: new Date().toISOString()
+        })
+        .eq('upid', profileId)
+        .eq('suspended', false);  // Only update non-suspended users
+
+      if (updateError) throw updateError;
+
+      // Refresh the data
+      await fetchData();
+      setShowSuspendAllModal(false);
+      setSelectedProfileToSuspend(null);
+    } catch (err) {
+      console.error('Error suspending users:', err);
+      setError(err instanceof Error ? err.message : 'An error occurred while suspending users');
+    }
+  };
+
+  const handleRevertAllUsers = async (profileName: string) => {
+    try {
+      // Get the profile ID
+      const profileId = utils.userTypes.find(type => type.label === profileName)?.id;
+      if (!profileId) throw new Error('Invalid profile type');
+
+      // Revert only suspended users of this profile type
+      const { error: updateError } = await supabase
+        .from('user_account')
+        .update({ 
+          suspended: false,
+          comments: 'na',
+          updated_at: new Date().toISOString()
+        })
+        .eq('upid', profileId)
+        .eq('suspended', true);  // Only update suspended users
+
+      if (updateError) throw updateError;
+
+      // Refresh the data
+      await fetchData();
+      setShowRevertAllModal(false);
+      setSelectedProfileToRevert(null);
+    } catch (err) {
+      console.error('Error reverting users:', err);
+      setError(err instanceof Error ? err.message : 'An error occurred while reverting users');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-black text-white">
       {/* Success Popup */}
@@ -748,6 +860,17 @@ export default function AdminPage() {
               Content Review
             </button>
             <button
+              onClick={() => router.push('/adminpage/profiles')}
+              className="flex items-center text-gray-400 hover:text-white text-sm font-medium relative group mr-12"
+            >
+              <div className="relative">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+              </div>
+              User Profiles
+            </button>
+            <button
               onClick={() => setShowLogoutModal(true)}
               className="text-gray-400 hover:text-white"
             >
@@ -766,6 +889,17 @@ export default function AdminPage() {
           <div className="flex justify-between items-center mb-6">
             <div className="flex items-center space-x-4">
               <h2 className="text-2xl font-bold">User Accounts</h2>
+              <button
+                onClick={() => setShowNewUserModal(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-lg relative group"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                </svg>
+                <span className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50">
+                  Add user
+                </span>
+              </button>
               {showAllUsers && (
                 <button
                   onClick={() => setShowAllUsers(false)}
@@ -775,20 +909,29 @@ export default function AdminPage() {
                 </button>
               )}
             </div>
-            <div className="flex items-center space-x-4">
+            <div className="relative">
               <input
                 type="text"
-                placeholder="Search users..."
+                placeholder=""
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="px-4 py-2 bg-gray-800 rounded-lg text-white placeholder-gray-400"
+                className="pl-10 pr-10 py-2 bg-gray-800 rounded-lg text-white placeholder-gray-400"
               />
-              <button
-                onClick={() => setShowNewUserModal(true)}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
-              >
-                Add User
-              </button>
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+                </svg>
+              </div>
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-white"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              )}
             </div>
           </div>
           
@@ -821,10 +964,10 @@ export default function AdminPage() {
                         <div className="relative">
                           User Type {selectedUserTypeFilter !== null ? `(${utils.getUpidLabel(selectedUserTypeFilter)})` : ''}
                           {showUserTypeDropdown && (
-                            <div className="absolute top-full left-0 mt-1 w-48 bg-gray-800 rounded-lg shadow-lg z-50">
+                            <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-gray-900 ring-1 ring-black ring-opacity-5 z-50">
                               <div className="py-1">
                                 <button
-                                  className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700"
+                                  className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-800"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setSelectedUserTypeFilter(null);
@@ -833,10 +976,15 @@ export default function AdminPage() {
                                 >
                                   All Types
                                 </button>
-                                {utils.userTypes.map(type => (
+                                {[
+                                  { id: 3, label: 'Child' },
+                                  { id: 2, label: 'Parent' },
+                                  { id: 1, label: 'Publisher' },
+                                  { id: 4, label: 'Educator' }
+                                ].map(type => (
                                   <button
                                     key={type.id}
-                                    className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700"
+                                    className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-800"
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       setSelectedUserTypeFilter(type.id);
@@ -877,43 +1025,52 @@ export default function AdminPage() {
                       >
                         Status {selectedStatusFilter !== null ? `(${selectedStatusFilter ? 'Suspended' : 'Active'})` : ''}
                         {showStatusDropdown && (
-                          <div className="absolute top-full left-0 mt-1 w-48 bg-gray-800 rounded-lg shadow-lg z-50">
-                            <div className="py-1">
-                              <button
-                                className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedStatusFilter(null);
-                                  setShowStatusDropdown(false);
-                                }}
-                              >
-                                All Status
-                              </button>
-                              <button
-                                className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedStatusFilter(false);
-                                  setShowStatusDropdown(false);
-                                }}
-                              >
-                                Active
-                              </button>
-                              <button
-                                className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedStatusFilter(true);
-                                  setShowStatusDropdown(false);
-                                }}
-                              >
-                                Suspended
-                              </button>
+                          <>
+                            <div 
+                              className="fixed inset-0" 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setShowStatusDropdown(false);
+                              }}
+                            />
+                            <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-gray-900 ring-1 ring-black ring-opacity-5 z-50">
+                              <div className="py-1">
+                                <button
+                                  className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-800"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedStatusFilter(null);
+                                    setShowStatusDropdown(false);
+                                  }}
+                                >
+                                  All Status
+                                </button>
+                                <button
+                                  className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-800"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedStatusFilter(false);
+                                    setShowStatusDropdown(false);
+                                  }}
+                                >
+                                  Active
+                                </button>
+                                <button
+                                  className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-800"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedStatusFilter(true);
+                                    setShowStatusDropdown(false);
+                                  }}
+                                >
+                                  Suspended
+                                </button>
+                              </div>
                             </div>
-                          </div>
+                          </>
                         )}
                       </th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-400 uppercase tracking-wider">Action</th>
+                      <th className="px-6 py-3"></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-800">
@@ -989,11 +1146,14 @@ export default function AdminPage() {
                               setSelectedRows([account.username]);
                               setShowDeleteModal(true);
                             }}
-                            className="text-gray-400 hover:text-red-500 transition-colors"
+                            className="text-gray-400 hover:text-red-500 transition-colors relative group"
                           >
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                               <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
                             </svg>
+                            <span className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50">
+                              Delete user
+                            </span>
                           </button>
                         </td>
                       </tr>
@@ -1020,6 +1180,29 @@ export default function AdminPage() {
           <div className="flex justify-between items-center mb-6">
             <div className="flex items-center space-x-4">
               <h2 className="text-2xl font-bold">Parent-Child Relationship</h2>
+              <button
+                onClick={() => {
+                  setNewUser({
+                    fullname: '',
+                    username: '',
+                    age: null,
+                    upid: 2,
+                    email: '',
+                    password: '',
+                  });
+                  setStep('auth');
+                  setIsCreatingParent(true);
+                  setShowNewUserModal(true);
+                }}
+                className="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-lg relative group"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                </svg>
+                <span className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50">
+                  Add parent
+                </span>
+              </button>
               {showAllRelationships && (
                 <button
                   onClick={() => setShowAllRelationships(false)}
@@ -1029,24 +1212,30 @@ export default function AdminPage() {
                 </button>
               )}
             </div>
-            <button
-              onClick={() => {
-                setNewUser({
-                  fullname: '',
-                  username: '',
-                  age: null,
-                  upid: 2,
-                  email: '',
-                  password: '',
-                });
-                setStep('auth');
-                setIsCreatingParent(true);
-                setShowNewUserModal(true);
-              }}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
-            >
-              Add Parent
-            </button>
+            <div className="relative">
+              <input
+                type="text"
+                placeholder=""
+                value={parentSearchQuery}
+                onChange={(e) => setParentSearchQuery(e.target.value)}
+                className="pl-10 pr-10 py-2 bg-gray-800 rounded-lg text-white placeholder-gray-400"
+              />
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+                </svg>
+              </div>
+              {parentSearchQuery && (
+                <button
+                  onClick={() => setParentSearchQuery('')}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-white"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              )}
+            </div>
           </div>
           
           <div className="overflow-x-auto">
@@ -1058,7 +1247,7 @@ export default function AdminPage() {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Parent Name</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Parent Age</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Children</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Action</th>
+                    <th className="px-6 py-3"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-800">
@@ -1116,7 +1305,7 @@ export default function AdminPage() {
                           ))}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
                         <button
                           onClick={() => {
                             setSelectedParentForModify({
@@ -1126,9 +1315,14 @@ export default function AdminPage() {
                             });
                             setShowModifyModal(true);
                           }}
-                          className="bg-orange-600 hover:bg-orange-700 text-white px-3 py-1 rounded"
+                          className="text-gray-400 hover:text-white transition-colors relative group"
                         >
-                          Modify
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
+                          </svg>
+                          <span className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50">
+                            Modify
+                          </span>
                         </button>
                       </td>
                     </tr>
@@ -1163,6 +1357,32 @@ export default function AdminPage() {
                 </button>
               )}
             </div>
+            <div className="flex items-center space-x-4">
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder=""
+                  value={classroomSearchQuery}
+                  onChange={(e) => setClassroomSearchQuery(e.target.value)}
+                  className="pl-10 pr-10 py-2 bg-gray-800 rounded-lg text-white placeholder-gray-400"
+                />
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                {classroomSearchQuery && (
+                  <button
+                    onClick={() => setClassroomSearchQuery('')}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-white"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
           
           {loadingClassrooms ? (
@@ -1180,7 +1400,21 @@ export default function AdminPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-800">
-                    {classrooms.slice(0, showAllClassrooms ? undefined : 3).map((classroom) => (
+                    {classrooms
+                      .filter((classroom: ClassroomData) => {
+                        if (!classroomSearchQuery) return true;
+                        const query = classroomSearchQuery.toLowerCase();
+                        return (
+                          classroom.name.toLowerCase().includes(query) ||
+                          classroom.educatorName.toLowerCase().includes(query) ||
+                          classroom.students.some(student => 
+                            student.username.toLowerCase().includes(query) ||
+                            student.fullname.toLowerCase().includes(query)
+                          )
+                        );
+                      })
+                      .slice(0, showAllClassrooms ? undefined : 3)
+                      .map((classroom: ClassroomData) => (
                       <tr key={classroom.crid} className="hover:bg-gray-800">
                         <td 
                           className="px-6 py-4 whitespace-nowrap cursor-pointer hover:text-blue-400"
@@ -1257,120 +1491,6 @@ export default function AdminPage() {
           )}
         </div>
       </main>
-
-      {/* New User Modal */}
-      {showNewUserModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 overflow-hidden">
-          <div className="bg-gray-900 p-6 rounded-lg w-[800px]">
-            <h3 className="text-xl font-bold mb-4">
-              {step === 'auth' ? 'Step 1: Create Authentication' : 'Step 2: User Details'}
-            </h3>
-            
-            {modalMessage && (
-              <div className={`mb-4 p-3 rounded ${
-                modalMessage.type === 'success' 
-                  ? 'bg-green-900 text-green-200' 
-                  : 'bg-red-900 text-red-200'
-              }`}>
-                {modalMessage.text}
-              </div>
-            )}
-
-            <div className="space-y-4">
-              {step === 'auth' ? (
-                <div className="flex items-center space-x-4">
-                  <input
-                    type="email"
-                    placeholder="Email"
-                    value={newUser.email}
-                    onChange={(e) => setNewUser({...newUser, email: e.target.value})}
-                    className="flex-1 p-2 bg-gray-800 rounded"
-                  />
-                  <input
-                    type="password"
-                    placeholder="Password"
-                    value={newUser.password}
-                    onChange={(e) => setNewUser({...newUser, password: e.target.value})}
-                    className="flex-1 p-2 bg-gray-800 rounded"
-                  />
-                  <button
-                    onClick={handleCreateAuth}
-                    className="w-12 h-12 bg-green-600 hover:bg-green-700 text-white rounded flex items-center justify-center"
-                    disabled={!newUser.email || !newUser.password}
-                  >
-                    →
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <div className="flex items-center space-x-4">
-                    <input
-                      type="text"
-                      placeholder="Full Name"
-                      value={newUser.fullname}
-                      onChange={(e) => setNewUser({...newUser, fullname: e.target.value})}
-                      className="flex-1 p-2 bg-gray-800 rounded"
-                    />
-                    <input
-                      type="text"
-                      placeholder="Username"
-                      value={newUser.username}
-                      onChange={(e) => setNewUser({...newUser, username: e.target.value})}
-                      className="flex-1 p-2 bg-gray-800 rounded"
-                    />
-                    <input
-                      type="number"
-                      placeholder="Age"
-                      value={newUser.age === null ? '' : newUser.age}
-                      onChange={(e) => setNewUser({
-                        ...newUser, 
-                        age: e.target.value ? parseInt(e.target.value) : null
-                      })}
-                      className="w-24 p-2 bg-gray-800 rounded"
-                    />
-                    {isCreatingParent ? (
-                      <div className="flex-1 p-2 bg-gray-800 rounded text-gray-400">
-                        Parent
-                      </div>
-                    ) : (
-                      <select
-                        value={newUser.upid}
-                        onChange={(e) => setNewUser({...newUser, upid: parseInt(e.target.value)})}
-                        className="flex-1 p-2 bg-gray-800 rounded"
-                      >
-                        {utils.userTypes.map(type => (
-                          <option key={type.id} value={type.id}>
-                            {type.label}
-                          </option>
-                        ))}
-                      </select>
-                    )}
-                    <button
-                      onClick={handleCreateAccount}
-                      className="w-12 h-12 bg-green-600 hover:bg-green-700 text-white rounded flex items-center justify-center"
-                      disabled={!newUser.fullname || !newUser.username || newUser.age === null}
-                    >
-                      →
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-
-            <div className="mt-6 flex justify-end space-x-2">
-              <button
-                onClick={() => {
-                  setShowNewUserModal(false);
-                  resetForm();
-                }}
-                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Suspend User Modal */}
       {showSuspendModal && selectedUser && (
@@ -1865,6 +1985,251 @@ export default function AdminPage() {
               setSelectedUserForPasswordReset(null);
             }}
           />
+        </div>
+      )}
+
+      {/* New User Modal */}
+      {showNewUserModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 overflow-hidden">
+          <div className="bg-gray-900 p-6 rounded-lg w-[800px]">
+            <h3 className="text-xl font-bold mb-4">
+              {step === 'auth' ? 'Step 1: Create Authentication' : 'Step 2: User Details'}
+            </h3>
+            
+            {modalMessage && (
+              <div className={`mb-4 p-3 rounded ${
+                modalMessage.type === 'success' 
+                  ? 'bg-green-900 text-green-200' 
+                  : 'bg-red-900 text-red-200'
+              }`}>
+                {modalMessage.text}
+              </div>
+            )}
+
+            <div className="space-y-4">
+              {step === 'auth' ? (
+                <div className="flex items-center space-x-4">
+                  <input
+                    type="email"
+                    placeholder="Email"
+                    value={newUser.email}
+                    onChange={(e) => setNewUser({...newUser, email: e.target.value})}
+                    className="flex-1 p-2 bg-gray-800 rounded"
+                  />
+                  <input
+                    type="password"
+                    placeholder="Password"
+                    value={newUser.password}
+                    onChange={(e) => setNewUser({...newUser, password: e.target.value})}
+                    className="flex-1 p-2 bg-gray-800 rounded"
+                  />
+                  <button
+                    onClick={handleCreateAuth}
+                    className="w-12 h-12 bg-green-600 hover:bg-green-700 text-white rounded flex items-center justify-center"
+                    disabled={!newUser.email || !newUser.password}
+                  >
+                    →
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center space-x-4">
+                    <input
+                      type="text"
+                      placeholder="Full Name"
+                      value={newUser.fullname}
+                      onChange={(e) => setNewUser({...newUser, fullname: e.target.value})}
+                      className="flex-1 p-2 bg-gray-800 rounded"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Username"
+                      value={newUser.username}
+                      onChange={(e) => setNewUser({...newUser, username: e.target.value})}
+                      className="flex-1 p-2 bg-gray-800 rounded"
+                    />
+                    <input
+                      type="number"
+                      placeholder="Age"
+                      value={newUser.age === null ? '' : newUser.age}
+                      onChange={(e) => setNewUser({
+                        ...newUser, 
+                        age: e.target.value ? parseInt(e.target.value) : null
+                      })}
+                      className="w-24 p-2 bg-gray-800 rounded"
+                    />
+                    {isCreatingParent ? (
+                      <div className="flex-1 p-2 bg-gray-800 rounded text-gray-400">
+                        Parent
+                      </div>
+                    ) : (
+                      <select
+                        value={newUser.upid}
+                        onChange={(e) => setNewUser({...newUser, upid: parseInt(e.target.value)})}
+                        className="flex-1 p-2 bg-gray-800 rounded"
+                      >
+                        {utils.userTypes.map(type => (
+                          <option key={type.id} value={type.id}>
+                            {type.label}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                    <button
+                      onClick={handleCreateAccount}
+                      className="w-12 h-12 bg-green-600 hover:bg-green-700 text-white rounded flex items-center justify-center"
+                      disabled={!newUser.fullname || !newUser.username || newUser.age === null}
+                    >
+                      →
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="mt-6 flex justify-end space-x-2">
+              <button
+                onClick={() => {
+                  setShowNewUserModal(false);
+                  resetForm();
+                }}
+                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Suspend All Users Confirmation Modal */}
+      {showSuspendAllModal && selectedProfileToSuspend && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 overflow-hidden">
+          <div className="bg-gray-900 p-6 rounded-lg w-[500px]">
+            <div className="flex items-center space-x-3 mb-4">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-yellow-500" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+              <h3 className="text-xl font-bold">Warning: Mass Suspension</h3>
+            </div>
+            <p className="mb-4 text-red-400">
+              This action will suspend ALL users with the profile type &quot;{selectedProfileToSuspend}&quot;. This is a significant action that will affect multiple user accounts.
+            </p>
+            <p className="mb-6 text-gray-300">
+              Are you sure you want to proceed with this mass suspension?
+            </p>
+            <div className="flex justify-end space-x-4">
+              <button
+                onClick={() => {
+                  setShowSuspendAllModal(false);
+                  setSelectedProfileToSuspend(null);
+                }}
+                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleSuspendAllUsers(selectedProfileToSuspend)}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded flex items-center space-x-2"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+                <span>Suspend All</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Revert All Users Confirmation Modal */}
+      {showRevertAllModal && selectedProfileToRevert && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 overflow-hidden">
+          <div className="bg-gray-900 p-6 rounded-lg w-[500px]">
+            <div className="flex items-center space-x-3 mb-4">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-500" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 100-2 1 1 0 000 2zm7-1a1 1 0 11-2 0 1 1 0 012 0zm-7.536 5.879a1 1 0 001.415 0 3 3 0 014.242 0 1 1 0 001.415-1.415 5 5 0 00-7.072 0 1 1 0 000 1.415z" clipRule="evenodd" />
+              </svg>
+              <h3 className="text-xl font-bold">Revert All Suspensions</h3>
+            </div>
+            <p className="mb-4 text-green-400">
+              This action will revert the suspension of ALL users with the profile type &quot;{selectedProfileToRevert}&quot;.
+            </p>
+            <p className="mb-6 text-gray-300">
+              Would you like to proceed with reverting all suspensions?
+            </p>
+            <div className="flex justify-end space-x-4">
+              <button
+                onClick={() => {
+                  setShowRevertAllModal(false);
+                  setSelectedProfileToRevert(null);
+                }}
+                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleRevertAllUsers(selectedProfileToRevert)}
+                className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded flex items-center space-x-2"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 100-2 1 1 0 000 2zm7-1a1 1 0 11-2 0 1 1 0 012 0zm-7.536 5.879a1 1 0 001.415 0 3 3 0 014.242 0 1 1 0 001.415-1.415 5 5 0 00-7.072 0 1 1 0 000 1.415z" clipRule="evenodd" />
+                </svg>
+                <span>Revert All</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Profile Permissions Modal */}
+      {showPermissionsModal && selectedProfilePermissions && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 overflow-hidden">
+          <div className="bg-gray-900 p-6 rounded-lg w-[500px]">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold">{selectedProfilePermissions} Profile Settings</h3>
+              <button
+                onClick={() => {
+                  setShowPermissionsModal(false);
+                  setSelectedProfilePermissions(null);
+                }}
+                className="text-gray-400 hover:text-white"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {selectedProfilePermissions === 'Publisher' && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-4 bg-gray-800 rounded-lg">
+                  <div>
+                    <h4 className="font-semibold">Delete Own Content</h4>
+                    <p className="text-sm text-gray-400">Allow publishers to delete their own content regardless of status</p>
+                  </div>
+                  <button
+                    onClick={handleTogglePublisherPermission}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${
+                      publisherDeletePermission ? 'bg-indigo-600' : 'bg-gray-600'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        publisherDeletePermission ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {selectedProfilePermissions !== 'Publisher' && (
+              <div className="text-gray-400 text-center py-4">
+                No configurable permissions available for this profile type.
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

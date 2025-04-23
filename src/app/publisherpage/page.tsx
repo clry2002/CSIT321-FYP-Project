@@ -40,6 +40,7 @@ export default function PublisherPage() {
   const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
   const [contentToDelete, setContentToDelete] = useState<Content | null>(null);
   const [deleteSuccess, setDeleteSuccess] = useState<string | null>(null);
+  const [canDeleteAllContent, setCanDeleteAllContent] = useState(false);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -69,6 +70,25 @@ export default function PublisherPage() {
     };
 
     fetchUser();
+  }, []);
+
+  useEffect(() => {
+    const fetchPublisherPermissions = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('publisherpermissions')
+          .select('*')
+          .eq('permission', 'publisher delete all content')
+          .single();
+
+        if (error) throw error;
+        setCanDeleteAllContent(data?.active || false);
+      } catch (err) {
+        console.error('Error fetching publisher permissions:', err);
+      }
+    };
+
+    fetchPublisherPermissions();
   }, []);
 
   useEffect(() => {
@@ -138,6 +158,18 @@ export default function PublisherPage() {
 
   const handleDeleteContent = async (content: Content) => {
     try {
+      // First, delete any bookmarks for this content
+      const { error: bookmarkError } = await supabase
+        .from('temp_bookmark')
+        .delete()
+        .eq('cid', content.cid);
+
+      if (bookmarkError) {
+        console.error('Error deleting bookmarks:', bookmarkError);
+        throw bookmarkError;
+      }
+
+      // Then delete the content itself
       const { error } = await supabase
         .from('temp_content')
         .delete()
@@ -154,6 +186,8 @@ export default function PublisherPage() {
       setContentToDelete(null);
     } catch (err) {
       console.error('Error deleting content:', err);
+      setDeleteSuccess(`Failed to delete ${content.title}`);
+      setTimeout(() => setDeleteSuccess(null), 3000);
     }
   };
 
@@ -289,7 +323,7 @@ export default function PublisherPage() {
                         </span>
                       </td>
                       <td className="py-3 px-6 text-center">
-                        {book.status === 'denied' && (
+                        {(book.status === 'denied' || (canDeleteAllContent && ['pending', 'approved', 'suspended'].includes(book.status))) && (
                           <button
                             onClick={() => {
                               setContentToDelete(book);
@@ -385,7 +419,7 @@ export default function PublisherPage() {
                         </span>
                       </td>
                       <td className="py-3 px-6 text-center">
-                        {video.status === 'denied' && (
+                        {(video.status === 'denied' || (canDeleteAllContent && ['pending', 'approved', 'suspended'].includes(video.status))) && (
                           <button
                             onClick={() => {
                               setContentToDelete(video);

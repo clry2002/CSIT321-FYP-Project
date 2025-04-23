@@ -61,24 +61,16 @@ export default function ContentReviewPage() {
   const [showSuccessMessage, setShowSuccessMessage] = useState('');
   const [activeTab, setActiveTab] = useState<'pending' | 'all'>('pending');
   const [searchQuery, setSearchQuery] = useState('');
-  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [filters, setFilters] = useState({
-    contentType: 'all', // 'all', 'book', 'video'
-    publisher: 'all',
-    genre: 'all',
-    minAge: 'all',
     status: 'all' // 'all', 'approved', 'suspended'
   });
-  const [genres, setGenres] = useState<string[]>([]);
-  const [publishers, setPublishers] = useState<string[]>([]);
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [showSuspendModal, setShowSuspendModal] = useState(false);
   const [suspendReason, setSuspendReason] = useState('');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [contentToDelete, setContentToDelete] = useState<TransformedContent | null>(null);
 
   useEffect(() => {
-    fetchGenres();
-    fetchPublishers();
     if (activeTab === 'pending') {
       fetchPendingContent();
     } else {
@@ -86,34 +78,16 @@ export default function ContentReviewPage() {
     }
   }, [activeTab]);
 
-  const fetchGenres = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('temp_genre')
-        .select('genrename')
-        .order('genrename');
-
-      if (error) throw error;
-      setGenres(data.map(g => g.genrename));
-    } catch (err) {
-      console.error('Error fetching genres:', err);
+  useEffect(() => {
+    if (showStatusDropdown) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
     }
-  };
-
-  const fetchPublishers = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('user_account')
-        .select('fullname')
-        .eq('upid', 1)  // upid = 1 for publishers
-        .order('fullname');
-
-      if (error) throw error;
-      setPublishers(data.map(p => p.fullname));
-    } catch (err) {
-      console.error('Error fetching publishers:', err);
-    }
-  };
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [showStatusDropdown]);
 
   const fetchPendingContent = async () => {
     try {
@@ -308,28 +282,11 @@ export default function ContentReviewPage() {
       content.publisher.fullname.toLowerCase().includes(searchQuery.toLowerCase()) ||
       content.genre.genrename.toLowerCase().includes(searchQuery.toLowerCase());
 
-    const matchesContentType =
-      filters.contentType === 'all' ||
-      (filters.contentType === 'book' && content.cfid === 2) ||
-      (filters.contentType === 'video' && content.cfid === 1);
-
-    const matchesPublisher =
-      filters.publisher === 'all' ||
-      content.publisher.fullname === filters.publisher;
-
-    const matchesGenre = 
-      filters.genre === 'all' || 
-      content.genre.genrename === filters.genre;
-
-    const matchesAge = 
-      filters.minAge === 'all' || 
-      content.minimumage === parseInt(filters.minAge);
-
     const matchesStatus =
       filters.status === 'all' ||
       content.status === filters.status;
 
-    return matchesSearch && matchesContentType && matchesPublisher && matchesGenre && matchesAge && matchesStatus;
+    return matchesSearch && matchesStatus;
   });
 
   return (
@@ -394,82 +351,52 @@ export default function ContentReviewPage() {
           <div className="flex items-center space-x-4 flex-1 max-w-3xl ml-4">
             <div className="relative">
               <button
-                onClick={() => setShowFilterDropdown(!showFilterDropdown)}
+                onClick={() => setShowStatusDropdown(!showStatusDropdown)}
                 className="px-6 py-2 bg-gray-800 rounded-full text-white hover:bg-gray-700 flex items-center"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
                 </svg>
-                Filters
+                Status: {filters.status.charAt(0).toUpperCase() + filters.status.slice(1)}
               </button>
-              {showFilterDropdown && (
-                <div className="absolute top-full left-0 mt-2 w-64 bg-gray-800 rounded-lg shadow-lg z-50">
-                  <div className="p-4 space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-400 mb-2">Content Type</label>
-                      <select
-                        value={filters.contentType}
-                        onChange={(e) => setFilters({...filters, contentType: e.target.value})}
-                        className="w-full bg-gray-700 rounded-lg px-3 py-2 text-white"
+              {showStatusDropdown && (
+                <>
+                  <div 
+                    className="fixed inset-0 z-[9998]"
+                    onClick={() => setShowStatusDropdown(false)}
+                  />
+                  <div className="absolute top-full left-0 mt-2 w-48 bg-gray-800 rounded-lg shadow-xl z-[9999] border border-gray-700">
+                    <div className="py-2">
+                      <button
+                        onClick={() => {
+                          setFilters({...filters, status: 'all'});
+                          setShowStatusDropdown(false);
+                        }}
+                        className="w-full px-4 py-2 text-left text-white hover:bg-gray-700"
                       >
-                        <option value="all">All Types</option>
-                        <option value="book">Books</option>
-                        <option value="video">Videos</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-400 mb-2">Publisher</label>
-                      <select
-                        value={filters.publisher}
-                        onChange={(e) => setFilters({...filters, publisher: e.target.value})}
-                        className="w-full bg-gray-700 rounded-lg px-3 py-2 text-white"
+                        All Status
+                      </button>
+                      <button
+                        onClick={() => {
+                          setFilters({...filters, status: 'approved'});
+                          setShowStatusDropdown(false);
+                        }}
+                        className="w-full px-4 py-2 text-left text-white hover:bg-gray-700"
                       >
-                        <option value="all">All Publishers</option>
-                        {publishers.map((publisher) => (
-                          <option key={publisher} value={publisher}>{publisher}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-400 mb-2">Status</label>
-                      <select
-                        value={filters.status}
-                        onChange={(e) => setFilters({...filters, status: e.target.value})}
-                        className="w-full bg-gray-700 rounded-lg px-3 py-2 text-white"
+                        Approved
+                      </button>
+                      <button
+                        onClick={() => {
+                          setFilters({...filters, status: 'suspended'});
+                          setShowStatusDropdown(false);
+                        }}
+                        className="w-full px-4 py-2 text-left text-white hover:bg-gray-700"
                       >
-                        <option value="all">All Status</option>
-                        <option value="approved">Approved</option>
-                        <option value="suspended">Suspended</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-400 mb-2">Genre</label>
-                      <select
-                        value={filters.genre}
-                        onChange={(e) => setFilters({...filters, genre: e.target.value})}
-                        className="w-full bg-gray-700 rounded-lg px-3 py-2 text-white"
-                      >
-                        <option value="all">All Genres</option>
-                        {genres.map((genre) => (
-                          <option key={genre} value={genre}>{genre}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-400 mb-2">Minimum Age</label>
-                      <select
-                        value={filters.minAge}
-                        onChange={(e) => setFilters({...filters, minAge: e.target.value})}
-                        className="w-full bg-gray-700 rounded-lg px-3 py-2 text-white"
-                      >
-                        <option value="all">All Ages</option>
-                        {[3,4,5,6,7,8,9,10,11,12,13].map((age) => (
-                          <option key={age} value={age}>{age} years</option>
-                        ))}
-                      </select>
+                        Suspended
+                      </button>
                     </div>
                   </div>
-                </div>
+                </>
               )}
             </div>
             <div className="relative flex-1">

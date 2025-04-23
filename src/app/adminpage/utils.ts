@@ -1,10 +1,11 @@
 import { UserAccount } from './types';
 
 export const userTypes = [
-  { id: 1, label: 'Publisher' },
-  { id: 2, label: 'Parent' },
   { id: 3, label: 'Child' },
-  { id: 5, label: 'Teacher' }
+  { id: 2, label: 'Parent' },
+  { id: 1, label: 'Publisher' },
+  { id: 4, label: 'Educator' },
+  { id: 5, label: 'Student' }
 ];
 
 export const getUpidLabel = (upid: number): string => {
@@ -12,7 +13,8 @@ export const getUpidLabel = (upid: number): string => {
     case 1: return 'Publisher';
     case 2: return 'Parent';
     case 3: return 'Child';
-    case 5: return 'Teacher';
+    case 4: return 'Educator';
+    case 5: return 'Student';
     default: return 'Unknown';
   }
 };
