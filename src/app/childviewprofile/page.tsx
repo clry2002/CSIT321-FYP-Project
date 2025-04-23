@@ -5,8 +5,8 @@ import { useState, useEffect } from 'react';
 import Navbar from '../components/Navbar';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
-// import { useSession } from '@/contexts/SessionContext';
 import { useRouter } from 'next/navigation';
+import { syncFavoriteGenres } from '../../services/userInteractionsService'; // Adjust the import path as necessary
 
 function ErrorBoundary({ children }: { children: React.ReactNode }) {
   const [hasError, setHasError] = useState(false);
@@ -26,7 +26,6 @@ function ErrorBoundary({ children }: { children: React.ReactNode }) {
 
 export default function ChildViewProfile() {
   const router = useRouter();
-  // const { userProfile, refreshProfile } = useSession();
   const [profileData, setProfileData] = useState<{
     full_name: string;
     username: string;
@@ -188,95 +187,99 @@ export default function ChildViewProfile() {
 
       if (profileError) throw profileError;
 
-      // Get currently blocked genres
-      const { data: currentlyBlocked, error: blockedError } = await supabase
-        .from('blockedgenres')
-        .select('genreid')
-        .eq('child_id', userAccountId);
+      console.log('[Profile] Syncing favorite genres to update scores...');
+      await syncFavoriteGenres(userAccountId);
+      console.log('[Profile] Favorite genres synced successfully');
 
-      if (blockedError) throw blockedError;
-      const currentlyBlockedIds = currentlyBlocked?.map(item => item.genreid) || [];
+      // // Get currently blocked genres
+      // const { data: currentlyBlocked, error: blockedError } = await supabase
+      //   .from('blockedgenres')
+      //   .select('genreid')
+      //   .eq('child_id', userAccountId);
 
-      // Get all genre IDs and names
-      const { data: allGenres, error: genresError } = await supabase
-        .from('temp_genre')
-        .select('gid, genrename');
+      // if (blockedError) throw blockedError;
+      // const currentlyBlockedIds = currentlyBlocked?.map(item => item.genreid) || [];
 
-      if (genresError) {
-        console.error('Error fetching genres:', genresError);
-        throw genresError;
-      }
+      // // Get all genre IDs and names
+      // const { data: allGenres, error: genresError } = await supabase
+      //   .from('temp_genre')
+      //   .select('gid, genrename');
 
-      // Get current interactions
-      const { data: currentInteractions, error: currentError } = await supabase
-        .from('userInteractions')
-        .select('gid, score')
-        .eq('uaid', userAccountId);
+      // if (genresError) {
+      //   console.error('Error fetching genres:', genresError);
+      //   throw genresError;
+      // }
 
-      if (currentError) {
-        console.error('Error fetching current interactions:', currentError);
-        throw currentError;
-      }
+      // // Get current interactions
+      // const { data: currentInteractions, error: currentError } = await supabase
+      //   .from('userInteractions')
+      //   .select('gid, score')
+      //   .eq('uaid', userAccountId);
 
-      // Process each genre in the selected favorites
-      for (const genre of selectedGenres) {
-        const genreId = allGenres.find(g => g.genrename === genre)?.gid;
-        if (!genreId) {
-          throw new Error(`Could not find genre ID for genre: ${genre}`);
-        }
+      // if (currentError) {
+      //   console.error('Error fetching current interactions:', currentError);
+      //   throw currentError;
+      // }
 
-        // Skip if genre is currently blocked
-        if (currentlyBlockedIds.includes(genreId)) continue;
+      // // Process each genre in the selected favorites
+      // for (const genre of selectedGenres) {
+      //   const genreId = allGenres.find(g => g.genrename === genre)?.gid;
+      //   if (!genreId) {
+      //     throw new Error(`Could not find genre ID for genre: ${genre}`);
+      //   }
 
-        // Add new row with score 20 if it doesn't exist
-        const { error: insertError } = await supabase
-          .from('userInteractions')
-          .insert({
-            uaid: userAccountId,
-            gid: genreId,
-            score: 20
-          })
-          .select();
+      //   // Skip if genre is currently blocked
+      //   if (currentlyBlockedIds.includes(genreId)) continue;
 
-        // If row already exists, update it
-        if (insertError && insertError.code === '23505') { // Unique violation error code
-          const { error: updateError } = await supabase
-            .from('userInteractions')
-            .update({ score: 20 })
-            .eq('uaid', userAccountId)
-            .eq('gid', genreId);
+      //   // Add new row with score 20 if it doesn't exist
+      //   const { error: insertError } = await supabase
+      //     .from('userInteractions')
+      //     .insert({
+      //       uaid: userAccountId,
+      //       gid: genreId,
+      //       score: 20
+      //     })
+      //     .select();
 
-          if (updateError) {
-            console.error('Error updating genre score:', updateError);
-            throw updateError;
-          }
-        } else if (insertError) {
-          console.error('Error inserting new interaction:', insertError);
-          throw insertError;
-        }
-      }
+      //   // If row already exists, update it
+      //   if (insertError && insertError.code === '23505') { // Unique violation error code
+      //     const { error: updateError } = await supabase
+      //       .from('userInteractions')
+      //       .update({ score: 20 })
+      //       .eq('uaid', userAccountId)
+      //       .eq('gid', genreId);
 
-      // For genres that are no longer favorites, remove their rows
-      const selectedGenreIds = selectedGenres.map(genre => 
-        allGenres.find(g => g.genrename === genre)?.gid
-      ).filter(id => id !== undefined) as number[];
+      //     if (updateError) {
+      //       console.error('Error updating genre score:', updateError);
+      //       throw updateError;
+      //     }
+      //   } else if (insertError) {
+      //     console.error('Error inserting new interaction:', insertError);
+      //     throw insertError;
+      //   }
+      // }
 
-      const genresToRemove = (currentInteractions || [])
-        .filter(interaction => !selectedGenreIds.includes(interaction.gid))
-        .map(interaction => interaction.gid);
+      // // For genres that are no longer favorites, remove their rows
+      // const selectedGenreIds = selectedGenres.map(genre => 
+      //   allGenres.find(g => g.genrename === genre)?.gid
+      // ).filter(id => id !== undefined) as number[];
 
-      if (genresToRemove.length > 0) {
-        const { error: deleteError } = await supabase
-          .from('userInteractions')
-          .delete()
-          .eq('uaid', userAccountId)
-          .in('gid', genresToRemove);
+      // const genresToRemove = (currentInteractions || [])
+      //   .filter(interaction => !selectedGenreIds.includes(interaction.gid))
+      //   .map(interaction => interaction.gid);
 
-        if (deleteError) {
-          console.error('Error removing genre interactions:', deleteError);
-          throw deleteError;
-        }
-      }
+      // if (genresToRemove.length > 0) {
+      //   const { error: deleteError } = await supabase
+      //     .from('userInteractions')
+      //     .delete()
+      //     .eq('uaid', userAccountId)
+      //     .in('gid', genresToRemove);
+
+      //   if (deleteError) {
+      //     console.error('Error removing genre interactions:', deleteError);
+      //     throw deleteError;
+      //   }
+      // }
 
       setSaveMessage({ type: 'success', text: 'Profile updated successfully!' });
       setHasChanges(false);

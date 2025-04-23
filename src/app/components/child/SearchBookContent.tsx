@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { supabase } from '@/lib/supabase';
 import SearchBooksClient from './SearchBookClient';
+import { useInteractions } from '../../../hooks/useInteractions';
 
 // Define types
 interface BookWithGenres {
@@ -35,7 +36,7 @@ export default function SearchContent() {
   );
 }
 
-// Server Component to fetch and display search results
+// Component to fetch and display search results
 function SearchResults({ query }: { query: string }) {
   const [books, setBooks] = useState<BookWithGenres[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -44,6 +45,7 @@ function SearchResults({ query }: { query: string }) {
   const [notification, setNotification] = useState<{ message: string; show: boolean }>({ message: '', show: false });
   const [childId, setChildId] = useState<string | null>(null);
   const [blockedGenreIds, setBlockedGenreIds] = useState<number[]>([]);
+  const { toggleBookmark, recordBookView } = useInteractions();
 
   useEffect(() => {
     const fetchChildProfile = async () => {
@@ -206,7 +208,7 @@ function SearchResults({ query }: { query: string }) {
     searchBooks();
   }, [query, childId, blockedGenreIds]);
 
-  const handleBookmark = async (book: BookWithGenres) => {
+  const handleBookmarkToggle = async (book: BookWithGenres) => {
     if (!childId) {
       setNotification({ message: 'No child profile found', show: true });
       setTimeout(() => setNotification({ message: '', show: false }), 3000);
@@ -217,27 +219,35 @@ function SearchResults({ query }: { query: string }) {
     const isBookmarked = bookmarkedBooks.has(cidStr);
     const updatedBookmarks = new Set(bookmarkedBooks);
 
-    if (isBookmarked) {
-      updatedBookmarks.delete(cidStr);
-      await supabase
-        .from('temp_bookmark')
-        .delete()
-        .eq('uaid', childId)
-        .eq('cid', book.cid);
+    // Call the toggleBookmark function to update interactions
+    const success = await toggleBookmark(book.cid.toString(), !isBookmarked);
+    
+    if (success) {
+      if (isBookmarked) {
+        updatedBookmarks.delete(cidStr);
+      } else {
+        updatedBookmarks.add(cidStr);
+      }
+      
+      setBookmarkedBooks(updatedBookmarks);
+      setNotification({
+        message: isBookmarked ? 'Book removed from bookmarks' : 'You saved this book',
+        show: true,
+      });
+      
+      setTimeout(() => setNotification({ message: '', show: false }), 3000);
     } else {
-      updatedBookmarks.add(cidStr);
-      await supabase
-        .from('temp_bookmark')
-        .upsert([{ uaid: childId, cid: book.cid }], { onConflict: 'uaid,cid' });
+      setNotification({
+        message: 'Failed to update bookmark',
+        show: true,
+      });
+      setTimeout(() => setNotification({ message: '', show: false }), 3000);
     }
+  };
 
-    setBookmarkedBooks(updatedBookmarks);
-    setNotification({
-      message: isBookmarked ? 'Book removed from bookmarks' : 'You saved this book',
-      show: true,
-    });
-
-    setTimeout(() => setNotification({ message: '', show: false }), 3000);
+  const handleBookClick = async (bookId: number) => {
+    // Record the book view in the user interactions
+    await recordBookView(bookId.toString());
   };
 
   return (
@@ -284,7 +294,11 @@ function SearchResults({ query }: { query: string }) {
 
               <div className="flex-grow">
                 <h3 className="text-lg font-semibold text-gray-900">
-                  <a href={`/bookdetail/${book.cid}`} className="hover:text-rose-500 transition-colors">
+                  <a 
+                    href={`/bookdetail/${book.cid}`} 
+                    className="hover:text-rose-500 transition-colors"
+                    onClick={() => handleBookClick(book.cid)}
+                  >
                     {book.title}
                   </a>
                 </h3>
@@ -299,7 +313,7 @@ function SearchResults({ query }: { query: string }) {
                 className={`flex-shrink-0 ml-4 p-2 rounded-full hover:bg-gray-100 transition-colors ${
                   bookmarkedBooks.has(book.cid.toString()) ? 'text-rose-500' : 'text-gray-400'
                 }`}
-                onClick={() => handleBookmark(book)}
+                onClick={() => handleBookmarkToggle(book)}
                 aria-label="Toggle bookmark"
               >
                 <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">

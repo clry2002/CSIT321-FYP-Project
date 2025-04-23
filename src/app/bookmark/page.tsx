@@ -7,6 +7,7 @@ import Image from 'next/image';
 import type { Book, Video } from '@/types/database.types';
 // import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
+import { handleBookmarkAction, syncExistingBookmarks } from '@/services/userInteractionsService';
 
 type SupabaseUser = {
   id: string;
@@ -53,7 +54,6 @@ export default function BookmarksPage() {
       genre.toLowerCase().includes(searchQuery.toLowerCase())
     ))
   );
-  
   
   useEffect(() => {
     const fetchUser = async () => {
@@ -105,6 +105,11 @@ export default function BookmarksPage() {
       console.log('Fetching bookmarks for child uaid:', childUaid);
 
       try {
+        // First sync existing bookmark scores to ensure they're properly accounted for
+        console.log('Starting to sync existing bookmark scores');
+        const syncResult = await syncExistingBookmarks(childUaid);
+        console.log('Finished syncing bookmark scores, result:', syncResult);
+        
         const { data: bookmarks, error: bookmarksError } = await supabase
           .from('temp_bookmark')
           .select('cid')
@@ -219,6 +224,7 @@ export default function BookmarksPage() {
     console.log('Removing bookmark for uaid:', childUaid, 'cid:', cid);
 
     try {
+      // First delete the bookmark from the database
       const { error } = await supabase
         .from('temp_bookmark')
         .delete()
@@ -229,6 +235,15 @@ export default function BookmarksPage() {
         console.error('Error removing bookmark:', error);
         setNotification({ message: 'Failed to remove bookmark', show: true });
         return;
+      }
+
+      // Then update the user interaction scores (subtract points)
+      const scoreUpdated = await handleBookmarkAction(childUaid, cid.toString(), false);
+      
+      if (!scoreUpdated) {
+        console.warn('Failed to update interaction scores');
+      } else {
+        console.log('Successfully updated interaction scores for bookmark removal');
       }
 
       // Update the state after removal
@@ -402,15 +417,17 @@ export default function BookmarksPage() {
             </div>
           </div>
         )}
-  
-        {/* Search Bar */}
-        <input
-          type="text"
-          placeholder="Search Bookmarks..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full p-2 border rounded-lg mb-4 mt-5 text-black"
-        />
+        
+        {/* Search Bar*/}
+        <div className="flex justify-between items-center mb-4">
+          <input
+            type="text"
+            placeholder="Search Bookmarks..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full p-2 border rounded-lg mb-4 mt-2 text-black"
+          />
+        </div>
   
         {/* Bookmarked Books */}
         {filteredBooks.length > 0 ? (
@@ -517,4 +534,4 @@ export default function BookmarksPage() {
       </div>
     </div>
   );
-}  
+}
