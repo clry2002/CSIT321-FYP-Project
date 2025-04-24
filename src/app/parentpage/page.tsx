@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { RefreshCw, Settings, LogOut } from 'lucide-react';
 
 interface Child {
   id: string;
@@ -337,27 +338,21 @@ const ParentDataFetcher = () => {
               className="inline-flex items-center px-4 py-2 bg-indigo-500 text-white rounded-md font-semibold text-sm hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50 transition-colors"
               onClick={fetchParentData}
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 009.828 16M4 4v5h-.581m15.356-2a8.001 8.001 0 01-4.969-8.94" />
-              </svg>
+              <RefreshCw className="h-5 w-5 mr-2" />
               Refresh
             </button>
             <button
               className="inline-flex items-center px-4 py-2 bg-gray-800 text-white rounded-md font-semibold text-sm hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-800 focus:ring-opacity-50 transition-colors"
               onClick={() => router.push('/parent/settings')}
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 012 2v1h.5a.5.5 0 01.5.5v1a.5.5 0 01-.5.5H18m-6-9V4m6 2a2 2 0 01-2 2v1h-.5a.5.5 0 01-.5.5v1a.5.5 0 01.5.5H6m6-9V4m-6 2a2 2 0 00-2 2v1h-.5a.5.5 0 00-.5.5v1a.5.5 0 00.5.5H6" />
-              </svg>
+              <Settings className="h-5 w-5 mr-2" />
               Settings
             </button>
             <button
               className="inline-flex items-center px-4 py-2 bg-red-500 text-white rounded-md font-semibold text-sm hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 transition-colors"
               onClick={() => router.push('/logout')}
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v-3m6 4h-6m-6-4v-3" />
-              </svg>
+              <LogOut className="h-5 w-5 mr-2" />
               Logout
             </button>
           </div>
