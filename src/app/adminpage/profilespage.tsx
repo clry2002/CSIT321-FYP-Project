@@ -6,6 +6,9 @@ import { UserAccount } from './types';
 
 export default function ProfilesPage() {
   const [publisherDeletePermission, setPublisherDeletePermission] = useState(false);
+  const [childPasswordPermission, setChildPasswordPermission] = useState(false);
+  const [parentDeletePermission, setParentDeletePermission] = useState(false);
+  const [educatorClassroomPermission, setEducatorClassroomPermission] = useState(false);
   const [showPermissionsModal, setShowPermissionsModal] = useState(false);
   const [selectedProfilePermissions, setSelectedProfilePermissions] = useState<string | null>(null);
   const [showSuspendAllModal, setShowSuspendAllModal] = useState(false);
@@ -18,6 +21,9 @@ export default function ProfilesPage() {
   useEffect(() => {
     fetchData();
     fetchPublisherPermissions();
+    fetchChildPermissions();
+    fetchParentPermissions();
+    fetchEducatorPermissions();
   }, []);
 
   const fetchData = async () => {
@@ -47,6 +53,51 @@ export default function ProfilesPage() {
     }
   };
 
+  const fetchChildPermissions = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('childpermissions')
+        .select('*')
+        .eq('permission', 'disable reset password')
+        .single();
+
+      if (error) throw error;
+      setChildPasswordPermission(data?.active || false);
+    } catch (err) {
+      console.error('Error fetching child permissions:', err);
+    }
+  };
+
+  const fetchParentPermissions = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('parentpermissions')
+        .select('*')
+        .eq('permission', 'disable child deletion')
+        .single();
+
+      if (error) throw error;
+      setParentDeletePermission(data?.active || false);
+    } catch (err) {
+      console.error('Error fetching parent permissions:', err);
+    }
+  };
+
+  const fetchEducatorPermissions = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('educatorpermissions')
+        .select('*')
+        .eq('permission', 'disable classroom creation')
+        .single();
+
+      if (error) throw error;
+      setEducatorClassroomPermission(data?.active || false);
+    } catch (err) {
+      console.error('Error fetching educator permissions:', err);
+    }
+  };
+
   const handleTogglePublisherPermission = async () => {
     try {
       const { error } = await supabase
@@ -58,6 +109,48 @@ export default function ProfilesPage() {
       setPublisherDeletePermission(!publisherDeletePermission);
     } catch (err) {
       console.error('Error updating publisher permission:', err);
+    }
+  };
+
+  const handleToggleChildPermission = async () => {
+    try {
+      const { error } = await supabase
+        .from('childpermissions')
+        .update({ active: !childPasswordPermission })
+        .eq('permission', 'disable reset password');
+
+      if (error) throw error;
+      setChildPasswordPermission(!childPasswordPermission);
+    } catch (err) {
+      console.error('Error updating child permission:', err);
+    }
+  };
+
+  const handleToggleParentPermission = async () => {
+    try {
+      const { error } = await supabase
+        .from('parentpermissions')
+        .update({ active: !parentDeletePermission })
+        .eq('permission', 'disable child deletion');
+
+      if (error) throw error;
+      setParentDeletePermission(!parentDeletePermission);
+    } catch (err) {
+      console.error('Error updating parent permission:', err);
+    }
+  };
+
+  const handleToggleEducatorPermission = async () => {
+    try {
+      const { error } = await supabase
+        .from('educatorpermissions')
+        .update({ active: !educatorClassroomPermission })
+        .eq('permission', 'disable classroom creation');
+
+      if (error) throw error;
+      setEducatorClassroomPermission(!educatorClassroomPermission);
+    } catch (err) {
+      console.error('Error updating educator permission:', err);
     }
   };
 
@@ -257,7 +350,79 @@ export default function ProfilesPage() {
               </div>
             )}
 
-            {selectedProfilePermissions !== 'Publisher' && (
+            {selectedProfilePermissions === 'Child' && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-4 bg-gray-800 rounded-lg">
+                  <div>
+                    <h4 className="font-semibold">Disable Password Reset</h4>
+                    <p className="text-sm text-gray-400">Prevent children from resetting their own passwords</p>
+                  </div>
+                  <button
+                    onClick={handleToggleChildPermission}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${
+                      childPasswordPermission ? 'bg-indigo-600' : 'bg-gray-600'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        childPasswordPermission ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {selectedProfilePermissions === 'Parent' && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-4 bg-gray-800 rounded-lg">
+                  <div>
+                    <h4 className="font-semibold">Disable Child Account Deletion</h4>
+                    <p className="text-sm text-gray-400">Prevent parents from deleting their child accounts</p>
+                  </div>
+                  <button
+                    onClick={handleToggleParentPermission}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${
+                      parentDeletePermission ? 'bg-indigo-600' : 'bg-gray-600'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        parentDeletePermission ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {selectedProfilePermissions === 'Educator' && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-4 bg-gray-800 rounded-lg">
+                  <div>
+                    <h4 className="font-semibold">Disable Classroom Creation</h4>
+                    <p className="text-sm text-gray-400">Prevent educators from creating new classrooms</p>
+                  </div>
+                  <button
+                    onClick={handleToggleEducatorPermission}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${
+                      educatorClassroomPermission ? 'bg-indigo-600' : 'bg-gray-600'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        educatorClassroomPermission ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {selectedProfilePermissions !== 'Publisher' && 
+             selectedProfilePermissions !== 'Child' && 
+             selectedProfilePermissions !== 'Parent' &&
+             selectedProfilePermissions !== 'Educator' && (
               <div className="text-gray-400 text-center py-4">
                 No configurable permissions available for this profile type.
               </div>

@@ -26,6 +26,7 @@ const ParentDataFetcher = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [childToDelete, setChildToDelete] = useState<string | null>(null);
   const [childNameToDelete, setChildNameToDelete] = useState<string | null>(null);
+  const [canDeleteChild, setCanDeleteChild] = useState(true);
 
   const fetchParentData = useCallback(async () => {
     setLoading(true);
@@ -33,6 +34,19 @@ const ParentDataFetcher = () => {
     console.log("Fetching parent data...");
 
     try {
+      // Fetch parent delete permission
+      const { data: permissionData, error: permissionError } = await supabase
+        .from('parentpermissions')
+        .select('active')
+        .eq('permission', 'disable child deletion')
+        .single();
+
+      if (permissionError) {
+        console.error('Error fetching parent permissions:', permissionError);
+      } else {
+        setCanDeleteChild(!permissionData?.active);
+      }
+
       const { data: { user }, error: userError } = await supabase.auth.getUser();
 
       if (userError) {
@@ -372,7 +386,7 @@ const ParentDataFetcher = () => {
                     </div>
                   </div>
                   <div className="space-x-2 flex items-center">
-                  <button
+                    <button
                       className="bg-indigo-500 text-white px-3 py-1 rounded-md text-sm hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50 transition-colors"
                       onClick={() => router.push(`/parent/viewchild?childId=${child.id}`)}
                     >
@@ -390,15 +404,17 @@ const ParentDataFetcher = () => {
                     >
                       Parental Controls
                     </button>
-                    <button
-                      className="bg-red-500 text-white px-3 py-1 rounded-md text-sm hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 transition-colors"
-                      onClick={() => handleDeleteClick(child.id)}
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 inline-block mr-1 -mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                      Delete
-                    </button>
+                    {canDeleteChild && (
+                      <button
+                        className="bg-red-500 text-white px-3 py-1 rounded-md text-sm hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 transition-colors"
+                        onClick={() => handleDeleteClick(child.id)}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 inline-block mr-1 -mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                        Delete
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}

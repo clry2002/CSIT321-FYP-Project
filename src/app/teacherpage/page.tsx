@@ -16,6 +16,7 @@ export default function ViewClassrooms() {
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
+  const [canCreateClassroom, setCanCreateClassroom] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
@@ -23,37 +24,55 @@ export default function ViewClassrooms() {
       setLoading(true);
       setErrorMessage('');
 
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
+      try {
+        const {
+          data: { user },
+          error: userError,
+        } = await supabase.auth.getUser();
 
-      if (userError || !user) {
-        router.push('/login');
-        return;
-      }
+        if (userError || !user) {
+          router.push('/login');
+          return;
+        }
 
-      const { data, error } = await supabase
-        .from('user_account')
-        .select('id')
-        .eq('user_id', user.id)
-        .single();
+        // Check educator permissions
+        const { data: permissionData, error: permissionError } = await supabase
+          .from('educatorpermissions')
+          .select('active')
+          .eq('permission', 'disable classroom creation')
+          .single();
 
-      if (error || !data) {
-        setErrorMessage('Failed to fetch user account.');
-        setLoading(false);
-        return;
-      }
+        if (permissionError) {
+          console.error('Error fetching educator permissions:', permissionError);
+        } else {
+          setCanCreateClassroom(!permissionData?.active);
+        }
 
-      const { data: classroomData, error: classroomError } = await supabase
-        .from('temp_classroom')
-        .select('crid, name, description')
-        .eq('uaid_educator', data.id);
+        const { data, error } = await supabase
+          .from('user_account')
+          .select('id')
+          .eq('user_id', user.id)
+          .single();
 
-      if (classroomError) {
-        setErrorMessage('Failed to fetch classrooms.');
-      } else {
-        setClassrooms(classroomData || []);
+        if (error || !data) {
+          setErrorMessage('Failed to fetch user account.');
+          setLoading(false);
+          return;
+        }
+
+        const { data: classroomData, error: classroomError } = await supabase
+          .from('temp_classroom')
+          .select('crid, name, description')
+          .eq('uaid_educator', data.id);
+
+        if (classroomError) {
+          setErrorMessage('Failed to fetch classrooms.');
+        } else {
+          setClassrooms(classroomData || []);
+        }
+      } catch (err) {
+        setErrorMessage('An error occurred while fetching data.');
+        console.error(err);
       }
 
       setLoading(false);
@@ -88,7 +107,7 @@ export default function ViewClassrooms() {
           ))}
         </div>
 
-        {classrooms.length === 0 && !loading && (
+        {classrooms.length === 0 && !loading && canCreateClassroom && (
           <div className="mt-4">
             <p className="text-gray-600">No classrooms created yet.</p>
             <button
@@ -101,7 +120,14 @@ export default function ViewClassrooms() {
           </div>
         )}
 
-        {classrooms.length > 0 && !loading && (
+        {classrooms.length === 0 && !loading && !canCreateClassroom && (
+          <div className="mt-4">
+            <p className="text-gray-600">No classrooms created yet.</p>
+            <p className="text-red-500 mt-2">Classroom creation has been disabled by the administrator.</p>
+          </div>
+        )}
+
+        {classrooms.length > 0 && !loading && canCreateClassroom && (
           <div className="mt-22 absolute top-1 right-10">
             <button
               type="button"
