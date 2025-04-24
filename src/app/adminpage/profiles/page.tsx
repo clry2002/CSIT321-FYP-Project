@@ -20,7 +20,7 @@ export default function ProfilesRoute() {
               height={40}
               className="mr-2"
             />
-            <h1 className="text-2xl font-bold">User Profiles</h1>
+            <h1 className="text-2xl font-bold">Profile Management</h1>
           </div>
           <div className="flex items-center">
             <button

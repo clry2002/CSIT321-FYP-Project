@@ -15,8 +15,13 @@ export default function ProfilesPage() {
   const [selectedProfileToSuspend, setSelectedProfileToSuspend] = useState<string | null>(null);
   const [showRevertAllModal, setShowRevertAllModal] = useState(false);
   const [selectedProfileToRevert, setSelectedProfileToRevert] = useState<string | null>(null);
+  const [showNewProfileModal, setShowNewProfileModal] = useState(false);
+  const [showDeleteProfileModal, setShowDeleteProfileModal] = useState(false);
+  const [profileToDelete, setProfileToDelete] = useState<string | null>(null);
+  const [newProfileName, setNewProfileName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [userAccounts, setUserAccounts] = useState<UserAccount[]>([]);
+  const [customProfiles, setCustomProfiles] = useState<{ name: string }[]>([]);
 
   useEffect(() => {
     fetchData();
@@ -24,6 +29,7 @@ export default function ProfilesPage() {
     fetchChildPermissions();
     fetchParentPermissions();
     fetchEducatorPermissions();
+    fetchCustomProfiles();
   }, []);
 
   const fetchData = async () => {
@@ -95,6 +101,56 @@ export default function ProfilesPage() {
       setEducatorClassroomPermission(data?.active || false);
     } catch (err) {
       console.error('Error fetching educator permissions:', err);
+    }
+  };
+
+  const fetchCustomProfiles = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('userprofile_custom')
+        .select('*');
+      if (error) throw error;
+      setCustomProfiles(data || []);
+    } catch (err) {
+      console.error('Error fetching custom profiles:', err);
+      setError(err instanceof Error ? err.message : 'An error occurred while fetching custom profiles');
+    }
+  };
+
+  const handleCreateCustomProfile = async () => {
+    try {
+      if (!newProfileName.trim()) return;
+
+      const { error } = await supabase
+        .from('userprofile_custom')
+        .insert({ name: newProfileName.trim() });
+
+      if (error) throw error;
+
+      await fetchCustomProfiles();
+      setShowNewProfileModal(false);
+      setNewProfileName('');
+    } catch (err) {
+      console.error('Error creating custom profile:', err);
+      setError(err instanceof Error ? err.message : 'An error occurred while creating custom profile');
+    }
+  };
+
+  const handleDeleteCustomProfile = async (name: string) => {
+    try {
+      const { error } = await supabase
+        .from('userprofile_custom')
+        .delete()
+        .eq('name', name);
+
+      if (error) throw error;
+
+      await fetchCustomProfiles();
+      setShowDeleteProfileModal(false);
+      setProfileToDelete(null);
+    } catch (err) {
+      console.error('Error deleting custom profile:', err);
+      setError(err instanceof Error ? err.message : 'An error occurred while deleting custom profile');
     }
   };
 
@@ -230,7 +286,20 @@ export default function ProfilesPage() {
   return (
     <div className="bg-gray-900 rounded-lg shadow-lg p-6">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">User Profiles</h2>
+        <div className="flex items-center space-x-4">
+          <h2 className="text-2xl font-bold">User Profiles</h2>
+          <button
+            onClick={() => setShowNewProfileModal(true)}
+            className="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-lg relative group"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+            </svg>
+            <span className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50">
+              Add new profile
+            </span>
+          </button>
+        </div>
       </div>
       
       {error && (
@@ -239,7 +308,7 @@ export default function ProfilesPage() {
         </div>
       )}
 
-      <div>
+      <div className="mb-8">
         <table className="min-w-full divide-y divide-gray-800">
           <thead className="bg-gray-900">
             <tr>
@@ -248,6 +317,39 @@ export default function ProfilesPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-800">
+            {/* Administrator Profile */}
+            <tr className="hover:bg-gray-800">
+              <td className="px-6 py-4">
+                <div className="flex items-center">
+                  Administrator
+                  <div className="relative ml-3">
+                    <svg 
+                      xmlns="http://www.w3.org/2000/svg" 
+                      className="h-6 w-6 text-yellow-500 animate-pulse" 
+                      viewBox="0 0 24 24" 
+                      fill="currentColor"
+                    >
+                      <path d="M2.5 5.5a3 3 0 1 1 6 0 3 3 0 0 1-6 0zm15 0a3 3 0 1 1 6 0 3 3 0 0 1-6 0zm-7.5 3a3 3 0 1 1 6 0 3 3 0 0 1-6 0zM2 12h20l-2 8H4l-2-8z"/>
+                    </svg>
+                    <div className="absolute inset-0 animate-ping">
+                      <svg 
+                        xmlns="http://www.w3.org/2000/svg" 
+                        className="h-6 w-6 text-yellow-300 opacity-75" 
+                        viewBox="0 0 24 24" 
+                        fill="currentColor"
+                      >
+                        <path d="M2.5 5.5a3 3 0 1 1 6 0 3 3 0 0 1-6 0zm15 0a3 3 0 1 1 6 0 3 3 0 0 1-6 0zm-7.5 3a3 3 0 1 1 6 0 3 3 0 0 1-6 0zM2 12h20l-2 8H4l-2-8z"/>
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+              </td>
+              <td className="px-6 py-4">
+                <div className="flex items-center justify-end">
+                  {/* No buttons for Administrator */}
+                </div>
+              </td>
+            </tr>
             {['Child', 'Parent', 'Publisher', 'Educator'].map((profile, index) => (
               <tr key={index} className="hover:bg-gray-800">
                 <td className="px-6 py-4">{profile}</td>
@@ -304,6 +406,51 @@ export default function ProfilesPage() {
                 </td>
               </tr>
             ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Custom Profiles Table */}
+      <div className="mt-12">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold">Custom Profiles</h2>
+        </div>
+
+        <table className="min-w-full divide-y divide-gray-800">
+          <thead className="bg-gray-900">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Profile Name</th>
+              <th className="px-6 py-3"></th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-800">
+            {customProfiles.map((profile, index) => (
+              <tr key={index} className="hover:bg-gray-800">
+                <td className="px-6 py-4">{profile.name}</td>
+                <td className="px-6 py-4">
+                  <div className="flex items-center justify-end">
+                    <button
+                      onClick={() => {
+                        setProfileToDelete(profile.name);
+                        setShowDeleteProfileModal(true);
+                      }}
+                      className="text-red-400 hover:text-red-300"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+            {customProfiles.length === 0 && (
+              <tr>
+                <td colSpan={2} className="px-6 py-4 text-center text-gray-500">
+                  No custom profiles created yet
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
@@ -505,6 +652,100 @@ export default function ProfilesPage() {
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 100-2 1 1 0 000 2zm7-1a1 1 0 11-2 0 1 1 0 012 0zm-7.536 5.879a1 1 0 001.415 0 3 3 0 014.242 0 1 1 0 001.415-1.415 5 5 0 00-7.072 0 1 1 0 000 1.415z" clipRule="evenodd" />
                 </svg>
                 <span>Revert All</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add New Profile Modal */}
+      {showNewProfileModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 overflow-hidden">
+          <div className="bg-gray-900 p-6 rounded-lg w-[500px]">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold">Create New Profile</h3>
+              <button
+                onClick={() => {
+                  setShowNewProfileModal(false);
+                  setNewProfileName('');
+                }}
+                className="text-gray-400 hover:text-white"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="profileName" className="block text-sm font-medium text-gray-400 mb-2">
+                  Profile Name
+                </label>
+                <input
+                  type="text"
+                  id="profileName"
+                  value={newProfileName}
+                  onChange={(e) => setNewProfileName(e.target.value)}
+                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter profile name"
+                />
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end space-x-4">
+              <button
+                onClick={() => {
+                  setShowNewProfileModal(false);
+                  setNewProfileName('');
+                }}
+                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateCustomProfile}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded"
+                disabled={!newProfileName.trim()}
+              >
+                Create Profile
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Profile Confirmation Modal */}
+      {showDeleteProfileModal && profileToDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 overflow-hidden">
+          <div className="bg-gray-900 p-6 rounded-lg w-[500px]">
+            <div className="flex items-center space-x-3 mb-4">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-red-500" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" />
+              </svg>
+              <h3 className="text-xl font-bold">Delete Custom Profile</h3>
+            </div>
+            <p className="mb-4 text-red-400">
+              Are you sure you want to delete the custom profile &quot;{profileToDelete}&quot;? This action cannot be undone.
+            </p>
+            <div className="flex justify-end space-x-4">
+              <button
+                onClick={() => {
+                  setShowDeleteProfileModal(false);
+                  setProfileToDelete(null);
+                }}
+                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDeleteCustomProfile(profileToDelete)}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded flex items-center space-x-2"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+                <span>Delete Profile</span>
               </button>
             </div>
           </div>
