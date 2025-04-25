@@ -191,96 +191,6 @@ export default function ChildViewProfile() {
       await syncFavoriteGenres(userAccountId);
       console.log('[Profile] Favorite genres synced successfully');
 
-      // // Get currently blocked genres
-      // const { data: currentlyBlocked, error: blockedError } = await supabase
-      //   .from('blockedgenres')
-      //   .select('genreid')
-      //   .eq('child_id', userAccountId);
-
-      // if (blockedError) throw blockedError;
-      // const currentlyBlockedIds = currentlyBlocked?.map(item => item.genreid) || [];
-
-      // // Get all genre IDs and names
-      // const { data: allGenres, error: genresError } = await supabase
-      //   .from('temp_genre')
-      //   .select('gid, genrename');
-
-      // if (genresError) {
-      //   console.error('Error fetching genres:', genresError);
-      //   throw genresError;
-      // }
-
-      // // Get current interactions
-      // const { data: currentInteractions, error: currentError } = await supabase
-      //   .from('userInteractions')
-      //   .select('gid, score')
-      //   .eq('uaid', userAccountId);
-
-      // if (currentError) {
-      //   console.error('Error fetching current interactions:', currentError);
-      //   throw currentError;
-      // }
-
-      // // Process each genre in the selected favorites
-      // for (const genre of selectedGenres) {
-      //   const genreId = allGenres.find(g => g.genrename === genre)?.gid;
-      //   if (!genreId) {
-      //     throw new Error(`Could not find genre ID for genre: ${genre}`);
-      //   }
-
-      //   // Skip if genre is currently blocked
-      //   if (currentlyBlockedIds.includes(genreId)) continue;
-
-      //   // Add new row with score 20 if it doesn't exist
-      //   const { error: insertError } = await supabase
-      //     .from('userInteractions')
-      //     .insert({
-      //       uaid: userAccountId,
-      //       gid: genreId,
-      //       score: 20
-      //     })
-      //     .select();
-
-      //   // If row already exists, update it
-      //   if (insertError && insertError.code === '23505') { // Unique violation error code
-      //     const { error: updateError } = await supabase
-      //       .from('userInteractions')
-      //       .update({ score: 20 })
-      //       .eq('uaid', userAccountId)
-      //       .eq('gid', genreId);
-
-      //     if (updateError) {
-      //       console.error('Error updating genre score:', updateError);
-      //       throw updateError;
-      //     }
-      //   } else if (insertError) {
-      //     console.error('Error inserting new interaction:', insertError);
-      //     throw insertError;
-      //   }
-      // }
-
-      // // For genres that are no longer favorites, remove their rows
-      // const selectedGenreIds = selectedGenres.map(genre => 
-      //   allGenres.find(g => g.genrename === genre)?.gid
-      // ).filter(id => id !== undefined) as number[];
-
-      // const genresToRemove = (currentInteractions || [])
-      //   .filter(interaction => !selectedGenreIds.includes(interaction.gid))
-      //   .map(interaction => interaction.gid);
-
-      // if (genresToRemove.length > 0) {
-      //   const { error: deleteError } = await supabase
-      //     .from('userInteractions')
-      //     .delete()
-      //     .eq('uaid', userAccountId)
-      //     .in('gid', genresToRemove);
-
-      //   if (deleteError) {
-      //     console.error('Error removing genre interactions:', deleteError);
-      //     throw deleteError;
-      //   }
-      // }
-
       setSaveMessage({ type: 'success', text: 'Profile updated successfully!' });
       setHasChanges(false);
       setEditingField(null);
@@ -296,9 +206,9 @@ export default function ChildViewProfile() {
     }
   };
 
-  const handleGenreClick = () => {
-    setShowGenreSelector(!showGenreSelector);
-  };
+  // const handleGenreClick = () => {
+  //   setShowGenreSelector(!showGenreSelector);
+  // };
 
   const handleGenreToggle = (genre: string) => {
     setSelectedGenres(prev => {
@@ -360,182 +270,182 @@ export default function ChildViewProfile() {
 
   return (
     <ErrorBoundary>
-      <div className="flex h-screen bg-white overflow-hidden">
+      <div className="flex h-screen bg-gradient-to-br from-blue-100 to-purple-100 overflow-hidden">
         <Navbar />
-        <div className="flex-1 overflow-y-auto pt-16">
-          <div className="px-6 py-8">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-gray-900">My Profile</h2>
-            </div>
-
+        <div className="flex-1 overflow-y-auto pt-12 pb-8 px-6 sm:px-8 lg:px-16">
+          <Link
+            href="/childsettings"
+            className="inline-flex items-center text-sm font-semibold text-indigo-600 hover:text-indigo-800 transition-colors duration-200 mb-6 mt-12"
+          >
+            <svg className="w-4 h-4 mr-1 -ml-0.5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+              <path fillRule="evenodd" d="M7.707 14.707a1 1 0 01-1.414-1.414L10.586 10l-4.293-4.293a1 1 0 011.414-1.414l5 5a1 1 0 010 1.414l-5 5z" clipRule="evenodd" />
+            </svg>
+            Back to Settings
+          </Link>
+  
+          <div className="bg-white shadow-lg rounded-2xl p-6 sm:p-8">
+            <h2 className="text-3xl font-extrabold text-gray-900 mb-6">My Awesome Profile</h2>
+  
             {saveMessage && (
-              <div className={`mb-4 p-4 rounded-lg ${
-                saveMessage.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+              <div className={`mb-6 p-4 rounded-md ${
+                saveMessage.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
               }`}>
-                {saveMessage.text}
+                <strong className="font-semibold">{saveMessage.type === 'success' ? 'Yay!' : 'Oops!'}</strong> {saveMessage.text}
               </div>
             )}
-
-            <div className="max-w-2xl">
-              <div className="space-y-6">
-                <div className="bg-white p-6">
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Full Name</label>
-                      {editingField === 'full_name' ? (
-                        <input
-                          type="text"
-                          value={profileData?.full_name || ''}
-                          onChange={(e) => handleFieldChange('full_name', e.target.value)}
-                          onBlur={handleFieldBlur}
-                          autoFocus
-                          className="mt-1 block w-full text-lg text-gray-900 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                        />
-                      ) : (
-                        <div 
-                          onClick={() => handleFieldClick('full_name')}
-                          className="mt-1 text-lg text-gray-900 cursor-pointer hover:bg-gray-50 p-2 rounded"
-                        >
-                          {profileData?.full_name}
-                        </div>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Username</label>
-                      {editingField === 'username' ? (
-                        <input
-                          type="text"
-                          value={profileData?.username || ''}
-                          onChange={(e) => handleFieldChange('username', e.target.value)}
-                          onBlur={handleFieldBlur}
-                          autoFocus
-                          className="mt-1 block w-full text-lg text-gray-900 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                        />
-                      ) : (
-                        <div 
-                          onClick={() => handleFieldClick('username')}
-                          className="mt-1 text-lg text-gray-900 cursor-pointer hover:bg-gray-50 p-2 rounded"
-                        >
-                          {profileData?.username}
-                        </div>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Age</label>
-                      {editingField === 'age' ? (
-                        <input
-                          type="number"
-                          value={profileData?.age || ''}
-                          onChange={(e) => handleFieldChange('age', parseInt(e.target.value))}
-                          onBlur={handleFieldBlur}
-                          autoFocus
-                          className="mt-1 block w-full text-lg text-gray-900 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                        />
-                      ) : (
-                        <div 
-                          onClick={() => handleFieldClick('age')}
-                          className="mt-1 text-lg text-gray-900 cursor-pointer hover:bg-gray-50 p-2 rounded"
-                        >
-                          {profileData?.age}
-                        </div>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Favorite Genres</label>
-                      <div className="mt-2">
-                        {!showGenreSelector ? (
-                          <div className="flex flex-wrap gap-2">
-                            {selectedGenres.length === 0 ? (
-                              <button
-                                onClick={handleGenreClick}
-                                className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800 cursor-pointer hover:bg-gray-200"
-                              >
-                                Add
-                              </button>
-                            ) : (
-                              selectedGenres.map((genre) => (
-                                <button
-                                  key={genre}
-                                  onClick={handleGenreClick}
-                                  className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-rose-100 text-rose-800 cursor-pointer hover:bg-rose-200"
-                                >
-                                  {genre}
-                                </button>
-                              ))
-                            )}
-                          </div>
-                        ) : (
-                          <div className="flex flex-wrap gap-2">
-                            {availableGenres.map((genre) => (
-                              <button
-                                key={genre}
-                                onClick={() => handleGenreToggle(genre)}
-                                className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                                  selectedGenres.includes(genre)
-                                    ? 'bg-rose-100 text-rose-800'
-                                    : 'bg-gray-100 text-gray-800'
-                                } cursor-pointer hover:bg-rose-200`}
-                              >
-                                {genre}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="mt-4">
-                      <label className="block text-sm font-medium text-gray-700">Blocked Genres</label>
-                      <div className="mt-2">
-                        <div className="flex flex-wrap gap-2">
-                          {profileData?.blocked_genres.length === 0 ? (
-                            <span className="text-sm text-gray-500">No blocked genres</span>
-                          ) : (
-                            profileData?.blocked_genres.map((genre) => (
-                              <span
-                                key={genre}
-                                className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800"
-                              >
-                                {genre}
-                              </span>
-                            ))
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    {hasChanges && (
-                      <div className="mt-30 flex justify-end">
-                        <button
-                          onClick={handleSave}
-                          className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                        >
-                          Save Changes
-                        </button>
-                      </div>
-                    )}
+  
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">My Name</label>
+                {editingField === 'full_name' ? (
+                  <input
+                    type="text"
+                    value={profileData?.full_name || ''}
+                    onChange={(e) => handleFieldChange('full_name', e.target.value)}
+                    onBlur={handleFieldBlur}
+                    autoFocus
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-lg"
+                  />
+                ) : (
+                  <button
+                    onClick={() => handleFieldClick('full_name')}
+                    className="mt-1 block w-full rounded-md border border-gray-300 bg-white py-2 px-3 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 text-left text-lg text-gray-900 hover:bg-gray-50 transition-colors duration-200"
+                  >
+                    {profileData?.full_name || <span className="text-gray-400">Tap to add name</span>}
+                  </button>
+                )}
+              </div>
+  
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">My Username</label>
+                {editingField === 'username' ? (
+                  <input
+                    type="text"
+                    value={profileData?.username || ''}
+                    onChange={(e) => handleFieldChange('username', e.target.value)}
+                    onBlur={handleFieldBlur}
+                    autoFocus
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-lg"
+                  />
+                ) : (
+                  <button
+                    onClick={() => handleFieldClick('username')}
+                    className="mt-1 block w-full rounded-md border border-gray-300 bg-white py-2 px-3 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 text-left text-lg text-gray-900 hover:bg-gray-50 transition-colors duration-200"
+                  >
+                    {profileData?.username || <span className="text-gray-400">Tap to add username</span>}
+                  </button>
+                )}
+              </div>
+  
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">My Age</label>
+                {editingField === 'age' ? (
+                  <input
+                    type="number"
+                    value={profileData?.age || ''}
+                    onChange={(e) => handleFieldChange('age', parseInt(e.target.value))}
+                    onBlur={handleFieldBlur}
+                    autoFocus
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-lg"
+                  />
+                ) : (
+                  <button
+                    onClick={() => handleFieldClick('age')}
+                    className="mt-1 block w-full rounded-md border border-gray-300 bg-white py-2 px-3 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 text-left text-lg text-gray-900 hover:bg-gray-50 transition-colors duration-200"
+                  >
+                    {profileData?.age !== undefined ? profileData.age : <span className="text-gray-400">Tap to add age</span>}
+                  </button>
+                )}
+              </div>
+  
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">My Favorites (Genres)</label>
+                {!showGenreSelector ? (
+                  <div className="flex flex-wrap gap-2">
+                    {selectedGenres.map((genre) => (
+                      <span
+                        key={genre}
+                        className="inline-flex items-center rounded-full bg-indigo-100 px-3 py-1 text-sm font-medium text-indigo-700"
+                      >
+                        {genre}
+                      </span>
+                    ))}
+                    <button
+                      onClick={() => setShowGenreSelector(true)}
+                      className="inline-flex items-center rounded-full bg-yellow-300 text-yellow-800 px-3 py-1 text-sm font-semibold hover:bg-yellow-400 transition-colors duration-200"
+                    >
+                      <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" /></svg>
+                      Modify
+                    </button>
                   </div>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 mt-2">
+                    {availableGenres.map((genre) => (
+                      <button
+                        key={genre}
+                        onClick={() => handleGenreToggle(genre)}
+                        className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-medium transition-colors duration-200 ${
+                          selectedGenres.includes(genre)
+                            ? 'bg-indigo-500 text-white hover:bg-indigo-600'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                      >
+                        {genre}
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => setShowGenreSelector(false)}
+                      className="inline-flex items-center rounded-full bg-green-500 text-white px-4 py-2 text-sm font-semibold hover:bg-green-600 transition-colors duration-200"
+                    >
+                      <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 1.414L10.586 9H7a1 1 0 000 2h3.586l-1.293 1.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414z" clipRule="evenodd" /></svg>
+                      Done!
+                    </button>
+                  </div>
+                )}
+              </div>
+  
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Blocked Genres</label>
+                <div className="flex flex-wrap gap-2">
+                  {profileData?.blocked_genres.map((genre) => (
+                    <span
+                      key={genre}
+                      className="inline-flex items-center rounded-full bg-red-100 px-3 py-1 text-sm font-medium text-red-700"
+                    >
+                      {genre}
+                    </span>
+                  ))}
+                  {profileData?.blocked_genres.length === 0 && (
+                    <span className="text-sm text-gray-500">Nothing blocked yet!</span>
+                  )}
                 </div>
               </div>
-            </div>
-
-            <div className="mt-8">
-              <Link
-                href="/childsettings"
-                className="text-blue-600 hover:text-blue-800"
-              >
-                ← Back to Settings
-              </Link>
+  
+              {hasChanges && (
+                <div className="mt-6 flex justify-end space-x-3">
+                  <button
+                    onClick={() => {
+                      setSelectedGenres(profileData?.favourite_genres || []);
+                      setHasChanges(false);
+                      setEditingField(null);
+                      setShowGenreSelector(false);
+                    }}
+                    className="rounded-md border border-gray-300 bg-white py-2 px-4 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSave}
+                    className="inline-flex items-center rounded-md border border-transparent bg-indigo-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                  >
+                    Save Profile
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
       </div>
     </ErrorBoundary>
   );
-} 
-
-
-// testting
+}
