@@ -43,13 +43,13 @@ export default function Navbar() {
         <Image
           src={homeIcon}
           alt="Home Icon"
-          width={20}
-          height={20}
+          width={28} // Increased width
+          height={28} // Increased height
           className={`mb-0.5 transition-colors duration-300 ${
             activeLink === '/childpage' ? 'animate-bounce' : 'hover:filter brightness-110 saturate-120'
           }`}
         />
-        <b className={`text-xs transition-colors duration-300 ${activeLink === '/childpage' ? 'text-blue-700' : 'text-gray-800 hover:text-blue-600'}`}>Home</b>
+        <b className={`text-sm transition-colors duration-300 ${activeLink === '/childpage' ? 'text-blue-700' : 'text-gray-800 hover:text-blue-600'}`}>Home</b>
       </Link>
 
       <Link
@@ -62,13 +62,13 @@ export default function Navbar() {
         <Image
           src={exploreIcon}
           alt="Explore Icon"
-          width={20}
-          height={20}
+          width={28} // Increased width
+          height={28} // Increased height
           className={`mb-0.5 transition-colors duration-300 ${
             activeLink === '/search' ? 'hover:filter brightness-110 saturate-120 animate-pulse' : 'hover:filter brightness-110 saturate-120'
           }`}
         />
-        <b className={`text-xs transition-colors duration-300 ${activeLink === '/search' ? 'text-green-700 animate-pulse' : 'text-gray-800 hover:text-green-600'}`}>Search</b>
+        <b className={`text-sm transition-colors duration-300 ${activeLink === '/search' ? 'text-green-700 animate-pulse' : 'text-gray-800 hover:text-green-600'}`}>Search</b>
       </Link>
 
       <Link
@@ -81,13 +81,13 @@ export default function Navbar() {
         <Image
           src={booksIcon}
           alt="My Books Icon"
-          width={20}
-          height={20}
+          width={28} // Increased width
+          height={28} // Increased height
           className={`mb-0.5 transition-colors duration-300 ${
             activeLink === '/bookmark' ? 'hover:filter brightness-110 saturate-120 animate-pulse' : 'hover:filter brightness-110 saturate-120'
           }`}
         />
-        <b className={`text-xs transition-colors duration-300 ${activeLink === '/bookmark' ? 'text-yellow-700 animate-pulse' : 'text-gray-800 hover:text-yellow-600'}`}>Bookmarks</b>
+        <b className={`text-sm transition-colors duration-300 ${activeLink === '/bookmark' ? 'text-yellow-700 animate-pulse' : 'text-gray-800 hover:text-yellow-600'}`}>Bookmarks</b>
       </Link>
 
       <Link
@@ -100,13 +100,13 @@ export default function Navbar() {
         <Image
           src={classroomIcon}
           alt="Learning Hub Icon"
-          width={20}
-          height={20}
+          width={28} // Increased width
+          height={28} // Increased height
           className={`mb-0.5 transition-colors duration-300 ${
             activeLink === '/classroom' ? 'hover:filter brightness-110 saturate-120 animate-pulse' : 'hover:filter brightness-110 saturate-120'
           }`}
         />
-        <b className={`text-xs transition-colors duration-300 ${activeLink === '/classroom' ? 'text-purple-700 animate-pulse' : 'text-gray-800 hover:text-purple-600'}`}>Classroom</b>
+        <b className={`text-sm transition-colors duration-300 ${activeLink === '/classroom' ? 'text-purple-700 animate-pulse' : 'text-gray-800 hover:text-purple-600'}`}>Classroom</b>
       </Link>
 
       <Link
@@ -119,13 +119,13 @@ export default function Navbar() {
         <Image
           src={settingsIcon}
           alt="My Space Icon"
-          width={20}
-          height={20}
+          width={28} // Increased width
+          height={28} // Increased height
           className={`mb-0.5 transition-colors duration-300 ${
             activeLink === '/childsettings' ? 'hover:filter brightness-110 saturate-120 animate-pulse' : 'hover:filter brightness-110 saturate-120'
           }`}
         />
-        <b className={`text-xs transition-colors duration-300 ${activeLink === '/childsettings' ? 'text-orange-700 animate-pulse' : 'text-gray-800 hover:text-orange-600'}`}>Settings</b>
+        <b className={`text-sm transition-colors duration-300 ${activeLink === '/childsettings' ? 'text-orange-700 animate-pulse' : 'text-gray-800 hover:text-orange-600'}`}>Settings</b>
       </Link>
 
       {/* Logout link */}
@@ -139,13 +139,13 @@ export default function Navbar() {
         <Image
           src={logoutIcon}
           alt="Log Out Icon"
-          width={20}
-          height={20}
+          width={28} // Increased width
+          height={28} // Increased height
           className={`mb-0.5 transition-colors duration-300 ${
             activeLink === '/logout' ? 'hover:filter brightness-110 saturate-120 animate-pulse' : 'hover:filter brightness-110 saturate-120'
           }`}
         />
-        <b className={`text-xs transition-colors duration-300 ${activeLink === '/logout' ? 'text-red-700 animate-pulse' : 'text-gray-800 hover:text-red-600'}`}>Log Out</b>
+        <b className={`text-sm transition-colors duration-300 ${activeLink === '/logout' ? 'text-red-700 animate-pulse' : 'text-gray-800 hover:text-red-600'}`}>Log Out</b>
       </Link>
     </nav>
   );
