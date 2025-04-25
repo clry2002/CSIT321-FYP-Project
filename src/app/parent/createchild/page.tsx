@@ -20,6 +20,8 @@ export default function CreateChildAccount() {
   const [showPassword, setShowPassword] = useState(false);
   const [showParentPassword, setShowParentPassword] = useState(false);
 
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!fullName.trim()) {
@@ -29,6 +31,12 @@ export default function CreateChildAccount() {
     if (!age || parseInt(age) < 1 || parseInt(age) > 17) {
       setError('Please enter a valid age between 1 and 17.');
       return;
+    }
+    if (password.length < 6) {
+      setPasswordError('Password must be at least 6 characters long.');
+      return;
+    } else {
+      setPasswordError(null); // Clear any previous password error
     }
     setError(null);
     setLoading(true);
@@ -211,6 +219,9 @@ export default function CreateChildAccount() {
                     )}
                   </button>
                 </div>
+                {passwordError && (
+                  <p className="text-red-500 text-sm mt-1">{passwordError}</p>
+                )}
               </div>
             </div>
 
