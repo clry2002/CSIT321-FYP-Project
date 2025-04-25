@@ -7,44 +7,55 @@ import ChatBot from "../components/ChatBot";
 
 export default function SettingsPage() {
   return (
-    <div className="flex h-screen bg-gray-100 overflow-hidden">
+    <div className="flex h-screen bg-gradient-to-b from-blue-100 to-purple-100 overflow-hidden">
       <Navbar />
       {/* Main Content */}
-      <div className="flex-1 overflow-y-auto pt-25 px-6 bg-white">
-        
-        <div className="px-6">
-          <h2 className="text-3xl font-serif mb-6 text-gray-900">Settings</h2>
-          <div className="max-w-4xl space-y-4">
-            <div className="flex gap-4">
-              <Link href="/childviewprofile" className="w-1/2">
-                <div className="p-6 border rounded-lg shadow hover:border-rose-300 hover:bg-rose-50 transition">
-                  <div className="flex items-center space-x-3">
-                    <User className="w-6 h-6 text-gray-900" />
-                    <h3 className="text-lg font-semibold text-gray-900">My Profile</h3>
+      <div className="flex-1 overflow-y-auto pt-20 px-6 bg-white rounded-xl shadow-lg m-4">
+        <div className="px-6 py-8">
+          <h2 className="text-3xl font-bold text-center text-purple-600 mb-8"><span role="img" aria-label="gear">⚙️</span> Settings</h2>
+          <div className="max-w-md mx-auto space-y-6">
+            {/* My Profile */}
+            <Link href="/childviewprofile" className="block">
+              <div className="p-6 bg-gradient-to-r from-pink-100 to-rose-100 border border-pink-200 rounded-xl shadow-sm hover:shadow-md transition duration-200">
+                <div className="flex items-center space-x-4">
+                  <div className="p-2 rounded-md bg-pink-200 transition-transform duration-200 hover:scale-110">
+                    <User className="w-8 h-8 text-pink-600" />
                   </div>
-                  <p className="text-sm text-gray-700 ml-9 mt-2">Manage your profile information and preferences</p>
-                </div>
-              </Link>
-              
-              <Link href="/childaccountsettings" className="w-1/2">
-                <div className="p-6 border rounded-lg shadow hover:border-blue-300 hover:bg-blue-50 transition">
-                  <div className="flex items-center space-x-3">
-                    <Settings className="w-6 h-6 text-gray-900" />
-                    <h3 className="text-lg font-semibold text-gray-900">Account Settings</h3>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-800">My Profile <span role="img" aria-label="user icon">👤</span></h3>
+                    <p className="text-sm text-gray-600 mt-1">Select your favourite genres and change your username!</p>
                   </div>
-                  <p className="text-sm text-gray-700 ml-9 mt-2">Manage your email and password</p>
                 </div>
-              </Link>
-            </div>
+              </div>
+            </Link>
 
-            <Link href="/chathistory" className="block">
-            {/* <Link href="/components/child/ChatHistory" className="block"> */}
-              <div className="p-6 border rounded-lg shadow hover:border-blue-300 hover:bg-blue-50 transition">
-                <div className="flex items-center space-x-3">
-                  <MessageSquare className="w-6 h-6 text-gray-900" />
-                  <h3 className="text-lg font-semibold text-gray-900">View Chat History</h3>
+            {/* Account Settings */}
+            <Link href="/childaccountsettings" className="block">
+              <div className="p-6 bg-gradient-to-r from-blue-100 to-cyan-100 border border-blue-200 rounded-xl shadow-sm hover:shadow-md transition duration-200">
+                <div className="flex items-center space-x-4">
+                  <div className="p-2 rounded-md bg-blue-200 transition-transform duration-200 hover:scale-110">
+                    <Settings className="w-8 h-8 text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-800">Settings <span role="img" aria-label="lock icon">🔒</span></h3>
+                    <p className="text-sm text-gray-600 mt-1">Change your password!</p>
+                  </div>
                 </div>
-                <p className="text-sm text-gray-700 ml-9 mt-2">Review your past conversations and interactions with your Chatbot</p>
+              </div>
+            </Link>
+
+            {/* View Chat History */}
+            <Link href="/chathistory" className="block">
+              <div className="p-6 bg-gradient-to-r from-yellow-100 to-orange-100 border border-yellow-200 rounded-xl shadow-sm hover:shadow-md transition duration-200">
+                <div className="flex items-center space-x-4">
+                  <div className="p-2 rounded-md bg-yellow-200 transition-transform duration-200 hover:scale-110">
+                    <MessageSquare className="w-8 h-8 text-yellow-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-800">Chat History <span role="img" aria-label="chat bubble">💬</span></h3>
+                    <p className="text-sm text-gray-600 mt-1">Look back at our fun chats!</p>
+                  </div>
+                </div>
               </div>
             </Link>
           </div>
