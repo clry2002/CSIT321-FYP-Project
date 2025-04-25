@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { RefreshCw, Settings, LogOut } from 'lucide-react';
+import { deleteChildAccount } from '../components/parent/ChildDeletion'
 
 interface Child {
   id: string;
@@ -165,7 +166,29 @@ const ParentDataFetcher = () => {
 
   const handleDeleteConfirm = async () => {
     if (!childToDelete) return;
-    await deleteChild(childToDelete);
+    
+    const childToRemove = children.find(child => child.id === childToDelete);
+    if (!childToRemove) {
+      setError('Child not found');
+      setShowDeleteConfirm(false);
+      return;
+    }
+    
+    const result = await deleteChildAccount(
+      childToDelete,
+      childToRemove,
+      setLoading,
+      setError
+    );
+    
+    if (result.success) {
+      // Update local state without refetching
+      setChildren(children.filter(child => child.id !== childToDelete));
+      setNotificationMessage(result.message);
+      setShowNotification(true);
+      setTimeout(() => setShowNotification(false), 3000);
+    }
+    
     setShowDeleteConfirm(false);
     setChildToDelete(null);
   };
@@ -174,109 +197,6 @@ const ParentDataFetcher = () => {
     setShowDeleteConfirm(false);
     setChildToDelete(null);
   };
-
-  const deleteChild = async (id: string) => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const childToRemove = children.find(child => child.id === id);
-      if (!childToRemove) {
-        throw new Error('Child not found');
-      }
-
-      // Validate whether account deletion will succeed
-      if (childToRemove.user_id) {
-        try {
-          // First validate that the API endpoint is reachable and working
-          const testResponse = await fetch('/api/admin/delete-user/validate', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              user_id: childToRemove.user_id,
-              account_id: childToRemove.id
-            }),
-          });
-  
-          if (!testResponse.ok) {
-            const contentType = testResponse.headers.get('content-type');
-            if (contentType && contentType.includes('application/json')) {
-              const errorData = await testResponse.json();
-              throw new Error(errorData.error || `Validation failed: ${testResponse.status}`);
-            } else {
-              const text = await testResponse.text();
-              throw new Error(`Validation failed: ${testResponse.status}. Response: ${text.substring(0, 100)}...`);
-            }
-          }
-          
-          await testResponse.json(); // Consume the response
-        } catch (validationError: unknown) {
-          console.error('Validation error:', validationError);
-          const errorMessage = validationError instanceof Error 
-            ? validationError.message 
-            : 'Unknown validation error';
-          throw new Error(`Cannot proceed with deletion: ${errorMessage}`);
-        }
-      }
-
-      // Delete from isparentof table first
-      const { error: relationError } = await supabase
-        .from('isparentof')
-        .delete()
-        .eq('child_id', id);
-
-      if (relationError) {
-        console.error('Error deleting from isparentof:', relationError);
-        throw relationError;
-      }
-      // Delete from child_details table
-      const { error: profileError } = await supabase
-        .from('child_details')
-        .delete()
-        .eq('child_id', childToRemove.id);
-
-      if (profileError) {
-        console.error('Error deleting from child_profile:', profileError);
-        throw profileError;
-      }
-
-      // Delete auth user and user_account via API in api/admin/route.ts
-      if (childToRemove.user_id){
-      const response = await fetch('/api/admin/delete-user', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ user_id: childToRemove.user_id, account_id: childToRemove.id }),
-      });
-
-      if (!response.ok) {
-        let errorMessage = `Server error: ${response.status}`;
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.error || errorMessage;
-        } catch {
-        }
-        throw new Error(errorMessage);
-      }
-      
-      await response.json(); // Consume the response
-    }
-    
-      // Update local state without refetching
-      setChildren(children.filter(child => child.id !== id));
-      setNotificationMessage('Child account successfully deleted');
-      setShowNotification(true);
-      setTimeout(() => setShowNotification(false), 3000);
-  } catch (err) {
-    console.error('Error deleting child:', err);
-    setError(err instanceof Error ? err.message : 'Error deleting child account');
-  } finally {
-    setLoading(false);
-  }
-};
 
   if (loading) {
     return <div className="flex items-center justify-center h-screen">Loading...</div>;
