@@ -28,7 +28,7 @@ export default function Navbar() {
 
   return (
     <nav
-      className={`fixed top-0 w-full bg-gradient-to-b from-${universeColors[0]} to-${universeColors[1]} border-b border-gray-100 flex justify-around py-3 z-50 shadow-md`}
+      className={`fixed top-0 w-full bg-gradient-to-b from-${universeColors[0]} to-${universeColors[1]} flex justify-around py-3 z-50 shadow-md`}
       style={{
         background: `linear-gradient(to bottom, ${universeColors[0]}, ${universeColors[1]})`,
       }}

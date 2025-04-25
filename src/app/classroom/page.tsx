@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-// import { useUser } from '@supabase/auth-helpers-react';
 import Navbar from '../components/Navbar';
 import ChatBot from '../components/ChatBot';
-import { useRouter } from 'next/navigation'; // Import useRouter
+import { useRouter } from 'next/navigation';
+
+// Import your CSS module if you choose that approach
+// import styles from './classroom.module.css';
 
 type Classroom = {
   crid: number;
@@ -14,7 +16,6 @@ type Classroom = {
   invitation_status: 'pending' | 'accepted' | 'rejected';
   educatorFullName?: string;
 };
-
 
 type SupabaseUser = {
   id: string;
@@ -26,16 +27,14 @@ type SupabaseUser = {
 };
 
 export default function ClassroomPage() {
- // const user = useUser();
   const [userAccountId, setUserAccountId] = useState<string | null>(null);
   const [invitedClassrooms, setInvitedClassrooms] = useState<Classroom[]>([]);
   const [activeClassrooms, setActiveClassrooms] = useState<Classroom[]>([]);
   const [loadingInvited, setLoadingInvited] = useState(false);
-  // const [loading, setLoading] = useState(true);
   const [, setLoading] = useState(true);
   const [userState, setUserState] = useState<SupabaseUser | null>(null);
 
-  const router = useRouter(); // Initialize useRouter hook
+  const router = useRouter();
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -100,13 +99,12 @@ export default function ClassroomPage() {
         console.log('Fetched invited classrooms:', invites);
 
         const classroomIds = invites?.map(i => i.crid) || [];
-       // const invitationStatuses = invites?.map(i => i.invitation_status) || [];
 
         if (classroomIds.length === 0) {
           console.log('No invited classrooms found.');
           setInvitedClassrooms([]);
+          setActiveClassrooms([]);
         } else {
-          // Fetch classroom data along with invitation status and educator
           const { data: classroomData, error: classError } = await supabase
             .from('temp_classroom')
             .select('crid, name, description, uaid_educator')
@@ -116,7 +114,6 @@ export default function ClassroomPage() {
 
           console.log('Fetched classroom data:', classroomData);
 
-          // Fetch educator fullname based on uaid_educator
           const classroomsWithEducatorFullName = await Promise.all(classroomData?.map(async (classroom) => {
             const { data: educatorData, error: educatorError } = await supabase
               .from('user_account')
@@ -128,18 +125,18 @@ export default function ClassroomPage() {
 
             return {
               ...classroom,
-              educatorFullName: educatorData?.fullname || 'Unknown Educator',
+              educatorFullName: educatorData?.fullname || 'Unknown Teacher', // Keep "Teacher"
               invitation_status: invites.find(invite => invite.crid === classroom.crid)?.invitation_status || 'pending',
             };
           })) || [];
 
-          // Filter classrooms based on invitation status
           setInvitedClassrooms(classroomsWithEducatorFullName.filter(classroom => classroom.invitation_status === 'pending'));
           setActiveClassrooms(classroomsWithEducatorFullName.filter(classroom => classroom.invitation_status === 'accepted'));
         }
       } catch (err) {
         console.error('Error fetching invited classrooms:', err instanceof Error ? err.message : err);
         setInvitedClassrooms([]);
+        setActiveClassrooms([]);
       } finally {
         setLoadingInvited(false);
       }
@@ -148,7 +145,6 @@ export default function ClassroomPage() {
     fetchInvitedClassrooms();
   }, [userAccountId]);
 
-  // Handle accepting the invitation
   const handleAcceptInvitation = async (crid: number) => {
     try {
       const { error } = await supabase
@@ -159,7 +155,6 @@ export default function ClassroomPage() {
 
       if (error) throw error;
 
-      // Update the state immediately to reflect the accepted status
       setInvitedClassrooms(prev => prev.filter(classroom => classroom.crid !== crid));
       const acceptedClassroom = invitedClassrooms.find(classroom => classroom.crid === crid);
       if (acceptedClassroom) {
@@ -172,53 +167,65 @@ export default function ClassroomPage() {
   };
 
   const handleRejectInvitation = async (crid: number) => {
-    const confirmReject = window.confirm('Are you sure you want to decline this classroom invitation?');
+    const confirmReject = window.confirm('Are you sure you want to decline this classroom invitation?'); // Keep "classroom invitation"
     if (!confirmReject) return;
-  
+
     try {
       const { error } = await supabase
         .from('temp_classroomstudents')
         .update({ invitation_status: 'rejected' })
         .eq('uaid_child', userAccountId)
         .eq('crid', crid);
-  
+
       if (error) throw error;
-  
-      // Remove the rejected classroom from both sections
+
       setInvitedClassrooms(prev => prev.filter(classroom => classroom.crid !== crid));
       setActiveClassrooms(prev => prev.filter(classroom => classroom.crid !== crid));
       console.log('Invitation rejected for classroom:', crid);
     } catch (err) {
       console.error('Error rejecting invitation:', err instanceof Error ? err.message : err);
     }
-  };  
+  };
 
-  // Redirect to the classroom board when a user clicks on an active classroom
   const handleClassroomClick = (crid: number) => {
     router.push(`/classroomboard/${crid}`);
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
+    <div
+      className="flex flex-col h-screen overflow-hidden"
+      style={{
+        backgroundImage: 'url("/spaceshuttle.gif")', // Replace with your image path in 'public'
+        backgroundSize: 'cover',
+        backgroundRepeat: 'no-repeat',
+        backgroundPosition: 'center',
+      }}
+    >
       <Navbar />
-      <div className="flex-1 overflow-y-auto pt-30 px-6 pb-6">
-        <h2 className="text-2xl font-serif mb-6 text-black">Classrooms</h2>
+      <div className="flex-1 overflow-y-auto pt-20 px-6 pb-6 bg-black/30 backdrop-blur-sm">
+        <h2 className="text-3xl font-bold text-white mb-8 text-center mt-10">Your Classrooms</h2>
 
         {/* Active Classrooms Section */}
-        <div className="mb-12">
-          <h3 className="text-xl font-semibold mb-3 text-blue-700">Active Classrooms</h3>
+        <div className="mb-10">
+          <h3 className="text-2xl font-semibold text-yellow-400 mb-4 flex items-center">
+            Active Classrooms
+          </h3>
           {activeClassrooms.length > 0 ? (
-            <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {activeClassrooms.map((classroom) => (
-                <div 
-                  key={classroom.crid} 
-                  className="bg-white shadow-md rounded-lg p-4 cursor-pointer" 
-                  onClick={() => handleClassroomClick(classroom.crid)} // Add click handler
+                <div
+                  key={classroom.crid}
+                  className="bg-white/80 backdrop-blur-sm shadow-lg rounded-xl p-6 cursor-pointer hover:scale-105 transition duration-300"
+                  onClick={() => handleClassroomClick(classroom.crid)}
                 >
-                  <h4 className="text-lg font-bold text-blue-600">{classroom.name}</h4>
-                  <p className="text-sm text-gray-600">Description: {classroom.description}</p>
-                  <p className="text-sm text-gray-600">Managed by: {classroom.educatorFullName}</p>
-                  {/* Invitation Status is not displayed in Active Classrooms */}
+                  <h4 className="text-xl font-bold text-indigo-700 mb-2">{classroom.name}</h4>
+                  <p className="text-sm text-gray-700 mb-2">Description: {classroom.description}</p> {/* Keep "Description" */}
+                  <p className="text-sm text-gray-700">Teacher: {classroom.educatorFullName}</p> {/* Keep "Teacher" */}
+                  <div className="mt-3 text-right">
+                    <span className="inline-flex items-center bg-indigo-200 text-indigo-800 text-xs font-semibold px-2.5 py-0.5 rounded">
+                      Ready to Explore! {/* Slightly more active wording */}
+                    </span>
+                  </div>
                 </div>
               ))}
             </div>
@@ -228,28 +235,30 @@ export default function ClassroomPage() {
         </div>
 
         {/* Invited Classrooms Section */}
-        <div className="mb-12">
-          <h3 className="text-xl font-semibold mb-3 text-green-700">Invited Classrooms</h3>
+        <div className="mb-10">
+          <h3 className="text-2xl font-semibold text-cyan-400 mb-4 flex items-center">
+            Classroom Invitations
+          </h3>
           {loadingInvited && invitedClassrooms.length === 0 ? (
-            <p className="text-gray-400">Loading invited classrooms...</p>
+            <p className="text-gray-400">Loading classroom invitations...</p>
           ) : invitedClassrooms.length > 0 ? (
-            <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {invitedClassrooms.map((classroom) => (
-                <div key={classroom.crid} className="bg-white shadow-md rounded-lg p-4">
-                  <h4 className="text-lg font-bold text-blue-600">{classroom.name}</h4>
-                  <p className="text-sm text-gray-600">Teacher: {classroom.description}</p>
-                  <p className="text-sm text-gray-600">Invitation Status: {classroom.invitation_status}</p>
-                  <p className="text-sm text-gray-600">Managed by: {classroom.educatorFullName}</p>
+                <div key={classroom.crid} className="bg-white/80 backdrop-blur-sm shadow-md rounded-xl p-6">
+                  <h4 className="text-xl font-bold text-purple-700 mb-2">{classroom.name}</h4>
+                  <p className="text-sm text-gray-700 mb-2">Teacher: {classroom.description}</p>
+                  <p className="text-sm text-gray-700 mb-3">Invitation Status: <span className={`font-semibold ${classroom.invitation_status === 'pending' ? 'text-orange-500' : classroom.invitation_status === 'accepted' ? 'text-green-500' : 'text-red-500'}`}>{classroom.invitation_status === 'pending' ? 'Pending' : classroom.invitation_status === 'accepted' ? 'Accepted' : 'Rejected'}</span></p> {/* Keep original statuses */}
+                  <p className="text-sm text-gray-700">Managed by: {classroom.educatorFullName}</p>
                   {classroom.invitation_status === 'pending' && (
                     <div className="flex space-x-4 mt-4">
                       <button
-                        className="px-4 py-2 bg-green-500 text-white rounded"
+                        className="px-4 py-2 bg-green-600 text-white rounded-full hover:bg-green-700 transition duration-200"
                         onClick={() => handleAcceptInvitation(classroom.crid)}
                       >
                         Accept
                       </button>
                       <button
-                        className="px-4 py-2 bg-red-500 text-white rounded"
+                        className="px-4 py-2 bg-red-600 text-white rounded-full hover:bg-red-700 transition duration-200"
                         onClick={() => handleRejectInvitation(classroom.crid)}
                       >
                         Reject
@@ -268,4 +277,3 @@ export default function ClassroomPage() {
     </div>
   );
 }
-  
