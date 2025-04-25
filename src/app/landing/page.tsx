@@ -29,7 +29,7 @@ export default function LandingPage() {
   const [books, setBooks] = useState<Book[]>([]);
 
   const backgroundStyle: StyleObject = {
-    backgroundImage: 'url("/landing.png")',
+    backgroundImage: 'url("/spacemovement.gif")',
     backgroundSize: 'cover',
     backgroundRepeat: 'no-repeat',
   };
