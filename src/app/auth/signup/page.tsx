@@ -27,6 +27,7 @@ export default function SignUpPage() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [stars, setStars] = useState<Star[]>([]);
+  const [formVisible, setFormVisible] = useState(false);
 
   const backgroundStyle: StyleObject = {
     backgroundImage: 'url("/spacemovement.gif")',
@@ -42,6 +43,11 @@ export default function SignUpPage() {
       delay: Math.random() * 5,
     }));
     setStars(newStars);
+
+    // Trigger the fly-in animation after a short delay when the component mounts
+    setTimeout(() => {
+      setFormVisible(true);
+    }, 100); // Adjust the delay as needed
   }, []);
 
   const handleSignUp = async (e: React.FormEvent) => {
@@ -207,7 +213,7 @@ export default function SignUpPage() {
 
       {/* Main Content */}
       <main className="flex flex-1 items-center justify-center relative z-10">
-        <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-xl shadow-lg">
+        <div className={`max-w-md w-full space-y-8 p-8 bg-white rounded-xl shadow-lg ${formVisible ? 'animate-fly-in' : 'translate-y-full opacity-0'}`}>
           <div className="text-center">
             <h2 className="text-3xl font-bold text-gray-900">Create your account</h2>
             <p className="mt-2 text-sm text-gray-600">
@@ -266,7 +272,7 @@ export default function SignUpPage() {
         </div>
       </main>
 
-      {/* Star animation */}
+      {/* Star and Fly-in animation */}
       <style jsx global>{`
         @keyframes twinkle {
           0%, 100% {
@@ -280,6 +286,20 @@ export default function SignUpPage() {
         }
         .animate-twinkle {
           animation: twinkle 3s infinite ease-in-out;
+        }
+
+        @keyframes fly-in {
+          from {
+            transform: translateY(100px);
+            opacity: 0;
+          }
+          to {
+            transform: translateY(0);
+            opacity: 1;
+          }
+        }
+        .animate-fly-in {
+          animation: fly-in 0.5s ease-out forwards;
         }
       `}</style>
     </div>

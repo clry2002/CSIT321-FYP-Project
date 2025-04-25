@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 
 interface StyleObject {
@@ -27,6 +27,9 @@ interface Book {
 export default function LandingPage() {
   const [stars, setStars] = useState<Star[]>([]);
   const [books, setBooks] = useState<Book[]>([]);
+  const mainContentRef = useRef<HTMLElement>(null);
+  // const router = useRouter();
+  const [isTransitioning, setIsTransitioning] = useState(false);
 
   const backgroundStyle: StyleObject = {
     backgroundImage: 'url("/spacemovement.gif")',
@@ -42,45 +45,61 @@ export default function LandingPage() {
       delay: Math.random() * 5,
     }));
     setStars(newStars);
+
+    // Initial slide-in animation
+    if (mainContentRef.current) {
+      setTimeout(() => {
+        if (mainContentRef.current) {
+          mainContentRef.current.classList.add('animate-slide-in');
+        }
+      }, 100); // Small delay to ensure ref is attached
+    }
   }, []);
+
+  useEffect(() => {
+      const handleBeforeUnload = () => {
+        if (mainContentRef.current && !isTransitioning) {
+          setIsTransitioning(true);
+          mainContentRef.current.classList.remove('animate-slide-in');
+          mainContentRef.current.classList.add('animate-slide-out');
+          const animationDuration = parseFloat(getComputedStyle(mainContentRef.current).animationDuration) * 1000;
+          setTimeout(() => {
+            setIsTransitioning(false);
+          }, animationDuration);
+        }
+      };
+  
+      window.addEventListener('beforeunload', handleBeforeUnload);
+  
+      return () => {
+        window.removeEventListener('beforeunload', handleBeforeUnload);
+      };
+    }, [isTransitioning]);
 
   useEffect(() => {
     const fetchBooks = async () => {
       const { data, error } = await supabase
         .from('temp_content')
         .select('cid, title, coverimage')
-        .eq('cfid', 2); // cfid 1 = books
+        .eq('cfid', 2); // cfid 2 = books
 
       if (error) {
         console.error('Error fetching books:', error.message);
         return;
       }
 
-      console.log("Raw book data from Supabase:", data); // Log the raw data
-
       const shuffled = data.sort(() => 0.5 - Math.random()).slice(0, 10);
 
       const booksWithUrls = shuffled.map((book) => {
-        console.log("Raw coverimage value:", book.coverimage); // Log the raw coverimage value
-
         let coverImageUrl = book.coverimage;
-
-        // Check if the coverimage is already a full URL
         if (!book.coverimage.startsWith('http')) {
-          // If not, construct the full URL using getPublicUrl
           const { data: imageData } = supabase.storage
             .from('book-covers') // Ensure this matches your bucket name
             .getPublicUrl(book.coverimage);
           coverImageUrl = imageData?.publicUrl || '/placeholder-book.png';
         }
-
-        return {
-          ...book,
-          coverimage: coverImageUrl,
-        };
+        return { ...book, coverimage: coverImageUrl };
       });
-
-      console.log("booksWithUrls:", booksWithUrls); // Log the final URLs
       setBooks(booksWithUrls);
     };
 
@@ -129,7 +148,7 @@ export default function LandingPage() {
       </header>
 
       {/* Main Content */}
-      <main className="flex flex-col items-center justify-center flex-1 text-center p-8 relative z-10">
+      <main ref={mainContentRef} className="flex flex-col items-center justify-center flex-1 text-center p-8 relative z-10">
         <div className="bg-black/40 backdrop-blur-md rounded-3xl shadow-xl p-10 max-w-3xl w-full">
           <div className="relative">
             <h2 className="text-5xl font-extrabold text-teal-200 mb-6">Dive into a World of Stories!</h2>
@@ -174,7 +193,7 @@ export default function LandingPage() {
       </main>
 
       {/* Footer */}
-      <footer className="text-center text-sm text-gray-600 p-4 relative z-10">
+      <footer className="text-center text-sm text-gray-200 p-4 relative z-10">
         © 2025 CoReadability. All rights reserved.
       </footer>
 
@@ -200,7 +219,7 @@ export default function LandingPage() {
         }
       `}</style>
 
-      {/* Star animation */}
+      {/* Star and Slide Animations */}
       <style jsx global>{`
         @keyframes twinkle {
           0%, 100% {
@@ -214,6 +233,34 @@ export default function LandingPage() {
         }
         .animate-twinkle {
           animation: twinkle 3s infinite ease-in-out;
+        }
+
+        @keyframes slide-in {
+          from {
+            transform: translateY(100px);
+            opacity: 0;
+          }
+          to {
+            transform: translateY(0);
+            opacity: 1;
+          }
+        }
+        .animate-slide-in {
+          animation: slide-in 0.5s ease-out forwards;
+        }
+
+        @keyframes slide-out {
+          from {
+            transform: translateY(0);
+            opacity: 1;
+          }
+          to {
+            transform: translateY(100px);
+            opacity: 0;
+          }
+        }
+        .animate-slide-out {
+          animation: slide-out 0.3s ease-in forwards;
         }
       `}</style>
     </div>
