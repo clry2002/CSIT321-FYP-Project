@@ -18,6 +18,17 @@ interface BookWithGenres {
   viewCount?: number;
 }
 
+interface RawBook {
+  cid: number;
+  title: string;
+  coverimage: string;
+  credit: string;
+  description: string;
+  contenturl: string;
+  content_format: string;
+  viewCount?: number;
+}
+
 export default function SearchContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -117,74 +128,82 @@ function SearchResults({ query }: { query: string }) {
     fetchBookmarks();
   }, [childId]);
 
+  // Replace your fetchBooks function with this:
+
   useEffect(() => {
     const fetchBooks = async () => {
       if (!query || childId === null || blockedGenreIds === null) {
         setIsLoading(false);
         return;
       }
-
+  
       setIsLoading(true);
       setError(null);
-
+  
       try {
-        const { data, error } = await supabase
-          .from('temp_content')
-          .select(`
-            cid, title, credit, description, coverimage, viewCount,
-            genre:temp_contentgenres(
-              temp_genre(genrename)
-            )
-          `)
-          .eq('cfid', 2)
-          .eq('status', 'approved')
-          .or(`title.ilike.%${query}%,description.ilike.%${query}%`);
-
-        if (error) throw error;
-
-        const bookCids = data.map((book) => book.cid);
+        // Single search attempt with no fallbacks
+        const { data: rawBooks, error } = await supabase.rpc('search_books', {
+          searchquery: query
+        });
+  
+        if (error) {
+          console.error('Error from search_books function', error);
+          setError(`Error: ${error.message}`);
+          setIsLoading(false);
+          return;
+        }
+  
+        if (!rawBooks || rawBooks.length === 0) {
+          setError('No matching books found for your search.');
+          setIsLoading(false);
+          return;
+        }
+        
+        const bookCids = rawBooks.map((book: RawBook) => book.cid);
         const { data: genresMap, error: genreError } = await supabase
           .from('temp_contentgenres')
           .select('cid, gid')
           .in('cid', bookCids);
-
+  
         if (genreError) {
           console.error('Error fetching genres:', genreError);
           setBooks([]);
+          setIsLoading(false);
           return;
         }
-
+        
+        // Fetch genre data inside the useEffect
         const { data: allGenres } = await supabase.from('temp_genre').select('gid, genrename');
-
+  
         const genreLookup: Record<number, number[]> = {};
         genresMap.forEach(({ cid, gid }) => {
           if (!genreLookup[cid]) genreLookup[cid] = [];
           genreLookup[cid].push(gid);
         });
-
+  
         const genreMap: Record<number, string> = {};
         allGenres?.forEach(({ gid, genrename }) => {
           genreMap[gid] = genrename;
         });
-
+  
         const blockedGenreNames = Object.entries(genreMap)
           .filter(([gid]) => blockedGenreIds.includes(Number(gid)))
           .map(([, name]) => name.toLowerCase());
-
-        const filteredBooks: BookWithGenres[] = data
-          .filter((book) => {
+  
+        const filteredBooks: BookWithGenres[] = rawBooks
+          .filter((book: RawBook) => {
             const genreIds = genreLookup[book.cid] || [];
             const lowerTitle = book.title?.toLowerCase() || '';
             const lowerDescription = book.description?.toLowerCase() || '';
-
+  
             const mentionsBlockedGenreText = blockedGenreNames.some((genre) =>
               lowerTitle.includes(genre) || lowerDescription.includes(genre)
             );
             const hasBlockedGenreId = genreIds.some((gid) => blockedGenreIds.includes(gid));
-
+  
             return !mentionsBlockedGenreText && !hasBlockedGenreId;
           })
-          .map((book) => {
+          .map((book: RawBook) => {
             const genreIds = genreLookup[book.cid] || [];
             const allowedGenreNames = genreIds
               .filter((gid) => !blockedGenreIds.includes(gid))
@@ -193,12 +212,12 @@ function SearchResults({ query }: { query: string }) {
             return { 
               ...book, 
               genreNames: allowedGenreNames,
-              viewCount: book.viewCount || 0 // Store viewCount but won't display it
+              viewCount: book.viewCount || 0
             };
           });
-
+  
         if (filteredBooks.length === 0) {
-          if (data.length > 0) {
+          if (rawBooks.length > 0) {
             setError('This genre has been blocked, please search another genre.');
           } else {
             setError('No matching books found for your search.');
@@ -206,7 +225,7 @@ function SearchResults({ query }: { query: string }) {
         } else {
           setError(null);
         }
-
+  
         setBooks(filteredBooks);
       } catch (err) {
         console.error('Error:', err);
@@ -215,7 +234,7 @@ function SearchResults({ query }: { query: string }) {
         setIsLoading(false);
       }
     };
-
+  
     fetchBooks();
   }, [query, childId, blockedGenreIds]);
 

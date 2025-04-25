@@ -6,7 +6,7 @@ import Navbar from '../components/Navbar';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
-import { syncFavoriteGenres } from '../../services/userInteractionsService'; // Adjust the import path as necessary
+import { syncFavoriteGenres } from '../../services/userInteractionsService';
 
 function ErrorBoundary({ children }: { children: React.ReactNode }) {
   const [hasError, setHasError] = useState(false);
@@ -80,40 +80,50 @@ export default function ChildViewProfile() {
           .eq('child_id', userData.id)
           .single();
 
-        if (profileError) {
-          throw profileError;
-        }
+          // If child_details doesn't exist yet, create it with empty values
+          if (profileError && profileError.code === 'PGRST116') { // Not found error
+            const { error: insertError } = await supabase
+              .from('child_details')
+              .insert({
+                child_id: userData.id,
+                favourite_genres: []
+              });
+              
+            if (insertError) throw insertError;
 
-        // Fetch blocked genres from blockedgenres table
-        const { data: blockedGenresData, error: blockedGenresError } = await supabase
-          .from('blockedgenres')
-          .select('genreid')
-          .eq('child_id', userData.id);
+            setProfileData({
+              full_name: userData.fullname,
+              username: userData.username,
+              age: userData.age,
+              favourite_genres: [],
+              blocked_genres: []
+            });
 
-        if (blockedGenresError) throw blockedGenresError;
-
-        // Get genre names for blocked genres
-        let blockedGenreNames: string[] = [];
-        if (blockedGenresData && blockedGenresData.length > 0) {
-          const genreIds = blockedGenresData.map(item => item.genreid);
-          const { data: genreData, error: genreError } = await supabase
-            .from('temp_genre')
-            .select('genrename')
-            .in('gid', genreIds);
+            setSelectedGenres([]);
+          } else if (profileError) {
+            throw profileError;
+          } else {
+            // Fetch blocked genres from blockedgenres table
+            const { data: blockedGenresData, error: blockedGenresError } = await supabase
+              .from('blockedgenres')
+              .select('genreid')
+              .eq('child_id', userData.id);
+  
+            if (blockedGenresError) throw blockedGenresError;
+  
+            // Get genre names for blocked genres
+            let blockedGenreNames: string[] = [];
+            if (blockedGenresData && blockedGenresData.length > 0) {
+              const genreIds = blockedGenresData.map(item => item.genreid);
+              const { data: genreData, error: genreError } = await supabase
+                .from('temp_genre')
+                .select('genrename')
+                .in('gid', genreIds);
 
           if (genreError) throw genreError;
           blockedGenreNames = genreData?.map(item => item.genrename) || [];
         }
-
-        // Get available genres
-        const { data: genres, error: genresError } = await supabase
-          .from('temp_genre')
-          .select('genrename');
-
-        if (genresError) {
-          throw genresError;
-        }
-
+        
         // Set the profile data
         setProfileData({
           full_name: userData.fullname,
@@ -122,14 +132,44 @@ export default function ChildViewProfile() {
           favourite_genres: profileData.favourite_genres || [],
           blocked_genres: blockedGenreNames
         });
-
-        // Set available genres and selected genres
-        // Filter out blocked genres from available genres
-        const availableGenresList = genres.map(g => g.genrename)
-          .filter(genre => !blockedGenreNames.includes(genre));
-        setAvailableGenres(availableGenresList);
+        
+        // Set initial selected genres
         setSelectedGenres(profileData.favourite_genres || []);
+      }
 
+       // Get available genres
+       const { data: genres, error: genresError } = await supabase
+       .from('temp_genre')
+       .select('genrename');
+
+       if (genresError) {
+        throw genresError;
+      }
+
+       const { data: blockedGenresData, error: blockedGenresError } = await supabase
+       .from('blockedgenres')
+       .select('genreid')
+       .eq('child_id', userData.id);
+
+      if (blockedGenresError) throw blockedGenresError;
+
+       // Get genre names for blocked genres
+       let blockedGenreNames: string[] = [];
+       if (blockedGenresData && blockedGenresData.length > 0) {
+         const genreIds = blockedGenresData.map(item => item.genreid);
+         const { data: genreData, error: genreError } = await supabase
+           .from('temp_genre')
+           .select('genrename')
+           .in('gid', genreIds);
+ 
+          if (genreError) throw genreError;
+          blockedGenreNames = genreData?.map(item => item.genrename) || [];
+       }
+       
+       // Show all genres except blocked ones
+        const allAvailableGenres = genres.map(g => g.genrename)
+        .filter(genre => !blockedGenreNames.includes(genre));
+        setAvailableGenres(allAvailableGenres);  
       } catch (err) {
         console.error('Error loading profile:', err);
         setError(err instanceof Error ? err.message : 'An error occurred while loading your profile');
@@ -535,7 +575,4 @@ export default function ChildViewProfile() {
       </div>
     </ErrorBoundary>
   );
-} 
-
-
-// testting
+}

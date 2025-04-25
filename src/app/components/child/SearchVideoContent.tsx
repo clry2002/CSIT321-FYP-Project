@@ -22,6 +22,16 @@ interface Video {
   viewCount?: number;
 }
 
+interface VideoSearchResult {
+  cid: number;
+  title: string;
+  coverimage: string;
+  credit: string;
+  description: string;
+  contenturl: string;
+  content_format: string;
+}
+
 export default function SearchVideoContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -172,64 +182,120 @@ function SearchResults({ query }: { query: string }) {
     fetchBookmarks();
   }, [childId]);
 
-  useEffect(() => {
-    const fetchVideos = async () => {
-      if (!query || !childId || !isBlockedGenresFetched || isBlockedGenreSearch) {
+  // This matches your actual Supabase structure
+interface GenreMapResult {
+  cid: number;
+  gid: number;
+  temp_genre: {
+    gid: number;
+    genrename: string;
+  };
+}
+
+useEffect(() => {
+  const fetchVideos = async () => {
+    if (!query || !childId || !isBlockedGenresFetched || isBlockedGenreSearch) {
+      setIsLoading(false);
+      setVideos([]); // Ensure no videos are displayed
+      setError(null); // Clear any previous errors
+      return;
+    }
+
+    setIsLoading(true);
+    setSearchInitiated(true);
+    setError(null); // Clear any previous errors
+
+    try {
+      // Use the search_videos RPC function instead of direct query
+      const { data: rawVideos, error } = await supabase.rpc('search_videos', { 
+        searchquery: query 
+      });
+
+      if (error) {
+        console.error('Error from search_videos function:', error);
+        setError(`Error: ${error.message}`);
         setIsLoading(false);
-        setVideos([]); // Ensure no videos are displayed
-        setError(null); // Clear any previous errors
         return;
       }
 
-      setIsLoading(true);
-      setSearchInitiated(true);
-      setError(null); // Clear any previous errors
-
-      try {
-        const { data, error } = await supabase
-          .from('temp_content')
-          .select(`
-            *,
-            genre:temp_contentgenres(
-              temp_genre(gid, genrename)
-            )
-          `)
-          .eq('cfid', 1) // Videos only
-          .eq('status', 'approved')
-          .or(`title.ilike.%${query}%,description.ilike.%${query}%`);
-
-        if (error) throw error;
-
-        const filteredVideos: Video[] = [];
-
-        for (const video of data) {
-          const hasBlockedGenre = video.genre?.some(
-            (g: { temp_genre: { gid: number; genrename: string } }) => blockedGenres.has(g.temp_genre.gid)
-          );
-          if (!hasBlockedGenre) {
-            filteredVideos.push(video);
-          }
-        }
-
-        const videosWithGenreNames = filteredVideos.map(video => ({
-          ...video,
-          genreNames: video.genre?.map(
-            (g: { temp_genre: { gid: number; genrename: string } }) => g.temp_genre.genrename
-          ).filter(Boolean),
-        }));
-
-        setVideos(videosWithGenreNames);
-      } catch (err) {
-        console.error('Error:', err);
-        setError('Failed to fetch videos');
-        setVideos([]); // Ensure no videos are displayed on error
-      } finally {
+      if (!rawVideos || rawVideos.length === 0) {
+        setVideos([]);
         setIsLoading(false);
+        return;
       }
-    };
 
-    fetchVideos();
-  }, [query, blockedGenres, childId, isBlockedGenresFetched, isBlockedGenreSearch]);
+      // Fetch genres for these videos
+      const videoCids = rawVideos.map((video: VideoSearchResult) => video.cid);
+      
+      const { data: genresMap, error: genreError } = await supabase
+        .from('temp_contentgenres')
+        .select('cid, gid, temp_genre(gid, genrename)')
+        .in('cid', videoCids);
+
+      if (genreError) {
+        console.error('Error fetching genres:', genreError);
+        setVideos([]);
+        setIsLoading(false);
+        return;
+      }
+
+      // Group genres by CID
+      const genresByCid: Record<number, GenreMapResult[]> = {};
+      if (genresMap) {
+        for (const item of genresMap) {
+          if (!genresByCid[item.cid]) {
+            genresByCid[item.cid] = [];
+          }
+          genresByCid[item.cid].push({
+            ...item,
+            temp_genre: Array.isArray(item.temp_genre) ? item.temp_genre[0] : item.temp_genre,
+          } as GenreMapResult);
+        }
+      }
+
+      // Filter videos with blocked genres
+      const filteredVideos: Video[] = [];
+      
+      for (const video of rawVideos) {
+        const videoGenres = genresByCid[video.cid] || [];
+        const hasBlockedGenre = videoGenres.some(
+          g => g.temp_genre && blockedGenres.has(g.temp_genre.gid)
+        );
+        
+        if (!hasBlockedGenre) {
+          // Add genreNames to the video object
+          const videoWithGenres: Video = {
+            ...video as VideoSearchResult,
+            id: video.cid.toString(),
+            embeddedLink: video.contenturl,
+            thumbnail: video.coverimage || '',
+            views: 0,
+            timeAgo: '',
+            genre: videoGenres.map(g => ({ 
+              temp_genre: g.temp_genre || { gid: 0, genrename: '' } 
+            })),
+            genreNames: videoGenres
+              .filter(g => g.temp_genre)
+              .map(g => g.temp_genre.genrename),
+            viewCount: 0
+          };
+          
+          filteredVideos.push(videoWithGenres);
+        }
+      }
+
+      setVideos(filteredVideos);
+    } catch (err) {
+      console.error('Error:', err);
+      setError('Failed to fetch videos');
+      setVideos([]); // Ensure no videos are displayed on error
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  fetchVideos();
+}, [query, blockedGenres, childId, isBlockedGenresFetched, isBlockedGenreSearch]);
 
   const handleBookmark = async (video: Video) => {
     if (!childId) {

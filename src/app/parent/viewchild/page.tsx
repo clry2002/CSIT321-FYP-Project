@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import ViewChildBookmark from '../../components/parent/view_child_bookmark';
 import { fetchBookmarkedContent, ContentWithGenres } from './fetchChildBookmark';
+import { handleParentBlockGenre } from '@/services/userInteractionsService';
 
 interface ChildProfile {
   favourite_genres: string[];
@@ -126,59 +127,152 @@ function ClientViewChild() {
         .eq('child_id', userData.id)
         .single();
 
-      if (profileError) throw profileError;
-      if (!profileData) throw new Error('No profile found');
+      if (profileError) {
+        if (profileError.code === 'PGRST116') { // Not found error
+          const { error: insertError } = await supabase
+          .from('child_details')
+            .insert({
+              child_id: userData.id,
+              favourite_genres: []
+            })
 
-      // Fetch blocked genres from blockedgenres table
-      const { data: blockedGenresData, error: blockedGenresError } = await supabase
-        .from('blockedgenres')
-        .select('genreid')
-        .eq('child_id', userData.id);
+            if (insertError) {
+              throw new Error(`Failed to create child profile: ${insertError.message}`);
+            }
 
-      if (blockedGenresError) throw blockedGenresError;
+            // Use empty profile data
+            const emptyProfileData = { favourite_genres: [] };
 
-      // Extract genre names from blockedgenres.id
-      let blockedGenreNames = [];
-      if (blockedGenresData && blockedGenresData.length > 0) {
-        const genreIds = blockedGenresData.map(item => item.genreid);
-        const { data: genreData, error: genreError } = await supabase
-          .from('temp_genre')
-          .select('genrename')
-          .in('gid', genreIds);
+            // Fetch blocked genres from blockedgenres table
+            const { data: blockedGenresData, error: blockedGenresError } = await supabase
+            .from('blockedgenres')
+            .select('genreid')
+            .eq('child_id', userData.id);
 
-        if (genreError) throw genreError;
-        blockedGenreNames = genreData?.map(item => item.genrename) || [];
-        setBlockedGenreNames(blockedGenreNames);
+            if (blockedGenresError) throw blockedGenresError;
+
+            // Extract genre names from blockedgenres.id
+            let blockedGenreNames = [];
+            if (blockedGenresData && blockedGenresData.length > 0) {
+              const genreIds = blockedGenresData.map(item => item.genreid);
+              const { data: genreData, error: genreError } = await supabase
+                .from('temp_genre')
+                .select('genrename')
+                .in('gid', genreIds);
+
+              if (genreError) throw genreError;
+              blockedGenreNames = genreData?.map(item => item.genrename) || [];
+              setBlockedGenreNames(blockedGenreNames);
+            } else {
+              setBlockedGenreNames([]);
+            }
+
+            // Initialize with empty profile
+            const processedProfileData = {
+              favourite_genres: emptyProfileData.favourite_genres || [],
+              blocked_genres: blockedGenreNames,
+              classrooms: activeClassrooms
+            };
+            try {
+              const bookmarkedContent = await fetchBookmarkedContent(userData.id);
+              setBookmarkedBooks(bookmarkedContent.books);
+              setBookmarkedVideos(bookmarkedContent.videos);
+        
+              const combinedProfile = {
+                ...processedProfileData,
+                books_bookmark: bookmarkedContent.books,
+                videos_bookmark: bookmarkedContent.videos
+              };
+        
+              console.log('Combined Profile:', combinedProfile);
+              setChildProfile(combinedProfile);
+              setSelectedGenres(blockedGenreNames);
+            } catch {
+              setChildProfile(processedProfileData);
+              setSelectedGenres(blockedGenreNames);
+              setBookmarkedBooks([]);
+              setBookmarkedVideos([]);
+            }
+            
+            return;
+        } else {
+          console.error('Error fetching child profile:', profileError);
+          throw new Error(`Failed to fetch child profile: ${profileError.message}`);
+        }
       }
-
-      // Initialize arrays if they're null
-      const processedProfileData = {
-        favourite_genres: profileData.favourite_genres || [],
-        blocked_genres: blockedGenreNames,
-        classrooms: activeClassrooms
-      };
-
-      const bookmarkedContent = await fetchBookmarkedContent(userData.id);
-      setBookmarkedBooks(bookmarkedContent.books);
-      setBookmarkedVideos(bookmarkedContent.videos);
-
-      const combinedProfile = {
-        ...processedProfileData,
-        books_bookmark: bookmarkedContent.books,
-        videos_bookmark: bookmarkedContent.videos
-      };
-
-      console.log('Combined Profile:', combinedProfile);
-      setChildProfile(combinedProfile);
-      setSelectedGenres(blockedGenreNames);
-
-    } catch (err) {
-      console.error('Error fetching child data:', err);
-      setError(err instanceof Error ? err.message : 'Error fetching data');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+        
+        if (!profileData) {
+          throw new Error('No profile found for child ID: ' + userData.id);
+        }
+  
+        // Fetch blocked genres from blockedgenres table
+        const { data: blockedGenresData, error: blockedGenresError } = await supabase
+          .from('blockedgenres')
+          .select('genreid')
+          .eq('child_id', userData.id);
+  
+        if (blockedGenresError) {
+          console.error('Error fetching blocked genres:', blockedGenresError);
+          throw new Error(`Failed to fetch blocked genres: ${blockedGenresError.message}`);
+        }
+  
+        // Extract genre names from blockedgenres.id
+        let blockedGenreNames: string[] = [];
+        if (blockedGenresData && blockedGenresData.length > 0) {
+          const genreIds = blockedGenresData.map(item => item.genreid);
+          const { data: genreData, error: genreError } = await supabase
+            .from('temp_genre')
+            .select('genrename')
+            .in('gid', genreIds);
+  
+          if (genreError) {
+            console.error('Error fetching genre names:', genreError);
+            throw new Error(`Failed to fetch genre names: ${genreError.message}`);
+          }
+          
+          blockedGenreNames = genreData?.map(item => item.genrename) || [];
+          setBlockedGenreNames(blockedGenreNames);
+        } else {
+          setBlockedGenreNames([]);
+        }
+  
+        // Initialize arrays if they're null
+        const processedProfileData = {
+          favourite_genres: profileData.favourite_genres || [],
+          blocked_genres: blockedGenreNames,
+          classrooms: activeClassrooms
+        };
+  
+        try {
+          const bookmarkedContent = await fetchBookmarkedContent(userData.id);
+          setBookmarkedBooks(bookmarkedContent.books);
+          setBookmarkedVideos(bookmarkedContent.videos);
+  
+          const combinedProfile = {
+            ...processedProfileData,
+            books_bookmark: bookmarkedContent.books,
+            videos_bookmark: bookmarkedContent.videos
+          };
+  
+          console.log('Combined Profile:', combinedProfile);
+          setChildProfile(combinedProfile);
+          setSelectedGenres(blockedGenreNames);
+        } catch (bookmarkErr) {
+          console.error('Error fetching bookmarks:', bookmarkErr);
+          // Continue with partial data
+          setChildProfile(processedProfileData);
+          setSelectedGenres(blockedGenreNames);
+          setBookmarkedBooks([]);
+          setBookmarkedVideos([]);
+        }
+  
+      } catch (err) {
+        console.error('Error fetching child data:', err);
+        setError(err instanceof Error ? err.message : 'Error fetching data');
+      } finally {
+        setLoading(false);
+      }
+    }, []);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -259,23 +353,29 @@ function ClientViewChild() {
 
         if (insertError) throw insertError;
 
-        // Delete rows from userInteractions for blocked genres
-        try {
-          const { error: deleteInteractionError } = await supabase
-            .from('userInteractions')
-            .delete()
-            .eq('uaid', accountId)
-            .in('gid', genreData.map(genre => genre.gid));
-
-          if (deleteInteractionError) {
-            console.error('Error deleting from userInteractions:', deleteInteractionError);
-            throw deleteInteractionError;
+        // Use handleParentBlockGenre to set score to 0 for each blocked genre
+        for (const genre of genreData) {
+          const success = await handleParentBlockGenre(accountId, genre.gid);
+          if (!success) {
+            console.warn(`Warning: Failed to set score to 0 for genre ${genre.genrename}`);
           }
-        } catch (interactionErr) {
-          console.error('Error updating userInteractions:', interactionErr);
-          throw interactionErr;
         }
       }
+        // // Delete rows from userInteractions for blocked genres
+        // try {
+        //   const { error: deleteInteractionError } = await supabase
+        //     .from('userInteractions')
+        //     .delete()
+        //     .eq('uaid', accountId)
+        //     .in('gid', genreData.map(genre => genre.gid));
+
+        //   if (deleteInteractionError) {
+        //     console.error('Error deleting from userInteractions:', deleteInteractionError);
+        //     throw deleteInteractionError;
+        //   }
+        // } catch (interactionErr) {
+        //   console.error('Error updating userInteractions:', interactionErr);
+        //   throw interactionErr;
 
       setShowGenreModal(false);
 

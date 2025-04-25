@@ -3,16 +3,21 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image'; // Import the Image component
+import Image from 'next/image';
 import { supabase } from '@/lib/supabase';
+import { syncFavoriteGenres } from '@/services/userInteractionsService'; 
+
 
 // Define types for UserProfile and UserData
 interface UserProfile {
   upid: number;
+  name?: string;
+  suspended?: boolean;
 }
 
 interface UserData {
-  upid: number;
+  id: string;
+  user_id: string;
   userprofile: UserProfile;
   suspended: boolean;
   comments: string;
@@ -48,6 +53,7 @@ export default function LoginPage() {
         const { data: userData, error: userError } = await supabase
           .from('user_account')
           .select(`
+            id,
             upid,
             suspended,
             comments,
@@ -75,7 +81,60 @@ export default function LoginPage() {
         } else if (userData?.userprofile?.upid === 2) {
           router.push('/parentpage');
         } else if (userData?.userprofile?.upid === 3) {
-          router.push('/childpage');
+          try {
+            // For child accounts, check if they have set favorite genres
+            // Use proper query format with eq.{id}
+            const { data: childDetailsArray, error: childDetailsError } = await supabase
+              .from('child_details')
+              .select('favourite_genres')
+              .eq('child_id', userData.id);
+
+            console.log("Child details check:", { childDetailsArray, error: childDetailsError });
+
+            if (childDetailsError) {
+              console.error('Error checking child details:', childDetailsError);
+              setError('Error checking account details. Please try again.');
+              setLoading(false);
+              return;
+            }
+
+            // Check if any records exist and if favorite genres are set
+            if (childDetailsArray && childDetailsArray.length > 0 && 
+                childDetailsArray[0].favourite_genres && 
+                childDetailsArray[0].favourite_genres.length > 0) {
+              // Sync favorite genres with interactions system on every login
+              console.log("Syncing favorite genres on login");
+              await syncFavoriteGenres(userData.id.toString());
+              
+              // Normal flow - child has already set up preferences
+              router.push('/childpage');
+            } else {
+              // Create child_details record if it doesn't exist, or if favorite_genres is empty
+              if (!childDetailsArray || childDetailsArray.length === 0) {
+                console.log("Creating new child_details record");
+                const { error: insertError } = await supabase
+                  .from('child_details')
+                  .insert({
+                    child_id: userData.id,
+                    favourite_genres: [] // Empty array initially
+                  });
+                  
+                if (insertError) {
+                  console.error("Error creating child_details:", insertError);
+                  setError('Error setting up your account. Please try again.');
+                  setLoading(false);
+                  return;
+                }
+              }
+              
+              // Redirect to first login setup
+              router.push('/first-time-setup');
+            }
+          } catch (err) {
+            console.error('Error in child flow:', err);
+            setError('An unexpected error occurred. Please try again.');
+            setLoading(false);
+          }
         } else if (userData?.userprofile?.upid === 5) {
           router.push('/teacherpage');
         } else {
