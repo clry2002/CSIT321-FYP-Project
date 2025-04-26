@@ -8,6 +8,8 @@ import ChatBot from '../../components/ChatBot';
 import { supabase } from '@/lib/supabase';
 import type { Book } from '@/types/database.types';
 import { format } from 'date-fns';
+import { debugUserInteractions } from '@/services/userInteractionsService';
+import { useInteractions } from '@/hooks/useInteractions';
 
 export default function BookDetailPage() {
   const params = useParams();
@@ -26,6 +28,9 @@ export default function BookDetailPage() {
 
   const [childId, setChildId] = useState<number | null>(null);
   const [isBookmarked, setIsBookmarked] = useState<boolean>(false);
+  
+  // Use the interactions hook
+  const { recordBookView, toggleBookmark } = useInteractions();
 
   interface GenreField {
     genrename: string;
@@ -132,23 +137,56 @@ export default function BookDetailPage() {
     fetchBookmark();
   }, [childId, params.id]);
 
-  const toggleBookmark = async () => {
+  const handleViewBook = async () => {
+    if (!book || !book.contenturl) return;
+    
+    try {
+      // Record the view using the hook - this handles both viewCount increment and user interactions
+      await recordBookView(book.cid.toString());
+      
+      // Debug user interactions after recording the view
+      if (childId) {
+        await debugUserInteractions(childId.toString());
+      }
+      
+      // Show notification
+      setNotification({ message: 'Viewing book...', show: true });
+      setTimeout(() => setNotification({ message: '', show: false }), 3000);
+      
+      // Open the book URL in a new tab
+      window.open(book.contenturl, '_blank');
+    } catch (error) {
+      console.error('Error recording book view:', error);
+    }
+  };
+
+  const toggleBookmarkHandler = async () => {
     if (!childId || !book) return;
 
-    if (isBookmarked) {
-      const { error } = await supabase
-        .from('temp_bookmark')
-        .delete()
-        .eq('uaid', childId)
-        .eq('cid', book.cid);
-
-      if (!error) setIsBookmarked(false);
-    } else {
-      const { error } = await supabase
-        .from('temp_bookmark')
-        .insert({ uaid: childId, cid: book.cid });
-
-      if (!error) setIsBookmarked(true);
+    try {
+      // Use the toggle bookmark hook that handles both DB operations and interactions
+      const success = await toggleBookmark(book.cid.toString(), !isBookmarked);
+      
+      if (success) {
+        setIsBookmarked(!isBookmarked);
+        setNotification({ 
+          message: isBookmarked ? 'Bookmark removed' : 'Book bookmarked', 
+          show: true 
+        });
+        setTimeout(() => setNotification({ message: '', show: false }), 3000);
+        
+        // Debug user interactions after toggling the bookmark
+        if (childId) {
+          await debugUserInteractions(childId.toString());
+        }
+      } else {
+        setNotification({ message: 'Failed to update bookmark', show: true });
+        setTimeout(() => setNotification({ message: '', show: false }), 3000);
+      }
+    } catch (error) {
+      console.error('Error toggling bookmark:', error);
+      setNotification({ message: 'Failed to update bookmark', show: true });
+      setTimeout(() => setNotification({ message: '', show: false }), 3000);
     }
   };
 
@@ -271,14 +309,12 @@ export default function BookDetailPage() {
 
               <div className="mt-4 space-y-2">
                 {book.contenturl && (
-                  <a
-                    href={book.contenturl}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <button
+                    onClick={handleViewBook}
                     className="block w-full text-center bg-rose-500 text-white py-2 rounded-lg hover:bg-rose-600 transition-colors"
                   >
                     View Book
-                  </a>
+                  </button>
                 )}
                 <button
                   onClick={handleScheduleBook}
@@ -287,7 +323,7 @@ export default function BookDetailPage() {
                   Schedule Reading
                 </button>
                 <button
-                  onClick={toggleBookmark}
+                  onClick={toggleBookmarkHandler}
                   className={`block w-full text-center ${
                     isBookmarked ? 'bg-yellow-400 hover:bg-yellow-500' : 'bg-gray-300 hover:bg-gray-400'
                   } text-white py-2 rounded-lg transition-colors`}

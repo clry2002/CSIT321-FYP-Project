@@ -29,6 +29,7 @@ export default function AccountSettings() {
   const [email, setEmail] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [passwordResetDisabled, setPasswordResetDisabled] = useState(false);
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
     newPassword: '',
@@ -54,6 +55,19 @@ export default function AccountSettings() {
         }
 
         setEmail(session.user.email || '');
+
+        // Fetch password reset permission
+        const { data: permissionData, error: permissionError } = await supabase
+          .from('childpermissions')
+          .select('*')
+          .eq('permission', 'disable reset password')
+          .single();
+
+        if (permissionError) {
+          console.error('Error fetching permissions:', permissionError);
+        } else {
+          setPasswordResetDisabled(permissionData?.active || false);
+        }
 
       } catch (err) {
         console.error('Error loading account:', err);
@@ -150,56 +164,66 @@ export default function AccountSettings() {
                       </p>
                     </div>
 
-                    <div className="pt-4">
-                      <h4 className="text-md font-medium text-gray-900 mb-3">Change Password</h4>
-                      
-                      {passwordMessage && (
-                        <div className={`mb-4 p-3 rounded-lg text-sm ${
-                          passwordMessage.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                        }`}>
-                          {passwordMessage.text}
-                        </div>
-                      )}
-                      
-                      <div className="space-y-3">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">Current Password</label>
-                          <input
-                            type="password"
-                            value={passwordData.currentPassword}
-                            onChange={(e) => setPasswordData({...passwordData, currentPassword: e.target.value})}
-                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 [&::-webkit-contacts-auto-fill-button]:hidden [&::-webkit-credentials-auto-fill-button]:hidden [&::-webkit-credentials-auto-fill-button]:bg-black [&::-webkit-contacts-auto-fill-button]:bg-black [&::-webkit-credentials-auto-fill-button]:text-black [&::-webkit-contacts-auto-fill-button]:text-black"
-                          />
-                        </div>
+                    {!passwordResetDisabled ? (
+                      <div className="pt-4">
+                        <h4 className="text-md font-medium text-gray-900 mb-3">Change Password</h4>
                         
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">New Password</label>
-                          <input
-                            type="password"
-                            value={passwordData.newPassword}
-                            onChange={(e) => setPasswordData({...passwordData, newPassword: e.target.value})}
-                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 [&::-webkit-contacts-auto-fill-button]:hidden [&::-webkit-credentials-auto-fill-button]:hidden [&::-webkit-credentials-auto-fill-button]:bg-black [&::-webkit-contacts-auto-fill-button]:bg-black [&::-webkit-credentials-auto-fill-button]:text-black [&::-webkit-contacts-auto-fill-button]:text-black"
-                          />
-                        </div>
+                        {passwordMessage && (
+                          <div className={`mb-4 p-3 rounded-lg text-sm ${
+                            passwordMessage.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                          }`}>
+                            {passwordMessage.text}
+                          </div>
+                        )}
                         
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">Confirm New Password</label>
-                          <input
-                            type="password"
-                            value={passwordData.confirmPassword}
-                            onChange={(e) => setPasswordData({...passwordData, confirmPassword: e.target.value})}
-                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 [&::-webkit-contacts-auto-fill-button]:hidden [&::-webkit-credentials-auto-fill-button]:hidden [&::-webkit-credentials-auto-fill-button]:bg-black [&::-webkit-contacts-auto-fill-button]:bg-black [&::-webkit-credentials-auto-fill-button]:text-black [&::-webkit-contacts-auto-fill-button]:text-black"
-                          />
+                        <div className="space-y-3">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700">Current Password</label>
+                            <input
+                              type="password"
+                              value={passwordData.currentPassword}
+                              onChange={(e) => setPasswordData({...passwordData, currentPassword: e.target.value})}
+                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 [&::-webkit-contacts-auto-fill-button]:hidden [&::-webkit-credentials-auto-fill-button]:hidden [&::-webkit-credentials-auto-fill-button]:bg-black [&::-webkit-contacts-auto-fill-button]:bg-black [&::-webkit-credentials-auto-fill-button]:text-black [&::-webkit-contacts-auto-fill-button]:text-black"
+                            />
+                          </div>
+                          
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700">New Password</label>
+                            <input
+                              type="password"
+                              value={passwordData.newPassword}
+                              onChange={(e) => setPasswordData({...passwordData, newPassword: e.target.value})}
+                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 [&::-webkit-contacts-auto-fill-button]:hidden [&::-webkit-credentials-auto-fill-button]:hidden [&::-webkit-credentials-auto-fill-button]:bg-black [&::-webkit-contacts-auto-fill-button]:bg-black [&::-webkit-credentials-auto-fill-button]:text-black [&::-webkit-contacts-auto-fill-button]:text-black"
+                            />
+                          </div>
+                          
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700">Confirm New Password</label>
+                            <input
+                              type="password"
+                              value={passwordData.confirmPassword}
+                              onChange={(e) => setPasswordData({...passwordData, confirmPassword: e.target.value})}
+                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 [&::-webkit-contacts-auto-fill-button]:hidden [&::-webkit-credentials-auto-fill-button]:hidden [&::-webkit-credentials-auto-fill-button]:bg-black [&::-webkit-contacts-auto-fill-button]:bg-black [&::-webkit-credentials-auto-fill-button]:text-black [&::-webkit-contacts-auto-fill-button]:text-black"
+                            />
+                          </div>
+                          
+                          <button
+                            onClick={handlePasswordChange}
+                            className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                          >
+                            Update Password
+                          </button>
                         </div>
-                        
-                        <button
-                          onClick={handlePasswordChange}
-                          className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                        >
-                          Update Password
-                        </button>
                       </div>
-                    </div>
+                    ) : (
+                      <div className="pt-4">
+                        <div className="p-4 bg-gray-100 rounded-lg">
+                          <p className="text-gray-600">
+                            Password changes are currently disabled by an administrator. Please contact your parent or guardian for assistance with password changes.
+                          </p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

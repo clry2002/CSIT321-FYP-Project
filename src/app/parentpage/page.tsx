@@ -4,7 +4,8 @@ import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-// import Link from 'next/link';
+import { RefreshCw, Settings, LogOut } from 'lucide-react';
+import { deleteChildAccount } from '../components/parent/ChildDeletion'
 
 interface Child {
   id: string;
@@ -26,6 +27,8 @@ const ParentDataFetcher = () => {
   const [notificationMessage, setNotificationMessage] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [childToDelete, setChildToDelete] = useState<string | null>(null);
+  const [childNameToDelete, setChildNameToDelete] = useState<string | null>(null);
+  const [canDeleteChild, setCanDeleteChild] = useState(true);
 
   const fetchParentData = useCallback(async () => {
     setLoading(true);
@@ -33,6 +36,19 @@ const ParentDataFetcher = () => {
     console.log("Fetching parent data...");
 
     try {
+      // Fetch parent delete permission
+      const { data: permissionData, error: permissionError } = await supabase
+        .from('parentpermissions')
+        .select('active')
+        .eq('permission', 'disable child deletion')
+        .single();
+
+      if (permissionError) {
+        console.error('Error fetching parent permissions:', permissionError);
+      } else {
+        setCanDeleteChild(!permissionData?.active);
+      }
+
       const { data: { user }, error: userError } = await supabase.auth.getUser();
 
       if (userError) {
@@ -142,13 +158,37 @@ const ParentDataFetcher = () => {
   }, [searchParams, fetchParentData]);
 
   const handleDeleteClick = (childId: string) => {
+    const child = children.find(c => c.id === childId);
     setChildToDelete(childId);
+    setChildNameToDelete(child ? child.name : null);
     setShowDeleteConfirm(true);
   };
 
   const handleDeleteConfirm = async () => {
     if (!childToDelete) return;
-    await deleteChild(childToDelete);
+    
+    const childToRemove = children.find(child => child.id === childToDelete);
+    if (!childToRemove) {
+      setError('Child not found');
+      setShowDeleteConfirm(false);
+      return;
+    }
+    
+    const result = await deleteChildAccount(
+      childToDelete,
+      childToRemove,
+      setLoading,
+      setError
+    );
+    
+    if (result.success) {
+      // Update local state without refetching
+      setChildren(children.filter(child => child.id !== childToDelete));
+      setNotificationMessage(result.message);
+      setShowNotification(true);
+      setTimeout(() => setShowNotification(false), 3000);
+    }
+    
     setShowDeleteConfirm(false);
     setChildToDelete(null);
   };
@@ -158,94 +198,46 @@ const ParentDataFetcher = () => {
     setChildToDelete(null);
   };
 
-  const deleteChild = async (id: string) => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const childToRemove = children.find(child => child.id === id);
-      if (!childToRemove) {
-        throw new Error('Child not found');
-      }
-
-      const { error: relationError } = await supabase
-        .from('isparentof')
-        .delete()
-        .eq('child_id', id);
-
-      if (relationError) {
-        console.error('Error deleting from isparentof:', relationError);
-        throw relationError;
-      }
-
-      const { error: profileError } = await supabase
-        .from('child_details')
-        .delete()
-        .eq('child_id', childToRemove.id);
-
-      if (profileError) {
-        console.error('Error deleting from child_profile:', profileError);
-        throw profileError;
-      }
-
-      const { error: accountError } = await supabase
-        .from('user_account')
-        .delete()
-        .eq('id', id);
-
-      if (accountError) {
-        console.error('Error deleting from user_account:', accountError);
-        throw accountError;
-      }
-
-      await fetchParentData();
-      setNotificationMessage('Child profile successfully deleted');
-      setShowNotification(true);
-      setTimeout(() => setShowNotification(false), 3000);
-    } catch (err) {
-      console.error('Error deleting child:', err);
-      setError(err instanceof Error ? err.message : 'Error deleting child profile');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   if (loading) {
     return <div className="flex items-center justify-center h-screen">Loading...</div>;
   }
 
   return (
-    <div className="flex flex-col h-screen bg-gray-100 overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-200 py-10 px-6 shadow-xl overflow-hidden">
       {showNotification && (
-        <div className="fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50">
+        <div className="fixed top-8 right-8 bg-emerald-500 text-white px-5 py-3 rounded-md shadow-lg z-50 animate-slide-in-right">
           {notificationMessage}
         </div>
       )}
 
       {error && (
-        <div className="fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg z-50">
+        <div className="fixed top-8 right-8 bg-rose-500 text-white px-5 py-3 rounded-md shadow-lg z-50 animate-slide-in-right">
           {error}
         </div>
       )}
 
       {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold mb-4 text-black">Confirm Deletion</h3>
-            <p className="text-gray-600 mb-6">
-              Are you sure you want to delete this child&apos;s profile? This action cannot be undone.
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+          <div className="bg-white p-8 rounded-xl shadow-2xl max-w-md w-full mx-4">
+            <h3 className="text-xl font-semibold text-gray-800 mb-5">Confirm Deletion</h3>
+            <p className="text-gray-600 mb-6 leading-relaxed">
+              Are you sure you want to permanently delete{' '}
+              <span className="font-medium text-indigo-600">{childNameToDelete}</span>&apos;s account? This action is irreversible.
             </p>
             <div className="flex justify-end space-x-4">
               <button
                 onClick={handleDeleteCancel}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-opacity-50 transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleDeleteConfirm}
-                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 transition-colors"
               >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 inline-block mr-1 -mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
                 Delete
               </button>
             </div>
@@ -253,124 +245,113 @@ const ParentDataFetcher = () => {
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto px-6 py-5">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-serif text-black">Welcome back, {parentName || ""}!</h1>
-          <div className="flex space-x-3">
+      <div className="max-w-7xl mx-auto py-8">
+        <div className="mb-8 flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight leading-tight">
+              Welcome back, <span className="text-indigo-600">{parentName || 'Parent'}</span>!
+            </h1>
+            <p className="mt-1 text-md text-gray-500">Manage your child&apos;s digital world.</p>
+          </div>
+          <div className="space-x-4">
             <button
-              className="bg-blue-500 text-white px-4 py-2 rounded-lg"
-              onClick={() => fetchParentData()}
+              className="inline-flex items-center px-4 py-2 bg-indigo-500 text-white rounded-md font-semibold text-sm hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50 transition-colors"
+              onClick={fetchParentData}
             >
-              Refresh Data
+              <RefreshCw className="h-5 w-5 mr-2" />
+              Refresh
             </button>
             <button
-              className="bg-gray-900 text-white px-4 py-2 rounded-lg"
+              className="inline-flex items-center px-4 py-2 bg-gray-800 text-white rounded-md font-semibold text-sm hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-800 focus:ring-opacity-50 transition-colors"
               onClick={() => router.push('/parent/settings')}
             >
+              <Settings className="h-5 w-5 mr-2" />
               Settings
             </button>
             <button
-              className="bg-red-600 text-white px-4 py-2 rounded-lg"
+              className="inline-flex items-center px-4 py-2 bg-red-500 text-white rounded-md font-semibold text-sm hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 transition-colors"
               onClick={() => router.push('/logout')}
             >
+              <LogOut className="h-5 w-5 mr-2" />
               Logout
             </button>
           </div>
         </div>
 
-        <div className="space-y-5">
-          <div className="bg-white rounded-lg shadow-md p-4">
-            <h2 className="text-lg font-serif mb-3 text-black">Child Profiles</h2>
-            {children.length > 0 ? (
-              children.map((child) => (
-                <div key={child.id} className="flex items-center justify-between mb-3 p-2 border border-gray-200 rounded">
-                  <div>
-                    <h3
-                      className="font-medium text-black text-sm cursor-pointer hover:text-blue-500"
-                      onClick={() => router.push(`/parent/viewchild?childId=${child.id}`)}
-                    >
-                      {child.name}
-                    </h3>
-                    <p className="text-gray-500 text-xs">Age: {child.age !== null ? child.age : 'Unknown'}</p>
+        <div className="bg-white rounded-xl shadow-md p-6">
+          <h2 className="text-xl font-semibold text-gray-800 mb-5">Child Accounts</h2>
+          {children.length > 0 ? (
+            <div className="space-y-4">
+              {children.map((child) => (
+                <div
+                  key={child.id}
+                  className="bg-gray-50 border border-gray-200 rounded-md p-4 flex items-center justify-between"
+                >
+                  <div className="flex items-center space-x-4">
+                    <div>
+                      <h3
+                        className="font-medium text-gray-800 cursor-pointer hover:text-indigo-600 transition-colors"
+                        onClick={() => router.push(`/parent/viewchild?childId=${child.id}`)}
+                      >
+                        {child.name}
+                      </h3>
+                      <p className="text-gray-500 text-sm">
+                        Age: {child.age !== null ? child.age : 'Unknown'}
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex space-x-2">
+                  <div className="space-x-2 flex items-center">
                     <button
-                      className="bg-blue-500 text-white px-2 py-1 rounded text-xs"
+                      className="bg-indigo-500 text-white px-3 py-1 rounded-md text-sm hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50 transition-colors"
                       onClick={() => router.push(`/parent/viewchild?childId=${child.id}`)}
                     >
                       View
                     </button>
                     <button
-                      className="bg-red-500 text-white px-2 py-1 rounded text-xs"
-                      onClick={() => handleDeleteClick(child.id)}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <p className="text-gray-500 text-sm p-3">No child profiles available. Add a child below.</p>
-            )}
-            <button
-              className="bg-green-500 text-white px-4 py-2 rounded-lg w-full mt-4"
-              onClick={() => router.push('/parent/createchild')}
-            >
-              + Add Child
-            </button>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-md p-4">
-            <h2 className="text-lg font-serif mb-3 text-black">Child ChatBot History</h2>
-            {children.length > 0 ? (
-              children.map((child) => (
-                <div key={child.id} className="mb-3 p-2 border border-gray-200 rounded">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <h3 className="font-medium text-sm text-black">{child.name}&apos;s History</h3>
-                      <ul className="list-disc list-inside text-gray-600 text-xs">
-                        {child.history?.length ? (
-                          child.history.map((entry, index) => <li key={index}>{entry}</li>)
-                        ) : (
-                          <li>No history available</li>
-                        )}
-                      </ul>
-                    </div>
-                    <button
-                      className="bg-blue-500 text-white px-2 py-1 rounded text-xs"
+                      className="bg-blue-400 text-white px-3 py-1 rounded-md text-sm hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-50 transition-colors"
                       onClick={() => router.push(`/parent/chathistory?childId=${child.id}`)}
                     >
-                      View History
+                      Chat History
                     </button>
+                    <button
+                      className="bg-yellow-500 text-white px-3 py-1 rounded-md text-sm hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-opacity-50 transition-colors"
+                      onClick={() => router.push(`/parent/parentalcontrol/${child.id}`)}
+                    >
+                      Parental Controls
+                    </button>
+                    {canDeleteChild && (
+                      <button
+                        className="bg-red-500 text-white px-3 py-1 rounded-md text-sm hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 transition-colors"
+                        onClick={() => handleDeleteClick(child.id)}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 inline-block mr-1 -mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                        Delete
+                      </button>
+                    )}
                   </div>
                 </div>
-              ))
-            ) : (
-              <p className="text-gray-500 text-sm p-3">No chatbot history available. Add a child first.</p>
-            )}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-gray-600 py-3">No child profiles added yet.</p>
+          )}
 
-          <div className="bg-white rounded-lg shadow-md p-4">
-            <h2 className="text-lg font-serif mb-3 text-black">Parental Control</h2>
-            {children.length > 0 ? (
-              children.map((child) => (
-                <button
-                  key={child.id}
-                  className="block w-full text-center text-md bg-blue-500 text-white mb-2 p-3 rounded"
-                  onClick={() => router.push(`/parent/parentalcontrol/${child.id}`)}
-                >
-                  {child.name}&apos;s Settings
-                </button>
-              ))
-            ) : (
-              <p className="text-gray-500 text-sm p-3">No settings available. Add a child first.</p>
-            )}
-          </div>
+          <button
+            className="w-full mt-6 inline-flex items-center justify-center px-4 py-3 bg-emerald-500 text-white rounded-md font-semibold text-sm hover:bg-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-opacity-50 transition-colors"
+            onClick={() => router.push('/parent/createchild')}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+            Add Child Account
+          </button>
         </div>
       </div>
     </div>
   );
-};
+}
 
 export default function ParentHome() {
   return (
