@@ -14,7 +14,7 @@ type DiscussionEntry = {
 };
 
 const MAX_WORDS = 148;
-const MAX_VISIBLE_CHARACTERS = 200; // Adjust as needed
+const MAX_VISIBLE_CHARACTERS = 200;
 
 export default function DiscussionBoardPage() {
   const { id } = useParams();
@@ -24,7 +24,7 @@ export default function DiscussionBoardPage() {
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [currentUserAccountId, setCurrentUserAccountId] = useState<string | null>(null);
   const [wordCount, setWordCount] = useState(0);
   const [selectedResponse, setSelectedResponse] = useState<DiscussionEntry | null>(null);
   const responsesContainerRef = useRef<HTMLDivElement>(null);
@@ -77,7 +77,7 @@ export default function DiscussionBoardPage() {
             const { data: profileData } = await supabase
               .from('user_account')
               .select('fullname')
-              .eq('user_id', entry.uaid)
+              .eq('id', entry.uaid) // Changed: Now using id instead of user_id
               .single();
 
             return {
@@ -91,12 +91,26 @@ export default function DiscussionBoardPage() {
         );
         setResponses(enriched);
 
+        // Get the current user's account ID
         const {
           data: { user },
           error: authError,
         } = await supabase.auth.getUser();
         if (authError || !user) throw authError;
-        setCurrentUserId(user.id);
+        
+        // Fetch the user_account.id that matches the auth user
+        const { data: userAccount, error: userAccountError } = await supabase
+          .from('user_account')
+          .select('id')
+          .eq('user_id', user.id)
+          .single();
+          
+        if (userAccountError || !userAccount) {
+          console.error('Error fetching user account:', userAccountError);
+          throw userAccountError;
+        }
+        
+        setCurrentUserAccountId(userAccount.id);
       } catch (error: unknown) {
         if (error instanceof Error) {
           console.error('Error loading discussion board:', error.message);
@@ -132,7 +146,7 @@ export default function DiscussionBoardPage() {
           const { data: profileData } = await supabase
             .from('user_account')
             .select('fullname')
-            .eq('user_id', newEntry.uaid)
+            .eq('id', newEntry.uaid) // Changed: Now using id instead of user_id
             .single();
 
           setResponses((prev) => [
@@ -182,10 +196,22 @@ export default function DiscussionBoardPage() {
         return;
       }
 
+      // Get the user_account.id for the current auth user
+      const { data: userAccount, error: userAccountError } = await supabase
+        .from('user_account')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+        
+      if (userAccountError || !userAccount) {
+        console.error('Error fetching user account:', userAccountError);
+        return;
+      }
+
       const { error } = await supabase.from('discussionboard').insert([
         {
           crid: parseInt(id as string, 10),
-          uaid: user.id,
+          uaid: userAccount.id, // Changed: Using user_account.id instead of auth user.id
           response: newMessage,
         },
       ]);
@@ -284,12 +310,12 @@ export default function DiscussionBoardPage() {
                       <button
                         type="button"
                         onClick={() => handleReadMore(entry)}
-                        className="text-blue-500 text-sm hover:underline mb-1" // Added mb-1 for spacing
+                        className="text-blue-500 text-sm hover:underline mb-1"
                       >
                         Read More
                       </button>
                     )}
-                    {entry.uaid === currentUserId && (
+                    {entry.uaid === currentUserAccountId && (
                       <button
                         type="button"
                         onClick={() => requestDeleteConfirmation(entry.id)}

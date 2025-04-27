@@ -4,13 +4,15 @@ import React from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { User, Settings } from 'lucide-react';
+import EduNavbar from '../../components/eduNavbar';
 
-export default function ParentSettings() {
+export default function EducatorSettings() {
   const router = useRouter();
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <div className="max-w-4xl mx-auto p-6">
+      <EduNavbar />
+      <div className="min-h-screen bg-gray-100 pt-16">
         <button
           onClick={() => router.push('/teacherpage')}
           className="mb-6 flex items-center text-gray-600 hover:text-gray-900"
@@ -30,7 +32,7 @@ export default function ParentSettings() {
           </svg>
           Back
         </button>
-        <h1 className="text-2xl font-bold mb-6 text-black">Settings</h1>
+        <h1 className="text-2xl font-bold mb-6 text-black pl-4">Settings</h1>
         
         <div className="max-w-4xl space-y-4">
           <div className="flex gap-4">

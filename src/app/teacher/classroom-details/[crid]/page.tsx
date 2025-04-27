@@ -10,8 +10,8 @@ import { Pencil, Check, X, MessageCircle, Bell, Users } from 'lucide-react';
 
 // Import section components
 import StudentsSection from '../../../components/educator/ClassroomDetails/Students';
-import DiscussionBoardSection from '../../../components/educator/ClassroomDetails/DiscussionBoard';
-//import AnnouncementBoardSection from '../../../components/educator/ClassroomDetails/AnnouncementBoard';
+import DiscussionBoardSection  from '../../discussionBoard/page';
+import AnnouncementBoardSection from '../../../components/educator/ClassroomDetails/AnnouncementBoard';
 
 type Classroom = {
   crid: number;
@@ -99,6 +99,11 @@ export default function ClassroomDetails() {
     }
   };
 
+  // Function to navigate back to home page
+  const handleBackClick = () => {
+    router.push('/teacherpage');
+  };
+
   // Function to handle tab change
   const handleTabChange = (tab: TabType) => {
     setActiveTab(tab);
@@ -169,7 +174,7 @@ export default function ClassroomDetails() {
           <div className="bg-white rounded-lg shadow-md p-4 border border-gray-200">
             <div className="mb-4">
               <a
-              onClick={() => router.back()}
+              onClick={handleBackClick}
               className="text-blue-600 hover:underline cursor-pointer text-sm"
             >
               ← Back
@@ -289,12 +294,12 @@ export default function ClassroomDetails() {
               )}
               
               {activeTab === TabType.DISCUSSIONS && (
-                <DiscussionBoardSection classroomId={classroom.crid} educatorId={educatorId} />
+                <DiscussionBoardSection classroomId={classroom.crid} />
               )}
-{/*               
+              
               {activeTab === TabType.ANNOUNCEMENTS && (
-                <AnnouncementBoardSection classroomId={classroom.crid} educatorId={educatorId} />
-              )} */}
+                <AnnouncementBoardSection classroomId={classroom.crid} />
+              )}
             </div>
           </div>
         ) : (

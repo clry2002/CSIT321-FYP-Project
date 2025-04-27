@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 import Navbar from '../../components/Navbar'; 
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
+import { Clock, Video as VideoIcon, Book } from 'lucide-react';
 
 type Classroom = {
   crid: number;
@@ -21,15 +22,44 @@ type Content = {
   contenturl: string; 
 };
 
+type Announcement = {
+  abid: number;
+  cid: number;
+  crid: number;
+  message: string;
+  created_at: string;
+  contentTitle?: string;
+  contentImage?: string;
+  contentUrl?: string;
+  contentType: 'book' | 'video';
+};
+
 export default function ClassroomBoardPage() {
   const [classroom, setClassroom] = useState<Classroom | null>(null);
   const [content, setContent] = useState<Content | null>(null); 
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [userAccountId, setUserAccountId] = useState<string | null>(null); 
   const [hasAccess, setHasAccess] = useState<boolean | null>(null);
+  const [activeTab, setActiveTab] = useState<'book' | 'video'>('book');
   const { id } = useParams(); 
   const router = useRouter(); 
+
+  // Function to get YouTube video ID from URL
+  const getYoutubeVideoId = (url: string | undefined | null) => {
+    if (!url) return null;
+    
+    if (url.includes('youtube.com/watch?v=')) {
+      return url.split('v=')[1]?.split('&')[0];
+    } else if (url.includes('youtu.be/')) {
+      return url.split('youtu.be/')[1]?.split('?')[0];
+    }
+    
+    // More comprehensive regex fallback
+    const match = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
+    return match ? match[1] : null;
+  };
 
   // Combined authentication and data loading process
   useEffect(() => {
@@ -154,6 +184,66 @@ export default function ClassroomBoardPage() {
             });
           }
         }
+
+                  // Fetch announcements for this classroom
+        const { data: announcementsData, error: announcementsError } = await supabase
+          .from('announcement_board')
+          .select('*')
+          .eq('crid', id)
+          .order('created_at', { ascending: false });
+          
+        if (announcementsError) {
+          console.error('Announcements error:', announcementsError);
+        } else if (announcementsData && announcementsData.length > 0) {
+          // Process each announcement
+          const processedAnnouncements = await Promise.all(
+            announcementsData.map(async (announcement) => {
+              const isVideo = announcement.cid !== undefined && announcement.cid !== null;
+              const contentId = isVideo ? announcement.cid : announcement.cid;
+              
+              if (!contentId) {
+                return {
+                  ...announcement,
+                  contentTitle: 'Unknown Content',
+                  contentImage: null,
+                  contentUrl: null,
+                  contentType: isVideo ? 'video' : 'book'
+                };
+              }
+              
+              // Fetch content details
+              const { data: contentDetails, error: contentError } = await supabase
+                .from('temp_content')
+                .select('title, coverimage, contenturl, cfid')
+                .eq('cid', contentId)
+                .single();
+                
+              if (contentError) {
+                console.error(`Error fetching content ${contentId}:`, contentError);
+                return {
+                  ...announcement,
+                  contentTitle: 'Content Not Found',
+                  contentImage: null,
+                  contentUrl: null,
+                  contentType: isVideo ? 'video' : 'book'
+                };
+              }
+              
+              // Determine content type based on cfid (1 = video, 2 = book/pdf)
+              const contentType = contentDetails.cfid === 1 ? 'video' : 'book';
+              
+              return {
+                ...announcement,
+                contentTitle: contentDetails?.title || 'Unknown Content',
+                contentImage: contentType === 'video' ? null : contentDetails?.coverimage || null,
+                contentUrl: contentDetails?.contenturl || null,
+                contentType: contentType
+              };
+            })
+          );
+          
+          setAnnouncements(processedAnnouncements);
+        }
         
         console.log("All data loaded successfully");
       } catch (err) {
@@ -167,12 +257,47 @@ export default function ClassroomBoardPage() {
     loadClassroomData();
   }, [id]);
 
-  const handleRedirectToDetail = (cid: number, cfid: number) => {
-    if (cfid === 1) {
-      router.push(`/videodetail/${cid}`);
-    } else if (cfid === 2) {
+  const handleRedirectToDetail = (cid: number, contentType: 'book' | 'video', videoId?: number) => {
+    if (contentType === 'video') {
+      router.push(`/videodetail/${videoId || cid}`);
+    } else {
       router.push(`/bookdetail/${cid}`);
     }
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString();
+  };
+
+  // Function to get clean image URL
+  const getCleanImageUrl = (url: string | undefined | null) => {
+    if (!url) return null;
+    return url.startsWith('@') ? url.substring(1) : url;
+  };
+
+  // Function to render video preview
+  const renderVideoPreview = (url: string | undefined | null, title: string | undefined) => {
+    const videoId = getYoutubeVideoId(url);
+    
+    if (!videoId) {
+      return (
+        <div className="w-full h-full flex items-center justify-center bg-gray-200">
+          <VideoIcon className="h-8 w-8 text-gray-400" />
+        </div>
+      );
+    }
+    
+    return (
+      <iframe
+        src={`https://www.youtube.com/embed/${videoId}`}
+        title={title || 'Video'}
+        frameBorder="0"
+        allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
+        allowFullScreen
+        className="w-full h-full"
+      />
+    );
   };
 
   // Display loading state when page is loading
@@ -270,14 +395,17 @@ export default function ClassroomBoardPage() {
     );
   }
 
+  // Filter announcements based on active tab
+  const filteredAnnouncements = announcements.filter(a => a.contentType === activeTab);
+
   return (
     <div className="flex flex-col h-screen bg-gradient-to-r from-yellow-100 via-pink-100 to-blue-100 overflow-hidden">
       <Navbar />
 
-      <div className="flex-1 overflow-y-auto pt-30 px-6 pb-6">
+      <div className="flex-1 overflow-y-auto pt-20 px-6 pb-6">
         <h2 className="text-4xl font-bold text-center text-blue-700 mb-6">Welcome to Your Classroom!</h2>
 
-        <div className="bg-white shadow-lg rounded-xl p-8 max-w-xl mx-auto">
+        <div className="bg-white shadow-lg rounded-xl p-8 max-w-xl mx-auto mb-8">
           <div className="flex items-center mb-6">
             <span className="text-4xl text-yellow-500 mr-4">👨‍🏫</span>
             <h3 className="text-3xl font-semibold text-blue-600">{classroom.name}</h3>
@@ -301,7 +429,7 @@ export default function ClassroomBoardPage() {
                   <h4 className="text-xl font-semibold text-gray-600 mb-2">Videos to watch!</h4>
                   <div className="relative" style={{ paddingBottom: '56.25%' }}>
                     <iframe
-                      src={`https://www.youtube.com/embed/${content.contenturl.split('v=')[1]}`}
+                      src={`https://www.youtube.com/embed/${getYoutubeVideoId(content.contenturl)}`}
                       title={content.title}
                       frameBorder="0"
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -310,7 +438,10 @@ export default function ClassroomBoardPage() {
                     />
                   </div>
                   <h4
-                    onClick={() => classroom.cid !== null && handleRedirectToDetail(classroom.cid, content.cfid)}
+                    onClick={() => classroom.cid !== null && handleRedirectToDetail(
+                      classroom.cid, 
+                      content.cfid === 1 ? 'video' : 'book'
+                    )}
                     className="mt-4 text-2xl text-blue-600 font-semibold text-center cursor-pointer"
                   >
                     {content.title}
@@ -320,7 +451,7 @@ export default function ClassroomBoardPage() {
                 <div className="mt-6">
                   <h4 className="text-xl font-semibold text-gray-600 mb-2">Books to read!</h4>
                   <Image
-                    src={content.coverimage}
+                    src={getCleanImageUrl(content.coverimage) || '/placeholder-cover.jpg'}
                     width={500}
                     height={667}
                     alt={content.title}
@@ -332,7 +463,7 @@ export default function ClassroomBoardPage() {
                     }}
                   />
                   <h4
-                    onClick={() => classroom.cid !== null && handleRedirectToDetail(classroom.cid, content.cfid)}
+                    onClick={() => classroom.cid !== null && handleRedirectToDetail(classroom.cid, content.cfid === 1 ? 'video' : 'book')}
                     className="mt-4 text-2xl text-blue-600 font-semibold text-center cursor-pointer"
                   >
                     {content.title}
@@ -353,6 +484,125 @@ export default function ClassroomBoardPage() {
             </button>
           </div>
         </div>
+
+        {/* Assignments Section */}
+        {announcements.length > 0 && (
+          <div className="bg-white shadow-lg rounded-xl p-8 max-w-xl mx-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-2xl font-bold text-blue-600">Assignments</h3>
+              
+              {/* Tab buttons for switching between book and video assignments */}
+              <div className="flex bg-gray-100 rounded-md overflow-hidden">
+                <button
+                  onClick={() => setActiveTab('book')}
+                  className={`flex items-center px-3 py-1 text-sm ${
+                    activeTab === 'book' 
+                      ? 'bg-blue-500 text-white' 
+                      : 'bg-gray-100 text-gray-700'
+                  }`}
+                >
+                  <Book className="h-4 w-4 mr-1" />
+                  Books
+                </button>
+                <button
+                  onClick={() => setActiveTab('video')}
+                  className={`flex items-center px-3 py-1 text-sm ${
+                    activeTab === 'video' 
+                      ? 'bg-blue-500 text-white' 
+                      : 'bg-gray-100 text-gray-700'
+                  }`}
+                >
+                  <VideoIcon className="h-4 w-4 mr-1" />
+                  Videos
+                </button>
+              </div>
+            </div>
+            
+            {filteredAnnouncements.length > 0 ? (
+              <div className="space-y-4">
+                {filteredAnnouncements.map((announcement) => (
+                  <div key={announcement.abid} className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow">
+                    <div className="flex flex-col md:flex-row">
+                      {/* Content thumbnail/cover image or video player */}
+                      <div className="w-full md:w-1/3 h-48 md:h-auto relative flex-shrink-0">
+                        {announcement.contentType === 'video' && announcement.contentUrl ? (
+                          // Video player for videos
+                          <div className="w-full h-full aspect-video">
+                            {renderVideoPreview(announcement.contentUrl, announcement.contentTitle)}
+                          </div>
+                        ) : announcement.contentImage ? (
+                          // Book cover for books
+                          <Image
+                            src={getCleanImageUrl(announcement.contentImage) || '/placeholder-cover.jpg'}
+                            alt={announcement.contentTitle || 'Book cover'}
+                            width={180}
+                            height={240}
+                            className="object-cover w-full h-full"
+                          />
+                        ) : (
+                          // Fallback for missing content
+                          <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+                            {announcement.contentType === 'video' ? (
+                              <VideoIcon className="h-12 w-12 text-gray-400" />
+                            ) : (
+                              <Book className="h-12 w-12 text-gray-400" />
+                            )}
+                            <span className="text-gray-400 text-xs ml-2">No {announcement.contentType}</span>
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="flex-grow p-4">
+                        <div className="flex justify-between items-start">
+                          <div className="flex items-center">
+                            <h3 className="font-medium text-lg text-gray-900">{announcement.contentTitle}</h3>
+                            <span className="ml-2 bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded-full">
+                              {announcement.contentType === 'video' ? 'Video' : 'Book'}
+                            </span>
+                          </div>
+                          <span className="text-xs text-gray-500 flex items-center">
+                            <Clock className="h-3 w-3 mr-1" />
+                            {formatDate(announcement.created_at)}
+                          </span>
+                        </div>
+                        
+                        {announcement.message && (
+                          <p className="text-sm text-gray-700 mt-2">{announcement.message}</p>
+                        )}
+                        
+                        <div className="mt-4 flex">
+                          <button 
+                            onClick={() => handleRedirectToDetail(
+                              announcement.cid, 
+                              announcement.contentType,
+                              announcement.cid
+                            )}
+                            className="px-4 py-2 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 transition-colors ml-auto"
+                          >
+                            View {announcement.contentType === 'video' ? 'Video' : 'Book'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-10 bg-gray-50 rounded-lg border">
+                <div className="w-16 h-24 mx-auto mb-3 bg-gray-200 rounded flex items-center justify-center">
+                  {activeTab === 'video' ? (
+                    <VideoIcon className="h-8 w-8 text-gray-400" />
+                  ) : (
+                    <Book className="h-8 w-8 text-gray-400" />
+                  )}
+                </div>
+                <p className="text-gray-500">
+                  No {activeTab === 'book' ? 'books' : 'videos'} have been assigned yet.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

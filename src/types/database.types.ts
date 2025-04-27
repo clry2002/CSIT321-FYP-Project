@@ -26,6 +26,7 @@ export interface Video {
     cfid: number;
     createddate?: string | null;
     decisiondate?: string | null;
+
     
 }
 
@@ -97,5 +98,34 @@ export interface RawBook {
   
   export interface BookWithGenres extends RawBook {
     genreNames?: string[];
+  }
+
+
+  // Educator - Discussion Board Features
+
+  export type Discussion = {
+    id: number; // Maps to did
+    question: string;
+    created_at: string;
+    created_by: string;
+    educator_name?: string;
+  };
+  
+  export type DiscussionResponse = {
+    id: number;
+    message: string;
+    sender_name: string;
+    created_at: string;
+    uaid: string;
+  };
+  
+  export type DeleteConfirmationState = {
+    id: number | null;
+    visible: boolean;
+  };
+  
+  export interface UserData {
+    id: string;
+    isEducator: boolean;
   }
   
