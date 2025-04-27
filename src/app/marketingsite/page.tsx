@@ -247,7 +247,7 @@ export default function LandingPage() {
                 <div className="text-center">
                   <p className="text-xs font-semibold text-gray-700">{t.name}</p>
                   <div className="flex justify-center mt-2">
-                    <img src={t.img} alt="Avatar" className="w-10 h-10 rounded-full" />
+                    <Image src={`/${t.img}`} alt="Avatar" width={40} height={40} className="rounded-full" />
                   </div>
                 </div>
               </div>
