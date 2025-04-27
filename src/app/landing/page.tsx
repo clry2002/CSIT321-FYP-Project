@@ -57,24 +57,24 @@ export default function LandingPage() {
   }, []);
 
   useEffect(() => {
-      const handleBeforeUnload = () => {
-        if (mainContentRef.current && !isTransitioning) {
-          setIsTransitioning(true);
-          mainContentRef.current.classList.remove('animate-slide-in');
-          mainContentRef.current.classList.add('animate-slide-out');
-          const animationDuration = parseFloat(getComputedStyle(mainContentRef.current).animationDuration) * 1000;
-          setTimeout(() => {
-            setIsTransitioning(false);
-          }, animationDuration);
-        }
-      };
-  
-      window.addEventListener('beforeunload', handleBeforeUnload);
-  
-      return () => {
-        window.removeEventListener('beforeunload', handleBeforeUnload);
-      };
-    }, [isTransitioning]);
+    const handleBeforeUnload = () => {
+      if (mainContentRef.current && !isTransitioning) {
+        setIsTransitioning(true);
+        mainContentRef.current.classList.remove('animate-slide-in');
+        mainContentRef.current.classList.add('animate-slide-out');
+        const animationDuration = parseFloat(getComputedStyle(mainContentRef.current).animationDuration) * 1000;
+        setTimeout(() => {
+          setIsTransitioning(false);
+        }, animationDuration);
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [isTransitioning]);
 
   useEffect(() => {
     const fetchBooks = async () => {
@@ -142,6 +142,11 @@ export default function LandingPage() {
           <Link href="/auth/signup">
             <button className="px-4 py-2 bg-orange-500 text-white font-semibold rounded-full hover:bg-orange-600 transition">
               Sign Up
+            </button>
+          </Link>
+          <Link href="/marketingsite">
+            <button className="px-4 py-2 text-blue-500 border border-blue-500 rounded-full hover:bg-blue-100 transition">
+              Why us?
             </button>
           </Link>
         </div>

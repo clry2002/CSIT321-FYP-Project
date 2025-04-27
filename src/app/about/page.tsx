@@ -1,65 +1,91 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image'; // Import the Image component
+import Image from 'next/image';
 
 export default function AboutPage() {
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-indigo-100 to-indigo-200">
-      {/* Header */}
-      <header className="flex justify-between items-center p-4 bg-white shadow-md">
-        <Link href="/"> 
-          <h1 className="text-2xl font-bold text-gray-800 cursor-pointer">
-            CoReadability
-          </h1>
-        </Link>
-        <div className="space-x-4">
-          <Link href="/">
-            <button className="px-4 py-2 bg-blue-500 text-white font-semibold rounded-lg hover:bg-blue-600 transition">
-              Home
-            </button>
-          </Link>
-          <Link href="/auth/signup">
-            <button className="px-4 py-2 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 transition">
-              Sign Up
-            </button>
-          </Link>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="flex flex-col items-center justify-center flex-1 text-center p-6">
-        <h2 className="text-5xl font-extrabold text-gray-800 mb-6">About Us</h2>
+    <div className="relative min-h-screen flex flex-col">
+      {/* Background Image */}
+      <div className="absolute inset-0">
         <Image
-          src="/logo2.png"
-          alt="CoReadability Logo"
-          width={400}  // Logo Size Adjustments
-          height={400}
-          className="mt-6"
+          src="/space1.jpg"
+          alt="Background Space"
+          fill
+          className="object-cover"
+          priority
         />
-        <p className="text-lg text-gray-700 mb-4 max-w-xl">
-          Welcome to <span className="font-semibold text-gray-800">CoReadability</span>, where learning meets fun! Our mission is to provide kids with personalized book and video recommendations that sparks curiosity and creativity.
-        </p>
-        <p className="text-lg text-gray-700 mb-4 max-w-xl">
-          We believe every child is unique, and our chatbot is designed to help young learners explore exciting stories and educational content tailored just for them. Whether it&apos;s finding the perfect adventure novel or an engaging science video, we’re here to make discovery effortless and enjoyable.
-        </p>
-        <p className="text-lg text-gray-700 mb-6 max-w-xl">
-          Thank you for trusting us to inspire the next generation of readers, thinkers, and dreamers. Let&apos;s make learning an unforgettable journey!
-        </p>
-        <Link href="/auth/signup">
-          <button className="px-6 py-3 bg-purple-500 text-white font-semibold rounded-lg hover:bg-purple-600 transition mt-6">
-            Explore Now
-          </button>
-        </Link>
-      </main>
+        {/* Dark Overlay */}
+        <div className="absolute inset-0 bg-black opacity-50"></div>
+      </div>
 
-      {/* Footer */}
-      <footer className="py-4 bg-white text-center text-gray-600">
-        © 2025 CoReadability. Empowering young minds through stories and knowledge.
-      </footer>
+      {/* Page Content */}
+      <div className="relative z-10 flex flex-col min-h-screen">
+        {/* Header */}
+        <header className="flex justify-between items-center p-4 bg-white/90 shadow-md">
+          <Link href="/">
+            <h1 className="text-2xl font-bold text-gray-800 cursor-pointer">
+              CoReadability
+            </h1>
+          </Link>
+          <div className="space-x-4">
+            <Link href="/">
+              <button className="px-4 py-2 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 transition">
+                Home
+              </button>
+            </Link>
+            <Link href="/auth/signup">
+              <button className="px-4 py-2 bg-orange-500 text-white font-semibold rounded-lg hover:bg-orange-600 transition">
+                Sign Up
+              </button>
+            </Link>
+          </div>
+        </header>
+
+        {/* Main Content */}
+        <main className="flex flex-col items-center justify-center flex-1 text-center p-6 text-white">
+          <h2 className="text-5xl font-extrabold mb-6">About Us</h2>
+
+          {/* Logo */}
+          <div className="bg-white rounded-full p-4 shadow-lg mb-8">
+            <Image
+              src="/logo2.png"
+              alt="CoReadability Logo"
+              width={180}
+              height={180}
+              className="rounded-full"
+            />
+          </div>
+
+          {/* About Text */}
+          <div className="max-w-3xl mx-auto">
+            <p className="text-lg mb-6">
+              Welcome to <span className="font-semibold text-white">CoReadability</span>, where learning meets fun! 
+              Our mission is to provide kids with personalized book and video recommendations that spark curiosity and creativity.
+            </p>
+            <p className="text-lg mb-6">
+              We believe every child is unique, and our chatbot helps young learners explore exciting stories and educational content 
+              tailored just for them. Whether it&apos:s finding the perfect adventure novel or an engaging science video, we&apos;re here to make 
+              discovery effortless and enjoyable.
+            </p>
+            <p className="text-lg mb-6">
+              Thank you for trusting us to inspire the next generation of readers, thinkers, and dreamers. Let&apos;s make learning an unforgettable journey!
+            </p>
+
+            {/* CTA Button */}
+            <Link href="/auth/signup">
+              <button className="px-8 py-4 bg-orange-500 text-white font-semibold rounded-lg hover:bg-orange-600 transition mt-6">
+                Explore Now
+              </button>
+            </Link>
+          </div>
+        </main>
+
+        {/* Footer */}
+        <footer className="py-6 bg-white/90 text-center text-gray-600 mt-8">
+          © 2025 CoReadability. Empowering young minds through stories and knowledge.
+        </footer>
+      </div>
     </div>
   );
 }
-
-
-// testpush
