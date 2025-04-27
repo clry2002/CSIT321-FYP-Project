@@ -77,7 +77,7 @@ export default function FAQPage() {
                 <p>Yes! We use filters and parental settings to ensure all content is safe, kid-friendly, and educational.</p>
               </div>
               <div>
-                <h4 className="font-semibold text-xl text-gray-200">Can I manage or monitor my child’s activity?</h4>
+                <h4 className="font-semibold text-xl text-gray-200">Can I manage or monitor my child&apos;s activity?</h4>
                 <p>Absolutely. You can track reading/viewing history and adjust preferences through the Parent Dashboard.</p>
               </div>
             </div>
@@ -92,7 +92,7 @@ export default function FAQPage() {
               </div>
               <div>
                 <h4 className="font-semibold text-xl text-gray-200">Do you support class groups or dashboards?</h4>
-                <p>We're developing educator tools so you can track student activity and assign content to groups.</p>
+                <p>We&apos;re developing educator tools so you can track student activity and assign content to groups.</p>
               </div>
             </div>
           </section>
