@@ -65,7 +65,7 @@ export default function AboutPage() {
             </p>
             <p className="text-lg mb-6">
               We believe every child is unique, and our chatbot helps young learners explore exciting stories and educational content 
-              tailored just for them. Whether it's finding the perfect adventure novel or an engaging science video, we're here to make 
+              tailored just for them. Whether it&apos:s finding the perfect adventure novel or an engaging science video, we&apos;re here to make 
               discovery effortless and enjoyable.
             </p>
             <p className="text-lg mb-6">
