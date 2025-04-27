@@ -61,10 +61,9 @@ export default function LandingPage() {
           />
           <h1 className="text-2xl font-bold text-gray-800">CoReadability</h1>
         </div>
-        <div className="space-x-4">
+        <div className="flex items-center justify-center flex-grow space-x-4"> {/* Centered navigation links */}
           <Link href="/" className="text-gray-800 font-medium hover:text-blue-600 transition">Home</Link>
-          <Link href="#how-it-works" className="text-gray-800 font-medium hover:text-blue-600 transition">Learn more</Link>
-
+          <Link href="#how-it-works" className="text-gray-800 font-medium hover:text-blue-600 transition">Learn More</Link>
           <Link
             href="#why-coreadability"
             className={`font-medium transition ${activeSection === 'why-coreadability' ? 'underline decoration-2 underline-offset-8 text-gray-600' : 'text-gray-800 hover:text-gray-600'}`}
@@ -73,6 +72,8 @@ export default function LandingPage() {
           </Link>
           <Link href="/about" className="text-gray-800 font-medium hover:text-blue-600 transition">About Us</Link>
           <Link href="/faq" className="text-gray-800 font-medium hover:text-blue-600 transition">FAQ</Link>
+        </div>
+        <div className="space-x-4">
           <Link href="/auth/login">
             <button className="px-4 py-2 bg-green-500 text-white font-semibold rounded-lg transition hover:bg-orange-600">Sign In</button>
           </Link>
