@@ -4,10 +4,12 @@ import { useState, useEffect } from 'react';
 import { useBooks } from '../../../hooks/useBooks';
 import { supabase } from '@/lib/supabase';
 import BookCard from '../../components/BookCard';
-import VideoCard from '../../components/VideoCard'; // Make sure this is imported
+import VideoCard from '../../components/VideoCard';
 import EduNavbar from '../../components/eduNavbar';
 import { Search } from 'lucide-react';
 import { Book, Video } from "../../../types/database.types";
+
+type ActiveTabType = 'books' | 'videos';
 
 export default function AvailableContent() {
   const { availableBooks } = useBooks();
@@ -18,7 +20,25 @@ export default function AvailableContent() {
   const [availableVideos, setAvailableVideos] = useState<Video[]>([]);
   const [filteredVideos, setFilteredVideos] = useState<Video[]>([]);
   const [showNoResults, setShowNoResults] = useState(false);
-  const [activeTab, setActiveTab] = useState<'books' | 'videos'>('books');
+  const [activeTab, setActiveTab] = useState<ActiveTabType>('books');
+
+  // Initialize activeTab from localStorage if available
+  useEffect(() => {
+    // Only run on client-side
+    if (typeof window !== 'undefined') {
+      const savedTab = localStorage.getItem('educatorActiveTab') as ActiveTabType | null;
+      if (savedTab === 'books' || savedTab === 'videos') {
+        setActiveTab(savedTab);
+      }
+    }
+  }, []);
+
+  // Save activeTab to localStorage when it changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('educatorActiveTab', activeTab);
+    }
+  }, [activeTab]);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -48,7 +68,8 @@ export default function AvailableContent() {
         const { data, error } = await supabase
           .from('temp_content')
           .select('*')
-          .eq('cfid', '1');
+          .eq('cfid', '1')
+          .eq('status', 'approved');
 
         if (error) {
           console.error('Error fetching videos:', error);
@@ -108,6 +129,12 @@ export default function AvailableContent() {
     setSearchQuery('');
   };
 
+  const handleTabChange = (tab: ActiveTabType) => {
+    setActiveTab(tab);
+    // Clear search when switching tabs
+    setSearchQuery('');
+  };
+
   return (
     <div className="flex flex-col h-screen bg-white">
       <EduNavbar />
@@ -123,7 +150,7 @@ export default function AvailableContent() {
                   ? 'text-blue-600 border-b-2 border-blue-600' 
                   : 'text-gray-500 hover:text-gray-700'
               }`}
-              onClick={() => setActiveTab('books')}
+              onClick={() => handleTabChange('books')}
             >
               Books
             </button>
@@ -133,7 +160,7 @@ export default function AvailableContent() {
                   ? 'text-blue-600 border-b-2 border-blue-600' 
                   : 'text-gray-500 hover:text-gray-700'
               }`}
-              onClick={() => setActiveTab('videos')}
+              onClick={() => handleTabChange('videos')}
             >
               Videos
             </button>
@@ -170,8 +197,8 @@ export default function AvailableContent() {
           
           {/* Content Display */}
           {isLoading ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-              {Array.from({ length: 8 }).map((_, index) => (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
+              {Array.from({ length: 18 }).map((_, index) => (
                 <div key={index} className="space-y-1">
                   <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-gray-200 animate-pulse" />
                   <div className="h-3 bg-gray-200 rounded animate-pulse w-3/4" />
@@ -193,7 +220,7 @@ export default function AvailableContent() {
             </div>
           ) : (
             activeTab === 'books' ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+              <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
                 {filteredBooks.map((book, index) => (
                   <BookCard 
                     key={index} 
@@ -203,7 +230,7 @@ export default function AvailableContent() {
                 ))}
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+              <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
                 {filteredVideos.length > 0 ? (
                   filteredVideos.map((video, index) => (
                     <VideoCard 
@@ -213,7 +240,7 @@ export default function AvailableContent() {
                     />
                   ))
                 ) : (
-                  <div className="col-span-4 text-center text-gray-500 py-4">
+                  <div className="col-span-6 text-center text-gray-500 py-4">
                     No videos available at the moment
                   </div>
                 )}

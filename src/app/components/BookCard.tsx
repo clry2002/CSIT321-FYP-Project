@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useInteractions } from '../../hooks/useInteractions';
 import { useRouter } from 'next/navigation';
-import AssignBookModal from './educator/ClassroomDetails/AssignModal';
+import AssignBookModal from './educator/ClassroomDetails/AssignBookModal';
 
 interface BookCardProps {
   cid: string | number; 

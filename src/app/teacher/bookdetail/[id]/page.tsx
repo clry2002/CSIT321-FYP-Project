@@ -6,7 +6,7 @@ import Image from 'next/image';
 import EduNavbar from '../../../components/eduNavbar';
 import { supabase } from '@/lib/supabase';
 import type { Book } from '@/types/database.types';
-import AssignBookModal from '../../../components/educator/ClassroomDetails/AssignModal';
+import AssignBookModal from '../../../components/educator/ClassroomDetails/AssignBookModal';
 
 export default function TeacherBookDetailPage() {
   const params = useParams();
@@ -157,6 +157,8 @@ export default function TeacherBookDetailPage() {
               ← Back
             </button>
           </div>
+
+          <h1 className="text-3xl font-bold mb-6 text-gray-900">{book.title}</h1>
 
           <div className="flex flex-col md:flex-row gap-8">
             <div className="w-full md:w-1/3">

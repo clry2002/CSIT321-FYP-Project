@@ -6,7 +6,6 @@ import { Book } from '@/types/database.types';
 
 export const useBooks = () => {
   const [availableBooks, setAvailableBooks] = useState<Book[]>([]);
-  // const [recommendedForYouBooks, setRecommendedForYouBooks] = useState<Book[]>([]);
   const [recommendedForYouBooks] = useState<Book[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -17,7 +16,8 @@ export const useBooks = () => {
         const { data: books, error: booksError } = await supabase
           .from('temp_content')
           .select('cid, title, credit, coverimage, minimumage, description, cfid, status, contenturl, createddate, decisiondate')
-          .eq('cfid', 2); // Only fetch books
+          .eq('cfid', 2)
+          .eq('status', 'approved');
 
         if (booksError) {
           console.error('Error fetching books:', booksError);
