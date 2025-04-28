@@ -16,6 +16,7 @@ export default function LandingPage() {
         'parents',
         'educators',
         'publishers',
+        'testimonial',
         'why-coreadability',
       ];
       let current = '';
@@ -29,9 +30,7 @@ export default function LandingPage() {
           }
         }
       });
-      if (['how-it-works', 'parents', 'educators', 'publishers'].includes(current)) {
-        setActiveSection('how-it-works');
-      } else {
+      if (current !== activeSection) {
         setActiveSection(current);
       }
     };
@@ -41,8 +40,12 @@ export default function LandingPage() {
   }, []);
 
   const handleLearnMoreClick = () => {
-    router.push('#parents');
+    const section = document.getElementById('parents');
+    if (section) {
+      section.scrollIntoView({ behavior: 'smooth' });
+    }
   };
+  
 
   return (
     <div className="min-h-screen flex flex-col scroll-smooth">
@@ -63,7 +66,15 @@ export default function LandingPage() {
         </div>
         <div className="flex items-center justify-center flex-grow space-x-4"> {/* Centered navigation links */}
           <Link href="/" className="text-gray-800 font-medium hover:text-blue-600 transition">Home</Link>
-          <Link href="#how-it-works" className="text-gray-800 font-medium hover:text-blue-600 transition">Learn More</Link>
+          <Link href="#parents" 
+          className={`font-medium transition ${activeSection === 'parents' || activeSection === 'educators' || activeSection === 'publishers' ? 'underline decoration-2 underline-offset-8 text-gray-600' : 'text-gray-800 hover:text-gray-600'}`}
+          >Learn More
+          </Link>
+          <Link href="#testimonial" 
+          className={`font-medium transition ${activeSection === 'testimonial'? 'underline decoration-2 underline-offset-8 text-gray-600' : 'text-gray-800 hover:text-gray-600'}`}
+          >Testimonials
+          </Link>
+         
           <Link
             href="#why-coreadability"
             className={`font-medium transition ${activeSection === 'why-coreadability' ? 'underline decoration-2 underline-offset-8 text-gray-600' : 'text-gray-800 hover:text-gray-600'}`}
@@ -167,8 +178,9 @@ export default function LandingPage() {
           </div>
         </section>
       ))}
+      
       {/* Testimonials Carousel */}
-      <section className="relative py-24 px-6 md:px-20 bg-[#fef9f5]">
+      <section id = 'testimonial' className="relative py-24 px-6 md:px-20 bg-[#fef9f5]">
         <div className="text-center mb-12">
           <h3 className="text-4xl font-bold text-gray-800">What People Are Saying</h3>
           <p className="text-gray-600 mt-2">Real voices. Real impact.</p>

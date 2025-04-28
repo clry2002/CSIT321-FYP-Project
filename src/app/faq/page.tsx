@@ -38,6 +38,11 @@ export default function FAQPage() {
             </Link>
           </div>
           <div className="space-x-4">
+          <Link href="/marketingsite" passHref>
+            <button className=" px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition">
+            Back
+            </button>
+          </Link>
             <Link href="/">
               <button className="px-4 py-2 bg-green-500 text-white font-semibold rounded-lg hover:bg-orange-600 transition">
                 Home
@@ -53,6 +58,9 @@ export default function FAQPage() {
 
         {/* Main Content */}
         <main className="flex flex-col items-center flex-1 text-left px-6 py-12 text-white">
+          {/* Back Button */}
+         
+
           <h2 className="text-5xl font-extrabold text-center mb-12">Frequently Asked Questions</h2>
 
           <section className="max-w-4xl w-full mb-12">

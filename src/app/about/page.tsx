@@ -29,6 +29,11 @@ export default function AboutPage() {
             </h1>
           </Link>
           <div className="space-x-4">
+          <Link href="/marketingsite" passHref>
+            <button className=" px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition">
+            Back
+            </button>
+          </Link>
             <Link href="/">
               <button className="px-4 py-2 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 transition">
                 Home
