@@ -5,11 +5,15 @@ import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import EduNavbar from '../components/eduNavbar';
 import Link from 'next/link';
+import { AcademicCapIcon, UserGroupIcon, ClockIcon } from '@heroicons/react/24/outline';
 
 type Classroom = {
     crid: number;
     name: string;
     description: string;
+    acceptedCount?: number;
+    rejectedCount?: number;
+    pendingCount?: number;
 };
 
 export default function ViewClassrooms() {
@@ -20,7 +24,7 @@ export default function ViewClassrooms() {
     const router = useRouter();
 
     useEffect(() => {
-        const fetchClassrooms = async () => {
+        const fetchClassroomsWithStudentCounts = async () => {
             setLoading(true);
             setErrorMessage('');
 
@@ -48,28 +52,64 @@ export default function ViewClassrooms() {
                     setCanCreateClassroom(!permissionData?.active);
                 }
 
-                const { data, error } = await supabase
+                const { data: userData, error: userAccountError } = await supabase
                     .from('user_account')
                     .select('id')
                     .eq('user_id', user.id)
                     .single();
 
-                if (error || !data) {
+                if (userAccountError || !userData) {
                     setErrorMessage('Failed to fetch user account.');
                     setLoading(false);
                     return;
                 }
 
+                // Fetch classrooms created by the current educator
                 const { data: classroomData, error: classroomError } = await supabase
                     .from('temp_classroom')
                     .select('crid, name, description')
-                    .eq('uaid_educator', data.id);
+                    .eq('uaid_educator', userData.id);
 
                 if (classroomError) {
                     setErrorMessage('Failed to fetch classrooms.');
-                } else {
-                    setClassrooms(classroomData || []);
+                    setLoading(false);
+                    return;
                 }
+
+                // Fetch all student records for the educator's classrooms
+                const classroomIds = classroomData.map((classroom) => classroom.crid);
+                const { data: studentData, error: studentError } = await supabase
+                    .from('temp_classroomstudents')
+                    .select('crid, invitation_status')
+                    .in('crid', classroomIds);
+
+                if (studentError) {
+                    setErrorMessage('Failed to fetch classroom students.');
+                    setLoading(false);
+                    return;
+                }
+
+                // Calculate student counts for each status per classroom
+                const classroomsWithCounts = classroomData.map((classroom) => {
+                    const acceptedStudents = studentData.filter(
+                        (student) => student.crid === classroom.crid && student.invitation_status === 'accepted'
+                    );
+                    const rejectedStudents = studentData.filter(
+                        (student) => student.crid === classroom.crid && student.invitation_status === 'rejected'
+                    );
+                    const pendingStudents = studentData.filter(
+                        (student) => student.crid === classroom.crid && student.invitation_status === 'pending'
+                    );
+                    return {
+                        ...classroom,
+                        acceptedCount: acceptedStudents.length,
+                        rejectedCount: rejectedStudents.length,
+                        pendingCount: pendingStudents.length,
+                    };
+                });
+
+                setClassrooms(classroomsWithCounts);
+
             } catch (err) {
                 setErrorMessage('An error occurred while fetching data.');
                 console.error(err);
@@ -78,51 +118,77 @@ export default function ViewClassrooms() {
             setLoading(false);
         };
 
-        fetchClassrooms();
+        fetchClassroomsWithStudentCounts();
     }, [router]);
 
     return (
-        <div className="bg-gray-50 min-h-screen">
+        <div className="bg-gray-100 min-h-screen">
             <EduNavbar />
             <main className="container mx-auto py-10 px-6 sm:px-8 md:px-10 lg:px-12 mt-20">
-                <h1 className="text-2xl font-semibold mb-6 text-gray-800">My Classrooms</h1>
+                <h1 className="text-3xl font-semibold text-gray-800 mb-8 flex items-center space-x-2">
+                    <AcademicCapIcon className="h-7 w-7 text-blue-500" />
+                    <span>My Classrooms</span>
+                </h1>
 
-                {loading && <p className="text-gray-600 italic">Loading classrooms...</p>}
-                {errorMessage && <p className="text-red-500">{errorMessage}</p>}
+                {loading && <div className="text-center py-6"><p className="text-gray-600 italic">Loading classrooms...</p></div>}
+                {errorMessage && <div className="text-center py-6"><p className="text-red-500">{errorMessage}</p></div>}
 
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                     {classrooms.map((classroom) => (
                         <Link
                             key={classroom.crid}
                             href={`/teacher/classroom-details/${classroom.crid}`}
-                            className="block rounded-lg shadow-md border border-gray-300 hover:shadow-lg transition duration-300 overflow-hidden relative group"
+                            className="block rounded-xl shadow-md border border-gray-200 hover:shadow-lg transition duration-300 overflow-hidden bg-white"
                         >
-                            <div className="absolute inset-0 bg-blue-100 opacity-0 group-hover:opacity-10 transition duration-300 pointer-events-none" />
-                            <div className="p-6">
-                                <h2 className="text-xl font-semibold text-gray-900 mb-2 relative z-10">{classroom.name}</h2>
-                                <p className="text-gray-700 relative z-10">{classroom.description}</p>
+                            <div className="p-6 flex flex-col h-full">
+                                <div className="bg-indigo-100 text-indigo-800 font-semibold py-2 px-4 rounded-full inline-block mb-4">
+                                    {classroom.name}
+                                </div>
+                                <p className="text-gray-700 mb-4 line-clamp-3 flex-grow">{classroom.description}</p>
+                                <div className="mt-auto flex justify-center space-x-4 text-sm text-gray-500">
+                                    {typeof classroom.acceptedCount === 'number' && (
+                                        <div className="flex items-center space-x-1">
+                                            <UserGroupIcon className="h-4 w-4 text-green-500" />
+                                            <span className="flex items-center"><b className="font-semibold mr-1">{classroom.acceptedCount}</b> Accepted</span>
+                                        </div>
+                                    )}
+                                    {typeof classroom.pendingCount === 'number' && (
+                                        <div className="flex items-center space-x-1">
+                                            <ClockIcon className="h-4 w-4 text-yellow-500" />
+                                            <span className="flex items-center"><b className="font-semibold mr-1">{classroom.pendingCount}</b> Pending</span>
+                                        </div>
+                                    )}
+                                    {typeof classroom.rejectedCount === 'number' && (
+                                        <div className="flex items-center space-x-1">
+                                            {/* You might want a different icon for rejected */}
+                                            <UserGroupIcon className="h-4 w-4 text-red-500 opacity-70" />
+                                            <span className="flex items-center"><b className="font-semibold mr-1">{classroom.rejectedCount}</b> Rejected</span>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </Link>
                     ))}
                 </div>
 
                 {classrooms.length === 0 && !loading && canCreateClassroom && (
-                    <div className="mt-8 text-center">
-                        <p className="text-gray-700 mb-4">No classrooms created yet. Get started by creating one!</p>
+                    <div className="mt-12 text-center">
+                        <p className="text-gray-600 mb-4">No classrooms created yet. Ready to inspire?</p>
                         <button
                             type="button"
                             onClick={() => router.push('/teacher/create-classroom-new')}
-                            className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-6 rounded-md transition duration-200 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                            className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-6 rounded-xl shadow-md transition duration-200 focus:outline-none focus:ring-2 focus:ring-blue-400"
                         >
+                            <AcademicCapIcon className="h-5 w-5 inline-block mr-2 -mt-0.5" />
                             Create New Classroom
                         </button>
                     </div>
                 )}
 
                 {classrooms.length === 0 && !loading && !canCreateClassroom && (
-                    <div className="mt-8 text-center">
-                        <p className="text-gray-700 mb-4">No classrooms created yet.</p>
-                        <p className="text-red-500">Classroom creation has been disabled by the administrator.</p>
+                    <div className="mt-12 text-center">
+                        <p className="text-gray-600 mb-4">No classrooms created yet.</p>
+                        <p className="text-red-500">Classroom creation has been temporarily disabled.</p>
                     </div>
                 )}
 
@@ -130,9 +196,10 @@ export default function ViewClassrooms() {
                     <button
                         type="button"
                         onClick={() => router.push('/teacher/create-classroom-new')}
-                        className="fixed bottom-6 right-6 bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-6 rounded-full shadow-lg transition duration-200 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                        className="fixed bottom-8 right-8 bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-6 rounded-full shadow-lg transition duration-200 focus:outline-none focus:ring-2 focus:ring-blue-400 flex items-center space-x-2"
                     >
-                        + Create Classroom
+                        <AcademicCapIcon className="h-5 w-5" />
+                        <span>Create Classroom</span>
                     </button>
                 )}
             </main>
