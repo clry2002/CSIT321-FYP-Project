@@ -107,124 +107,183 @@ export default function BookmarksPage() {
   }, [user]);
 
   useEffect(() => {
-    const fetchBookmarks = async () => {
-      if (!childUaid) return;
-
-      console.log('Fetching bookmarks for child uaid:', childUaid);
-
-      try {
-        // First sync existing bookmark scores to ensure they're properly accounted for
-        console.log('Starting to sync existing bookmark scores');
-        const syncResult = await syncExistingBookmarks(childUaid);
-        console.log('Finished syncing bookmark scores, result:', syncResult);
-        
-        const { data: bookmarks, error: bookmarksError } = await supabase
-          .from('temp_bookmark')
-          .select('cid')
-          .eq('uaid', childUaid);
-
-        if (bookmarksError) {
-          console.error('Error fetching bookmarks:', bookmarksError);
-          return;
-        }
-
-        console.log('Fetched Bookmarks:', bookmarks);
-
-        if (!bookmarks || bookmarks.length === 0) {
-          console.log('No bookmarks found for this user.');
-          return;
-        }
-
-        const bookmarkedCids = bookmarks.map((bookmark) => bookmark.cid);
-        console.log('Bookmarked CIDs:', bookmarkedCids);
-
-        // Fetch books and videos in parallel
-        const [booksRes, videosRes] = await Promise.all([
-          supabase
-            .from('temp_content')
-            .select('*')
-            .in('cid', bookmarkedCids)
-            .eq('cfid', 2), // Books (cfid = 2)
-
-          supabase
-            .from('temp_content')
-            .select('*')
-            .in('cid', bookmarkedCids)
-            .eq('cfid', 1), // Videos (cfid = 1)
-        ]);
-
-        if (booksRes.error) {
-          console.error('Error fetching books:', booksRes.error);
-        }
-        if (videosRes.error) {
-          console.error('Error fetching videos:', videosRes.error);
-        }
-
-        // Set books and videos
-        setBookmarkedBooks(booksRes.data || []);
-        setBookmarkedVideos(videosRes.data || []);
-
-        // Fetch genres for books and videos
-        const [bookGenresRes, videoGenresRes] = await Promise.all([
-          supabase
-            .from('temp_contentgenres')
-            .select('cid, temp_genre(genrename)')
-            .in('cid', bookmarkedCids),
-          supabase
-            .from('temp_contentgenres')
-            .select('cid, temp_genre(genrename)')
-            .in('cid', bookmarkedCids),
-        ]);
-
-        // Process book genres
-        const bookGenresMap: Record<number, string[]> = {};
-        if (bookGenresRes.data) {
-          bookGenresRes.data.forEach((item: GenreItem) => {
-            if (!bookGenresMap[item.cid]) {
-              bookGenresMap[item.cid] = [];
+        const fetchBookmarks = async () => {
+          if (!childUaid) return;
+    
+          console.log('Fetching bookmarks for child uaid:', childUaid);
+    
+          try {
+            console.log('Starting to sync existing bookmark scores');
+            const syncResult = await syncExistingBookmarks(childUaid);
+            console.log('Finished syncing bookmark scores, result:', syncResult);
+    
+            // Fetch the child's blocked genre IDs and names
+            const { data: blockedGenresData, error: blockedGenresError } = await supabase
+              .from('blockedgenres')
+              .select('genreid, temp_genre(genrename)')
+              .eq('child_id', childUaid);
+    
+            if (blockedGenresError) {
+              console.error('Error fetching blocked genres:', blockedGenresError);
+              return;
             }
-            const genreField = item.temp_genre;
-            if (Array.isArray(genreField)) {
-              genreField.forEach((g: {genrename: string}) => {
-                if (g && g.genrename) {
-                  bookGenresMap[item.cid].push(g.genrename);
-                }
-              });
-            } else if (genreField && genreField.genrename) {
-              bookGenresMap[item.cid].push(genreField.genrename);
+    
+            const blockedGenreIds = blockedGenresData ? blockedGenresData.map(bg => bg.genreid) : [];
+            const blockedGenreNames = blockedGenresData
+              ? blockedGenresData
+                  .flatMap(bg => Array.isArray(bg.temp_genre) 
+                    ? bg.temp_genre.map(g => g.genrename?.toLowerCase()) 
+                    : [(bg.temp_genre as { genrename: string })?.genrename?.toLowerCase()])
+                  .filter(Boolean)
+              : [];
+            console.log('Blocked Genre IDs for child:', blockedGenreIds);
+            console.log('Blocked Genre Names for child:', blockedGenreNames);
+    
+            const { data: bookmarks, error: bookmarksError } = await supabase
+              .from('temp_bookmark')
+              .select('cid')
+              .eq('uaid', childUaid);
+    
+            if (bookmarksError) {
+              console.error('Error fetching bookmarks:', bookmarksError);
+              return;
             }
-          });
-        }
-        setBookGenres(bookGenresMap);
-
-        // Process video genres
-        const videoGenresMap: Record<number, string[]> = {};
-        if (videoGenresRes.data) {
-          videoGenresRes.data.forEach((item: GenreItem) => {
-            if (!videoGenresMap[item.cid]) {
-              videoGenresMap[item.cid] = [];
+    
+            console.log('Fetched Bookmarks:', bookmarks);
+    
+            if (!bookmarks || bookmarks.length === 0) {
+              console.log('No bookmarks found for this user.');
+              setBookmarkedBooks([]);
+              setBookmarkedVideos([]);
+              setBookGenres({});
+              setVideoGenres({});
+              return;
             }
-            const genreField = item.temp_genre;
-            if (Array.isArray(genreField)) {
-              genreField.forEach((g: {genrename: string}) => {
-                if (g && g.genrename) {
-                  videoGenresMap[item.cid].push(g.genrename);
-                }
-              });
-            } else if (genreField && genreField.genrename) {
-              videoGenresMap[item.cid].push(genreField.genrename);
+    
+            const bookmarkedCids = bookmarks.map((bookmark) => bookmark.cid);
+            console.log('Bookmarked CIDs:', bookmarkedCids);
+    
+            // Fetch books with genre IDs, titles, and descriptions
+            const { data: bookDataWithDetails, error: bookDataWithDetailsError } = await supabase
+              .from('temp_content')
+              .select('*, temp_contentgenres(gid)')
+              .in('cid', bookmarkedCids)
+              .eq('cfid', 2);
+    
+            if (bookDataWithDetailsError) {
+              console.error('Error fetching books with details:', bookDataWithDetailsError);
             }
-          });
-        }
-        setVideoGenres(videoGenresMap);
-
-      } catch (err) {
-        console.error('Unexpected error fetching bookmarks:', err);
-      }
-    };
-
-    fetchBookmarks();
-  }, [childUaid]);
+    
+            // Filter out books with blocked genres or blocked genre names in title/description
+            const filteredBookData = bookDataWithDetails?.filter(book => {
+              const bookGenreIds = book.temp_contentgenres.map((cg: { gid: number }) => cg.gid);
+              const titleLower = book.title.toLowerCase();
+              const descriptionLower = book.description.toLowerCase();
+    
+              const hasBlockedGenre = bookGenreIds.some((genreId: number) => blockedGenreIds.includes(genreId));
+              const titleContainsBlockedGenre = blockedGenreNames.some(name => titleLower.includes(name));
+              const descriptionContainsBlockedGenre = blockedGenreNames.some(name => descriptionLower.includes(name));
+    
+              return !hasBlockedGenre && !titleContainsBlockedGenre && !descriptionContainsBlockedGenre;
+            }) || [];
+            setBookmarkedBooks(filteredBookData);
+    
+            // Fetch videos with genre IDs, titles, and descriptions
+            const { data: videoDataWithDetails, error: videoDataWithDetailsError } = await supabase
+              .from('temp_content')
+              .select('*, temp_contentgenres(gid)')
+              .in('cid', bookmarkedCids)
+              .eq('cfid', 1);
+    
+            if (videoDataWithDetailsError) {
+              console.error('Error fetching videos with details:', videoDataWithDetailsError);
+            }
+    
+            // Filter out videos with blocked genres or blocked genre names in title/description
+            const filteredVideoData = videoDataWithDetails?.filter(video => {
+              const videoGenreIds = video.temp_contentgenres.map((cg: { gid: number }) => cg.gid);
+              const titleLower = video.title.toLowerCase();
+              const descriptionLower = video.description.toLowerCase();
+    
+              const hasBlockedGenre = videoGenreIds.some((genreId: number) => blockedGenreIds.includes(genreId));
+              const titleContainsBlockedGenre = blockedGenreNames.some(name => titleLower.includes(name));
+              const descriptionContainsBlockedGenre = blockedGenreNames.some(name => descriptionLower.includes(name));
+    
+              return !hasBlockedGenre && !titleContainsBlockedGenre && !descriptionContainsBlockedGenre;
+            }) || [];
+            setBookmarkedVideos(filteredVideoData);
+    
+            // Now fetch the actual genre names for the *filtered* books and videos
+            const filteredCids = [...filteredBookData.map(b => b.cid), ...filteredVideoData.map(v => v.cid)];
+    
+            if (filteredCids.length > 0) {
+              const [bookGenresRes, videoGenresRes] = await Promise.all([
+                supabase
+                  .from('temp_contentgenres')
+                  .select('cid, temp_genre(genrename)')
+                  .in('cid', filteredCids)
+                  .eq('content_cfid', 2), // Ensure we only get genres for books
+    
+                supabase
+                  .from('temp_contentgenres')
+                  .select('cid, temp_genre(genrename)')
+                  .in('cid', filteredCids)
+                  .eq('content_cfid', 1), // Ensure we only get genres for videos
+              ]);
+    
+              // Process book genres (same as before)
+              const bookGenresMap: Record<number, string[]> = {};
+              if (bookGenresRes.data) {
+                bookGenresRes.data.forEach((item: GenreItem) => {
+                  if (!bookGenresMap[item.cid]) {
+                    bookGenresMap[item.cid] = [];
+                  }
+                  const genreField = item.temp_genre;
+                  if (Array.isArray(genreField)) {
+                    genreField.forEach((g: {genrename: string}) => {
+                      if (g && g.genrename) {
+                        bookGenresMap[item.cid].push(g.genrename);
+                      }
+                    });
+                  } else if (genreField && genreField.genrename) {
+                    bookGenresMap[item.cid].push(genreField.genrename);
+                  }
+                });
+              }
+              setBookGenres(bookGenresMap);
+    
+              // Process video genres (same as before)
+              const videoGenresMap: Record<number, string[]> = {};
+              if (videoGenresRes.data) {
+                videoGenresRes.data.forEach((item: GenreItem) => {
+                  if (!videoGenresMap[item.cid]) {
+                    videoGenresMap[item.cid] = [];
+                  }
+                  const genreField = item.temp_genre;
+                  if (Array.isArray(genreField)) {
+                    genreField.forEach((g: {genrename: string}) => {
+                      if (g && g.genrename) {
+                        videoGenresMap[item.cid].push(g.genrename);
+                      }
+                    });
+                  } else if (genreField && genreField.genrename) {
+                    videoGenresMap[item.cid].push(genreField.genrename);
+                  }
+                });
+              }
+              setVideoGenres(videoGenresMap);
+            } else {
+              setBookGenres({});
+              setVideoGenres({});
+            }
+    
+          } catch (err) {
+            console.error('Unexpected error fetching bookmarks:', err);
+          }
+        };
+    
+        fetchBookmarks();
+      }, [childUaid]);
 
   const handleRemoveBookmark = async (cid: number, cfid: number) => {
     if (!childUaid) return;
