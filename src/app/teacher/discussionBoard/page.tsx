@@ -32,12 +32,39 @@ import {
   ResponseModal
 } from '../../components/educator/ClassroomDetails/DiscussionBoard';
 
+// Create a React Context for passing classroomId
+import React, { createContext, useContext } from 'react';
 
-type DiscussionBoardProps = {
+// Create a context for the classroom ID
+const ClassroomContext = createContext<number | null>(null);
+
+// This hook will allow components to access the classroom ID
+export function useClassroom() {
+  const context = useContext(ClassroomContext);
+  if (context === null) {
+    throw new Error('useClassroom must be used within a ClassroomProvider');
+  }
+  return context;
+}
+
+// Provider component to set the classroom ID
+export function ClassroomProvider({
+  classroomId,
+  children
+}: {
   classroomId: number;
-};
+  children: React.ReactNode;
+}) {
+  return (
+    <ClassroomContext.Provider value={classroomId}>
+      {children}
+    </ClassroomContext.Provider>
+  );
+}
 
-export default function DiscussionBoardSection({ classroomId }: DiscussionBoardProps) {
+// The actual Discussion Board Component
+function DiscussionBoard() {
+  const classroomId = useClassroom();
   const searchParams = useSearchParams();
   const [discussion, setDiscussion] = useState<Discussion | null>(null);
   const [responses, setResponses] = useState<DiscussionResponse[]>([]);
@@ -404,5 +431,35 @@ export default function DiscussionBoardSection({ classroomId }: DiscussionBoardP
         </div>
       )}
     </div>
+  );
+}
+
+// The actual page component - will be used when the page is accessed directly
+export default function DiscussionBoardPage() {
+  const searchParams = useSearchParams();
+  const classroomId = parseInt(searchParams.get('classroomId') || '0', 10);
+
+  if (!classroomId) {
+    return (
+      <div className="p-8 text-center">
+        <h1 className="text-2xl font-bold text-red-500 mb-4">Error</h1>
+        <p className="text-lg">Missing classroom ID. Please provide a valid classroom ID.</p>
+      </div>
+    );
+  }
+
+  return (
+    <ClassroomProvider classroomId={classroomId}>
+      <DiscussionBoard />
+    </ClassroomProvider>
+  );
+}
+
+// Export a component that can be used in other pages
+export function DiscussionBoardSection({ classroomId }: { classroomId: number }) {
+  return (
+    <ClassroomProvider classroomId={classroomId}>
+      <DiscussionBoard />
+    </ClassroomProvider>
   );
 }
