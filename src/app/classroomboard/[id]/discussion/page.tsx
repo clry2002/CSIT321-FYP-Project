@@ -279,18 +279,26 @@ export default function DiscussionBoardPage() {
     );
   }
 
+ 
   return (
-    <main className="min-h-screen w-full bg-gradient-to-br from-yellow-100 via-pink-100 to-blue-100 flex flex-col items-center pb-16">
+    <main
+      className="min-h-screen w-full bg-gradient-to-br from-yellow-100 via-pink-100 to-blue-100 flex flex-col items-center pb-20"
+      style={{
+        backgroundImage: 'url("/spaceclassroom.jpg")',
+        backgroundSize: 'cover',
+        backgroundRepeat: 'no-repeat',
+        backgroundPosition: 'center',
+        backgroundAttachment: 'fixed',
+      }}
+    >
       <Navbar />
-
+  
       <div className="bg-white rounded-xl shadow p-6 max-w-5xl w-full mt-25 text-center">
         <h2 className="text-2xl font-bold text-blue-700 mb-2"> {classroomName}</h2>
         <h3 className="text-lg font-semibold text-blue-700 mb-3"> Teacher&apos;s Question</h3>
         <p className="text-2xl font-bold text-gray-800">{teacherQuestion || 'No question available yet.'}</p>
-      </div>
-
-      <div className="py-8 flex justify-center w-full">
-        <div className="bg-gray-100 rounded-lg shadow-inner p-6 max-w-6xl w-full flex flex-col items-center">
+  
+        <div className="mt-8">
           <h3 className="text-lg font-semibold text-blue-700 mb-3"> Student&apos;s Response</h3>
           <div className="flex flex-row flex-wrap justify-center items-start gap-4 relative">
             {responses.map((entry, idx) => {
@@ -298,7 +306,7 @@ export default function DiscussionBoardPage() {
               const rotation = rotations[idx % rotations.length];
               const isLong = entry.message.length > MAX_VISIBLE_CHARACTERS;
               const displayedMessage = isLong ? `${entry.message.slice(0, MAX_VISIBLE_CHARACTERS)}...` : entry.message;
-
+  
               return (
                 <div
                   key={`${entry.id}-${entry.created_at}`}
@@ -356,7 +364,7 @@ export default function DiscussionBoardPage() {
           </div>
         </div>
       </div>
-
+  
       {selectedResponse && (
         <div className="fixed top-0 left-0 w-full h-full bg-black bg-opacity-50 flex justify-center items-center z-50">
           <div className="bg-white rounded-lg shadow-xl p-8 max-w-md w-full relative">
@@ -374,7 +382,7 @@ export default function DiscussionBoardPage() {
           </div>
         </div>
       )}
-
+  
       <div className="fixed bottom-0 left-0 w-full bg-white bg-opacity-90 py-3 px-6 z-20 shadow-inner flex justify-center">
         <form onSubmit={handleSubmit} className="flex flex-col md:flex-row items-center gap-4 max-w-5xl w-full">
           <div className="flex-1">

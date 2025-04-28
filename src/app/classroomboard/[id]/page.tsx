@@ -399,11 +399,20 @@ export default function ClassroomBoardPage() {
   const filteredAnnouncements = announcements.filter(a => a.contentType === activeTab);
 
   return (
-    <div className="flex flex-col h-screen bg-gradient-to-r from-yellow-100 via-pink-100 to-blue-100 overflow-hidden">
+    <div
+    className="flex flex-col h-screen overflow-hidden"
+    style={{
+      backgroundImage: 'url("/spaceclassroom.jpg")', // Replace with the actual path
+      backgroundSize: 'cover',
+      backgroundRepeat: 'no-repeat',
+      backgroundPosition: 'center',
+      backgroundAttachment: 'fixed',
+    }}
+  >
       <Navbar />
 
-      <div className="flex-1 overflow-y-auto pt-20 px-6 pb-6 mt-5">
-        <h2 className="text-4xl font-bold text-center text-blue-700 mb-6">Welcome to Your Classroom!</h2>
+      <div className="flex-1 overflow-y-auto pt-20 px-6 pb-6 mt-7">
+        <h2 className="text-4xl font-bold text-center text-gray-300 mb-6">Welcome to Your Classroom!</h2>
 
         <div className="bg-white shadow-lg rounded-xl p-8 max-w-xl mx-auto mb-8">
           <div className="flex items-center mb-6">
