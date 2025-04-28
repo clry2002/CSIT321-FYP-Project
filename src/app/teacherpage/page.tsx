@@ -152,13 +152,13 @@ export default function ViewClassrooms() {
                                             <span className="flex items-center"><b className="font-semibold mr-1">{classroom.acceptedCount}</b> Accepted</span>
                                         </div>
                                     )}
-                                    {typeof classroom.pendingCount === 'number' && (
+                                    {typeof classroom.pendingCount === 'number' && classroom.pendingCount > 0 && (
                                         <div className="flex items-center space-x-1">
                                             <ClockIcon className="h-4 w-4 text-yellow-500" />
                                             <span className="flex items-center"><b className="font-semibold mr-1">{classroom.pendingCount}</b> Pending</span>
                                         </div>
                                     )}
-                                    {typeof classroom.rejectedCount === 'number' && (
+                                    {typeof classroom.rejectedCount === 'number' && classroom.rejectedCount > 0 && (
                                         <div className="flex items-center space-x-1">
                                             {/* You might want a different icon for rejected */}
                                             <UserGroupIcon className="h-4 w-4 text-red-500 opacity-70" />
