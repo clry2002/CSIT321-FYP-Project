@@ -325,7 +325,7 @@ export default function BookDetailPage() {
                 <button
                   onClick={toggleBookmarkHandler}
                   className={`block w-full text-center ${
-                    isBookmarked ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-gray-700 hover:bg-gray-600'
+                    isBookmarked ? 'bg-red-500 hover:bg-red-600' : 'bg-yellow-400 hover:bg-yellow-500'
                   } text-white py-2 rounded-lg transition-colors`}
                 >
                   {isBookmarked ? 'Remove Bookmark' : 'Add to Bookmarks'}

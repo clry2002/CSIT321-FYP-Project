@@ -312,7 +312,7 @@ export default function VideoDetailPage() {
                 <button
                   onClick={handleBookmark}
                   className={`px-4 py-2 rounded-lg ${
-                    bookmarkedVideos.has(video.cid.toString()) ? 'bg-rose-500 hover:bg-rose-600' : 'bg-yellow-500 hover:bg-yellow-600'
+                    bookmarkedVideos.has(video.cid.toString()) ? 'bg-rose-500 hover:bg-rose-600' : 'bg-yellow-300 hover:bg-yellow-400'
                   } text-white transition-colors`}
                 >
                   {bookmarkedVideos.has(video.cid.toString()) ? 'Remove Bookmark' : 'Add to Bookmark'}
