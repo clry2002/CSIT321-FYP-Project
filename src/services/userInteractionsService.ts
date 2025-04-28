@@ -19,8 +19,6 @@ export const updateGenreInteraction = async (
     scoreChange: number
   ): Promise<boolean> => {
     try {
-      console.log(`[Score Log] Updating genre interaction: User ${uaid}, Genre ${gid}, Score change: ${scoreChange}`);
-      
       // IMPORTANT: First clean up ANY existing duplicates
       await cleanupDuplicateInteractions(uaid);
       
@@ -33,7 +31,6 @@ export const updateGenreInteraction = async (
         .single();
       
       if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 is "no rows returned"
-        console.error('Error fetching interaction:', fetchError);
         return false;
       }
       
@@ -45,15 +42,12 @@ export const updateGenreInteraction = async (
         // For negative scores, ensure we don't go below 0
         const finalScore = Math.max(0, newScore);
         
-        console.log(`[Score Log] Updating existing interaction: Previous score ${existingInteraction.score}, New score calculation ${newScore}, Final stored score ${finalScore}`);
-        
         const { error: updateError } = await supabase
           .from('userInteractions')
           .update({ score: finalScore })
           .eq('uiid', existingInteraction.uiid);
           
         if (updateError) {
-          console.error('Error updating interaction:', updateError);
           return false;
         }
       } 
@@ -61,7 +55,6 @@ export const updateGenreInteraction = async (
       else {
         // Create new interaction, ensuring score is at least 0
         const initialScore = Math.max(0, scoreChange);
-        console.log(`[Score Log] Creating new interaction with initial score ${initialScore}`);
         
         const { error: insertError } = await supabase
           .from('userInteractions')
@@ -72,15 +65,12 @@ export const updateGenreInteraction = async (
           });
           
         if (insertError) {
-          console.error('Error creating interaction:', insertError);
           return false;
         }
       }
       
-      console.log(`[Score Log] Successfully updated genre interaction`);
       return true;
-    } catch (error) {
-      console.error('Error in updateGenreInteraction:', error);
+    } catch {
       return false;
     }
   };
@@ -94,8 +84,6 @@ export const handleBookmarkAction = async (
     isAdding: boolean
   ): Promise<boolean> => {
     try {
-      console.log(`[Score Log] ${isAdding ? 'Adding' : 'Removing'} bookmark: User ${uaid}, Content ${cid}`);
-      
       // First, check if the content is a book (cfid = 2)
       const { data: content, error: contentError } = await supabase
         .from('temp_content')
@@ -104,13 +92,11 @@ export const handleBookmarkAction = async (
         .single();
         
       if (contentError) {
-        console.error('Error fetching content type:', contentError);
         return false;
       }
       
       // Skip score update if not a book
       if (content.cfid !== 2) {
-        console.log(`[Score Log] Content ${cid} is not a book (cfid=${content.cfid}). Skipping score update.`);
         return true;
       }
       
@@ -121,12 +107,10 @@ export const handleBookmarkAction = async (
         .eq('cid', cid);
         
       if (genresError) {
-        console.error('Error fetching content genres:', genresError);
         return false;
       }
       
       const scoreChange = isAdding ? BOOKMARK_ADD_SCORE : BOOKMARK_REMOVE_SCORE;
-      console.log(`[Score Log] Book bookmark action score change: ${scoreChange}, Affecting ${contentGenres?.length || 0} genres`);
       
       // Update interaction for each genre
       if (contentGenres && contentGenres.length > 0) {
@@ -137,10 +121,8 @@ export const handleBookmarkAction = async (
         await Promise.all(updatePromises);
       }
       
-      console.log(`[Score Log] Book bookmark action completed`);
       return true;
-    } catch (error) {
-      console.error('Error in handleBookmarkAction:', error);
+    } catch {
       return false;
     }
   };
@@ -153,8 +135,6 @@ export const handleBookView = async (
   cid: string
 ): Promise<boolean> => {
   try {
-    console.log(`[Score Log] Recording book view: User ${uaid}, Content ${cid}`);
-    
     // Get genres for the content
     const { data: contentGenres, error: genresError } = await supabase
       .from('temp_contentgenres')
@@ -162,11 +142,8 @@ export const handleBookView = async (
       .eq('cid', cid);
       
     if (genresError) {
-      console.error('Error fetching content genres:', genresError);
       return false;
     }
-    
-    console.log(`[Score Log] View action score change: ${VIEW_SCORE}, Affecting ${contentGenres?.length || 0} genres`);
     
     // Update interaction for each genre
     if (contentGenres && contentGenres.length > 0) {
@@ -177,11 +154,8 @@ export const handleBookView = async (
       await Promise.all(updatePromises);
     }
     
-    // Skip the view count increment since views column doesn't exist
-    console.log(`[Score Log] View action completed (view count not incremented - column not in database)`);
     return true;
-  } catch (error) {
-    console.error('Error in handleBookView:', error);
+  } catch {
     return false;
   }
 };
@@ -194,8 +168,6 @@ export const handleBookSearch = async (
   cid: string
 ): Promise<boolean> => {
   try {
-    console.log(`[Score Log] Recording book search: User ${uaid}, Content ${cid}`);
-    
     // Get genres for the content
     const { data: contentGenres, error: genresError } = await supabase
       .from('temp_contentgenres')
@@ -203,11 +175,8 @@ export const handleBookSearch = async (
       .eq('cid', cid);
       
     if (genresError) {
-      console.error('Error fetching content genres:', genresError);
       return false;
     }
-    
-    console.log(`[Score Log] Search action score change: ${SEARCH_SCORE}, Affecting ${contentGenres?.length || 0} genres`);
     
     // Update interaction for each genre
     if (contentGenres && contentGenres.length > 0) {
@@ -218,10 +187,8 @@ export const handleBookSearch = async (
       await Promise.all(updatePromises);
     }
     
-    console.log(`[Score Log] Search action completed`);
     return true;
-  } catch (error) {
-    console.error('Error in handleBookSearch:', error);
+  } catch {
     return false;
   }
 };
@@ -230,23 +197,16 @@ export const handleBookSearch = async (
  * Updates user interactions when adding/removing favorite genre
  * Preserves existing points from bookmarks, views, searches
  */
-// Fixed handleFavoriteGenre function
-// Fixed handleFavoriteGenre function - focused on preserving activity scores
-// handleFavoriteGenre with detailed debugging logs
 export const handleFavoriteGenre = async (
     uaid: string,
     gid: number,
     isAdding: boolean
   ): Promise<boolean> => {
-    console.log(`[Score Log] ========== ${isAdding ? 'ADDING' : 'REMOVING'} FAVORITE GENRE ==========`);
-    console.log(`[Score Log] User: ${uaid}, Genre: ${gid}`);
-    
     try {
       // First, clean up any duplicate entries
       await cleanupDuplicateInteractions(uaid);
       
       // Get current interaction for this genre
-      console.log(`[Score Log] Step 1: Fetching current interaction for genre ${gid}`);
       const { data: existingInteraction, error: fetchError } = await supabase
         .from('userInteractions')
         .select('uiid, score')
@@ -255,56 +215,38 @@ export const handleFavoriteGenre = async (
         .single();
         
       if (fetchError && fetchError.code !== 'PGRST116') {
-        console.error('[Score Log] Error fetching interaction:', fetchError);
         return false;
       }
   
-      console.log(`[Score Log] Step 2: ${existingInteraction ? 'Found existing interaction' : 'No existing interaction found'}`);
-      
       // Adding a favorite genre
       if (isAdding) {
-        console.log(`[Score Log] Step 3: Processing ADD favorite genre action`);
-        
         if (existingInteraction) {
           const currentScore = existingInteraction.score;
           const uiid = existingInteraction.uiid;
           
-          console.log(`[Score Log] Step 3.1: Found existing interaction with score ${currentScore}`);
-          
           // Check if it already has the bonus
           const hasBonus = currentScore >= FAVORITE_GENRE_ADD_SCORE;
-          console.log(`[Score Log] Step 3.2: Checking if genre already has favorite bonus (${FAVORITE_GENRE_ADD_SCORE} points)`);
-          console.log(`[Score Log] Current score: ${currentScore}, Has bonus already? ${hasBonus}`);
           
           // If it already has the bonus, don't add more
           if (hasBonus) {
-            console.log(`[Score Log] Step 3.3: Genre already has favorite bonus, no change needed`);
             return true;
           }
   
           // Add the favorite bonus to existing activity score
           const newScore = currentScore + FAVORITE_GENRE_ADD_SCORE;
-          console.log(`[Score Log] Step 3.4: Adding favorite bonus to existing score`);
-          console.log(`[Score Log] Calculation: ${currentScore} (existing) + ${FAVORITE_GENRE_ADD_SCORE} (bonus) = ${newScore} (new score)`);
           
-          console.log(`[Score Log] Step 3.5: Updating database with new score ${newScore}`);
           const { error: updateError } = await supabase
             .from('userInteractions')
             .update({ score: newScore })
             .eq('uiid', uiid);
             
           if (updateError) {
-            console.error('[Score Log] Error updating interaction:', updateError);
             return false;
           }
           
-          console.log(`[Score Log] Step 3.6: Successfully updated score to ${newScore}`);
           return true;
         } else {
           // No existing interaction, create a new one with just the favorite score
-          console.log(`[Score Log] Step 3.1: No existing interaction found, creating new one`);
-          console.log(`[Score Log] Step 3.2: Using initial score of ${FAVORITE_GENRE_ADD_SCORE}`);
-          
           const { error: insertError } = await supabase
             .from('userInteractions')
             .insert({
@@ -314,60 +256,40 @@ export const handleFavoriteGenre = async (
             });
             
           if (insertError) {
-            console.error('[Score Log] Error creating interaction:', insertError);
             return false;
           }
           
-          console.log(`[Score Log] Step 3.3: Successfully created new interaction with score ${FAVORITE_GENRE_ADD_SCORE}`);
           return true;
         }
       } 
       // Removing a favorite genre
       else {
-        console.log(`[Score Log] Step 3: Processing REMOVE favorite genre action`);
-        
         if (existingInteraction) {
           const currentScore = existingInteraction.score;
           const uiid = existingInteraction.uiid;
           
-          console.log(`[Score Log] Step 3.1: Found existing interaction with score ${currentScore}`);
-          
           // Only remove the favorite bonus if the score is high enough to have it
           if (currentScore >= FAVORITE_GENRE_ADD_SCORE) {
             const newScore = currentScore - FAVORITE_GENRE_ADD_SCORE;
-            console.log(`[Score Log] Step 3.2: Score is high enough to remove favorite bonus`);
-            console.log(`[Score Log] Calculation: ${currentScore} (current) - ${FAVORITE_GENRE_ADD_SCORE} (bonus) = ${newScore} (new score)`);
             
-            console.log(`[Score Log] Step 3.3: Updating database with new score ${newScore}`);
             const { error: updateError } = await supabase
               .from('userInteractions')
               .update({ score: newScore })
               .eq('uiid', uiid);
               
             if (updateError) {
-              console.error('[Score Log] Error updating interaction:', updateError);
               return false;
             }
-            
-            console.log(`[Score Log] Step 3.4: Successfully updated score to ${newScore}`);
-          } else {
-            console.log(`[Score Log] Step 3.2: Score ${currentScore} not high enough to have favorite bonus`);
-            console.log(`[Score Log] Step 3.3: No change needed to score`);
           }
           
           return true;
         } else {
           // No existing interaction (shouldn't happen, but just in case)
-          console.log(`[Score Log] Step 3.1: No existing interaction found for genre ${gid}`);
-          console.log(`[Score Log] Step 3.2: No action needed`);
           return true;
         }
       }
-    } catch (error) {
-      console.error('[Score Log] Error in handleFavoriteGenre:', error);
+    } catch {
       return false;
-    } finally {
-      console.log(`[Score Log] ========== FAVORITE GENRE OPERATION COMPLETED ==========`);
     }
   };
 /**
@@ -378,8 +300,6 @@ export const handleParentBlockGenre = async (
   gid: number
 ): Promise<boolean> => {
   try {
-    console.log(`[Score Log] Blocking genre for child: User ${uaid}, Genre ${gid}`);
-    
     // Check if interaction exists
     const { data: existingInteractions, error: fetchError } = await supabase
       .from('userInteractions')
@@ -388,14 +308,12 @@ export const handleParentBlockGenre = async (
       .eq('gid', gid);
     
     if (fetchError) {
-      console.error('Error fetching interaction:', fetchError);
       return false;
     }
     
     if (existingInteractions && existingInteractions.length > 0) {
       // Set score to 0 for the first entry
       const firstEntry = existingInteractions[0];
-      console.log(`[Score Log] Resetting existing score ${firstEntry.score} to ${PARENT_BLOCKED_GENRE_SCORE}`);
       
       const { error: updateError } = await supabase
         .from('userInteractions')
@@ -403,7 +321,6 @@ export const handleParentBlockGenre = async (
         .eq('uiid', firstEntry.uiid);
         
       if (updateError) {
-        console.error('Error updating interaction:', updateError);
         return false;
       }
       
@@ -416,14 +333,11 @@ export const handleParentBlockGenre = async (
           .in('uiid', duplicateIds);
           
         if (deleteError) {
-          console.error('Error deleting duplicate interactions:', deleteError);
-          // Continue anyway, we've at least updated the score correctly
+          // Continue despite error
         }
       }
     } else {
       // Create new interaction with score 0
-      console.log(`[Score Log] Creating new blocked genre interaction with score ${PARENT_BLOCKED_GENRE_SCORE}`);
-      
       const { error: insertError } = await supabase
         .from('userInteractions')
         .insert({
@@ -433,15 +347,12 @@ export const handleParentBlockGenre = async (
         });
         
       if (insertError) {
-        console.error('Error creating interaction:', insertError);
         return false;
       }
     }
     
-    console.log(`[Score Log] Genre blocking completed`);
     return true;
-  } catch (error) {
-    console.error('Error in handleParentBlockGenre:', error);
+  } catch {
     return false;
   }
 };
@@ -452,8 +363,6 @@ export const handleParentBlockGenre = async (
  */
 export const cleanupDuplicateInteractions = async (uaid: string): Promise<boolean> => {
   try {
-    console.log(`[Score Log] Starting cleanup of duplicate interactions for user ${uaid}`);
-    
     // Get all user interactions for this user
     const { data: allInteractions, error: fetchError } = await supabase
       .from('userInteractions')
@@ -461,12 +370,10 @@ export const cleanupDuplicateInteractions = async (uaid: string): Promise<boolea
       .eq('uaid', uaid);
       
     if (fetchError) {
-      console.error('Error fetching interactions:', fetchError);
       return false;
     }
     
     if (!allInteractions || allInteractions.length === 0) {
-      console.log('[Score Log] No interactions found for this user');
       return true;
     }
     
@@ -484,13 +391,10 @@ export const cleanupDuplicateInteractions = async (uaid: string): Promise<boolea
     const genresWithDuplicates = Object.keys(interactionsByGenre)
       .map(gid => parseInt(gid))
       .filter(gid => interactionsByGenre[gid].length > 1);
-      
-    console.log(`[Score Log] Found ${genresWithDuplicates.length} genres with duplicate entries`);
     
     // Process each genre with duplicates
     for (const gid of genresWithDuplicates) {
       const duplicates = interactionsByGenre[gid];
-      console.log(`[Score Log] Processing ${duplicates.length} duplicates for genre ${gid}`);
       
       // Keep the entry with the highest score
       duplicates.sort((a, b) => {
@@ -499,10 +403,7 @@ export const cleanupDuplicateInteractions = async (uaid: string): Promise<boolea
         return String(a.uiid).localeCompare(String(b.uiid));
       });
       
-      const keepEntry = duplicates[0];
       const removeEntries = duplicates.slice(1);
-      
-      console.log(`[Score Log] Keeping entry with score ${keepEntry.score}, removing ${removeEntries.length} duplicates`);
 
       // Get IDs to remove
       const idsToRemove = removeEntries.map(entry => entry.uiid);
@@ -514,17 +415,12 @@ export const cleanupDuplicateInteractions = async (uaid: string): Promise<boolea
         .in('uiid', idsToRemove);
         
       if (deleteError) {
-        console.error(`Error deleting duplicates for genre ${gid}:`, deleteError);
         // Continue with other genres
-      } else {
-        console.log(`[Score Log] Successfully removed ${idsToRemove.length} duplicates for genre ${gid}`);
       }
     }
     
-    console.log('[Score Log] Duplicate cleanup completed');
     return true;
-  } catch (error) {
-    console.error('Error in cleanupDuplicateInteractions:', error);
+  } catch {
     return false;
   }
 };
@@ -534,15 +430,8 @@ export const cleanupDuplicateInteractions = async (uaid: string): Promise<boolea
  * Call this when loading user profile or after changes to ensure all favorites have proper scores
  * Preserves existing points from bookmarks, views, searches
  */
-/**
- * Synchronizes favorite genres with userInteractions scores
- * Call this when loading user profile or after changes to ensure all favorites have proper scores
- * Preserves existing points from bookmarks, views, searches
- */
 export const syncFavoriteGenres = async (uaid: string): Promise<boolean> => {
     try {
-      console.log(`[Score Log] Syncing favorite genres for user ${uaid}`);
-  
       // First, clean up any duplicate interactions
       await cleanupDuplicateInteractions(uaid);
   
@@ -554,7 +443,6 @@ export const syncFavoriteGenres = async (uaid: string): Promise<boolean> => {
         .single();
   
       if (childDetailsError) {
-        console.error('Error fetching child details:', childDetailsError);
         return false;
       }
   
@@ -565,7 +453,6 @@ export const syncFavoriteGenres = async (uaid: string): Promise<boolean> => {
         .eq('uaid', uaid);
   
       if (interactionsError) {
-        console.error('Error fetching user interactions:', interactionsError);
         return false;
       }
   
@@ -586,7 +473,6 @@ export const syncFavoriteGenres = async (uaid: string): Promise<boolean> => {
         .select('gid, genrename');
   
       if (genresError) {
-        console.error('Error fetching genres:', genresError);
         return false;
       }
   
@@ -608,21 +494,15 @@ export const syncFavoriteGenres = async (uaid: string): Promise<boolean> => {
         return parseInt(genre, 10);
       }).filter((id: number | undefined): id is number => id !== undefined && !isNaN(id)) as number[];
   
-      console.log(`[Score Log] Found ${favoriteGenreIds.length} favorite genres to sync`);
-  
       // Find genres with favorite-level scores (>= 50) that aren't in the favorites list
       // These are genres that need to have their favorite bonus removed
       const genresWithFavoriteScore = Array.from(interactionsMap.entries())
         .filter(entry => entry[1] >= FAVORITE_GENRE_ADD_SCORE)
         .map(entry => entry[0]);
   
-      console.log(`[Score Log] Found ${genresWithFavoriteScore.length} genres with favorite-level scores`);
-  
       // Process genres that have favorite-level scores but are no longer in favorites
       for (const gid of genresWithFavoriteScore) {
         if (!favoriteGenreIds.includes(gid)) {
-          console.log(`[Score Log] Genre ${genreIdToName.get(gid) || gid} has favorite-level score but is no longer a favorite`);
-          
           const uiid = interactionUiidMap.get(gid);
           if (uiid) {
             const currentScore = interactionsMap.get(gid) || 0;
@@ -631,15 +511,12 @@ export const syncFavoriteGenres = async (uaid: string): Promise<boolean> => {
             // But ensure we don't go below 0
             const newScore = Math.max(0, currentScore + FAVORITE_GENRE_REMOVE_SCORE);
             
-            console.log(`[Score Log] Removing favorite bonus: ${currentScore} + (${FAVORITE_GENRE_REMOVE_SCORE}) = ${newScore}`);
-            
             const { error: updateError } = await supabase
               .from('userInteractions')
               .update({ score: newScore })
               .eq('uiid', uiid);
               
             if (updateError) {
-              console.error(`Error updating score for genre ${gid}:`, updateError);
               // Continue with other genres
             }
           }
@@ -649,14 +526,11 @@ export const syncFavoriteGenres = async (uaid: string): Promise<boolean> => {
       // For each favorite genre, ensure it has AT LEAST the favorite score (preserve other points)
       for (const genreId of favoriteGenreIds) {
         const currentScore = interactionsMap.get(genreId) || 0;
-        console.log(`[Score Log] Checking genre ${genreIdToName.get(genreId) || genreId}: Current score = ${currentScore}`);
   
         // Ensure the score is at least FAVORITE_GENRE_ADD_SCORE
         if (currentScore < FAVORITE_GENRE_ADD_SCORE) {
           const pointsToAdd = FAVORITE_GENRE_ADD_SCORE - currentScore;
           const newScore = currentScore + pointsToAdd;
-  
-          console.log(`[Score Log] Adding ${pointsToAdd} points to genre ${genreIdToName.get(genreId) || genreId} to reach favorite score`);
   
           // If there's an existing interaction, update it
           if (interactionsMap.has(genreId)) {
@@ -678,15 +552,11 @@ export const syncFavoriteGenres = async (uaid: string): Promise<boolean> => {
                 score: FAVORITE_GENRE_ADD_SCORE
               });
           }
-        } else {
-          console.log(`[Score Log] Genre ${genreIdToName.get(genreId) || genreId} already has sufficient score (${currentScore})`);
         }
       }
   
-      console.log('[Score Log] Favorite genre sync completed');
       return true;
-    } catch (error) {
-      console.error('Error in syncFavoriteGenres:', error);
+    } catch {
       return false;
     }
   };
@@ -696,8 +566,6 @@ export const syncFavoriteGenres = async (uaid: string): Promise<boolean> => {
  */
 export const syncExistingBookmarks = async (uaid: string): Promise<boolean> => {
     try {
-      console.log(`[Score Log] Syncing scores for existing book bookmarks for user ${uaid}`);
-      
       // Get all current bookmarks for the user
       const { data: bookmarks, error: bookmarksError } = await supabase
         .from('temp_bookmark')
@@ -705,12 +573,10 @@ export const syncExistingBookmarks = async (uaid: string): Promise<boolean> => {
         .eq('uaid', uaid);
         
       if (bookmarksError) {
-        console.error('Error fetching bookmarks:', bookmarksError);
         return false;
       }
       
       if (!bookmarks || bookmarks.length === 0) {
-        console.log('[Score Log] No bookmarks found to sync');
         return true;
       }
       
@@ -722,7 +588,6 @@ export const syncExistingBookmarks = async (uaid: string): Promise<boolean> => {
         .in('cid', bookmarkCids);
         
       if (contentTypesError) {
-        console.error('Error fetching content types:', contentTypesError);
         return false;
       }
       
@@ -731,10 +596,7 @@ export const syncExistingBookmarks = async (uaid: string): Promise<boolean> => {
         .filter(content => content.cfid === 2)
         .map(content => content.cid);
         
-      console.log(`[Score Log] Found ${bookCids.length} book bookmarks out of ${bookmarks.length} total bookmarks`);
-      
       if (bookCids.length === 0) {
-        console.log('[Score Log] No book bookmarks found to sync');
         return true;
       }
       
@@ -745,12 +607,10 @@ export const syncExistingBookmarks = async (uaid: string): Promise<boolean> => {
         .in('cid', bookCids);
         
       if (genresError) {
-        console.error('Error fetching content genres:', genresError);
         return false;
       }
       
       if (!contentGenres || contentGenres.length === 0) {
-        console.log('[Score Log] No genres found for book bookmarks');
         return true;
       }
       
@@ -763,7 +623,6 @@ export const syncExistingBookmarks = async (uaid: string): Promise<boolean> => {
         .in('gid', genreIds);
         
       if (interactionsError) {
-        console.error('Error fetching interactions:', interactionsError);
         return false;
       }
       
@@ -789,25 +648,19 @@ export const syncExistingBookmarks = async (uaid: string): Promise<boolean> => {
       
       for (const cid of bookCids) {
         const genres = genresByCid[cid] || [];
-        console.log(`[Score Log] Checking book bookmark ${cid} with ${genres.length} genres`);
         
         for (const gid of genres) {
           const currentScore = interactionScoreMap.get(gid) || 0;
           const hasBookmarkScore = currentScore >= BOOKMARK_SCORE;
           
           if (!hasBookmarkScore) {
-            console.log(`[Score Log] Adding bookmark score to genre ${gid} for book bookmark ${cid}`);
             await updateGenreInteraction(uaid, gid, BOOKMARK_SCORE);
-          } else {
-            console.log(`[Score Log] Genre ${gid} already has sufficient score (${currentScore})`);
           }
         }
       }
       
-      console.log('[Score Log] Book bookmark sync completed');
       return true;
-    } catch (error) {
-      console.error('Error in syncExistingBookmarks:', error);
+    } catch {
       return false;
     }
   };
@@ -817,8 +670,6 @@ export const syncExistingBookmarks = async (uaid: string): Promise<boolean> => {
  */
 export const debugUserInteractions = async (uaid: string): Promise<void> => {
   try {
-    console.log(`[Score Debug] Fetching all interaction scores for user ${uaid}`);
-    
     const { data, error } = await supabase
       .from('userInteractions')
       .select('gid, score')
@@ -826,7 +677,6 @@ export const debugUserInteractions = async (uaid: string): Promise<void> => {
       .order('score', { ascending: false });
       
     if (error) {
-      console.error('Error fetching user interactions:', error);
       return;
     }
     
@@ -844,14 +694,7 @@ export const debugUserInteractions = async (uaid: string): Promise<void> => {
       });
     }
     
-    console.log('[Score Debug] Current User Interaction Scores:');
-    console.table((data || []).map(interaction => ({
-      Genre: genreMap[interaction.gid] || `Genre ID: ${interaction.gid}`,
-      Score: interaction.score,
-      GenreID: interaction.gid
-    })));
-    
-  } catch (error) {
-    console.error('Error in debugUserInteractions:', error);
+  } catch {
+    // No error handling needed for debug function
   }
 };

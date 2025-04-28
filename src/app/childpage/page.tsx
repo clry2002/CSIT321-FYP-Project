@@ -1,14 +1,16 @@
 'use client';
 
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Navbar from '../components/Navbar';
 import BookCard from '../components/BookCard';
 import ReadingCalendar from '../components/ReadingCalendar';
 import ChatBot from '../components/ChatBot';
+import ScreenTimeIndicator from '../components/child/ScreenTimeIndicator';
+import TimeLimitModal from '../components/child/TimeLimitModal';
 import { useBooks } from '../../hooks/useBooks';
 import { useVideos } from '../../hooks/useVideos';
 import { useSession } from '@/contexts/SessionContext';
 import { supabase } from '@/lib/supabase';
-import { useEffect, useState, useCallback } from 'react';
 import { Book } from '../../types/database.types';
 import ScoreDebugger from '../components/ScoreDebugger';
 import { useInteractions } from '../../hooks/useInteractions';
@@ -16,16 +18,23 @@ import { debugUserInteractions } from '../../services/userInteractionsService';
 import { getRecommendedBooks } from '../../services/recommendationService';
 
 export default function ChildPage() {
+  // Use refs to maintain stable references
+  const isTimeLimitExceededRef = useRef(false);
+  
+  // State that affects rendering
   const [recommendedBooks, setRecommendedBooks] = useState<Book[]>([]);
   const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(true);
+  const [showTimeLimitModal, setShowTimeLimitModal] = useState(false);
+  const [userFullName, setUserFullName] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  // Hooks
   const { availableBooks } = useBooks();
   const { videos } = useVideos();
   const { loading } = useSession();
-  const [userFullName, setUserFullName] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const { syncFavoriteGenresForUser } = useInteractions();
 
-  // Combine genre component display with recommended books 
+  // Combine genre component display with recommended books
   const recommendedBooksWithGenre = recommendedBooks.map((book) => {
     const matchingBook = availableBooks.find((b) => b.cid === book.cid);
     return {
@@ -63,11 +72,15 @@ export default function ChildPage() {
     }
   }, [syncFavoriteGenresForUser]);
 
+  // Fetch user information on mount
   useEffect(() => {
     syncFavoritesOnLoad();
   }, [syncFavoritesOnLoad]);
 
   useEffect(() => {
+    // Use a mounted flag to avoid state updates after unmount
+    let mounted = true;
+    
     const fetchUserFullName = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
@@ -84,37 +97,108 @@ export default function ChildPage() {
           return;
         }
 
-        setUserFullName(data?.fullname || null);
+        if (mounted) {
+          setUserFullName(data?.fullname || null);
+        }
       } catch (error) {
         console.error('Error in fetchUserFullName:', error);
       } finally {
-        setIsLoading(false);
+        if (mounted) {
+          setIsLoading(false);
+        }
       }
     };
 
     fetchUserFullName();
+    
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   // Fetch recommended books using the new service
   useEffect(() => {
+    // Use a mounted flag to avoid state updates after unmount
+    let mounted = true;
+    
     const fetchRecommendedBooks = async () => {
-      setIsLoadingRecommendations(true);
+      if (mounted) {
+        setIsLoadingRecommendations(true);
+      }
+      
       try {
         const books = await getRecommendedBooks();
-        setRecommendedBooks(books);
+        
+        if (mounted) {
+          setRecommendedBooks(books);
+        }
       } catch (error) {
         console.error('Error fetching recommended books:', error);
       } finally {
-        setIsLoadingRecommendations(false);
+        if (mounted) {
+          setIsLoadingRecommendations(false);
+        }
       }
     };
 
     fetchRecommendedBooks();
+    
+    return () => {
+      mounted = false;
+    };
   }, []);
+
+  // Handle time limit exceeded - use a stable callback
+  const handleTimeLimitExceeded = useCallback(() => {
+    console.log('Time limit exceeded handler called');
+    
+    // Prevent multiple calls
+    if (isTimeLimitExceededRef.current) {
+      console.log('Already handled time limit exceeded, ignoring');
+      return;
+    }
+    
+    isTimeLimitExceededRef.current = true;
+    setShowTimeLimitModal(true);
+  }, []);
+
+  // Handle modal close and logout - use a stable callback
+  const handleModalClose = useCallback(async () => {
+    try {
+      console.log('Modal closing, logging out user');
+      
+      // Sign out the user
+      await supabase.auth.signOut();
+      
+      // Redirect to login page
+      window.location.href = '/landing';
+    } catch (error) {
+      console.error('Error during sign out:', error);
+      // Force redirect to login even if error occurs
+      window.location.href = '/landing';
+    }
+  }, []);
+
+  console.log("Rendering ChildPage, showTimeLimitModal:", showTimeLimitModal);
 
   return (
     <div className="flex flex-col h-screen bg-white">
       <Navbar/>
+      
+      {/* Screen Time Components - Only render once */}
+      <ScreenTimeIndicator 
+        key="screen-time-indicator"
+        onTimeExceeded={handleTimeLimitExceeded} 
+      />
+      
+      {/* Display Time Limit Modal if needed */}
+      {showTimeLimitModal && (
+        <TimeLimitModal 
+          key="time-limit-modal"
+          onClose={handleModalClose} 
+        />
+      )}
+      
       {/* Main Content */}
       <div className="flex flex-1 overflow-hidden pt-16">
         {/* Left Section */}
@@ -155,7 +239,7 @@ export default function ChildPage() {
                 <BookCard key={index} {...book} />
               ))}
             </div>
-          }
+            }
           </div>
         
           {/* Explore More Books */}

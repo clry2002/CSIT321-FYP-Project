@@ -6,6 +6,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { supabase } from '@/lib/supabase';
 import { syncFavoriteGenres } from '@/services/userInteractionsService';
+import { timeLimitCheckService } from '@/services/loginTimeLimitService';
+import TimeLimitExceededPage from '../../components/child/LoginTimeLimit'
 
 interface StyleObject {
   backgroundImage?: string;
@@ -32,11 +34,19 @@ interface UserData {
   userprofile: UserProfile;
   suspended: boolean;
   comments: string;
+  fullname?: string;
 }
 
 interface ErrorData {
   message: string;
   code?: number;
+}
+
+interface TimeLimitState {
+  isExceeded: boolean;
+  timeUsed: number;
+  timeLimit: number;
+  username: string;
 }
 
 export default function LoginPage() {
@@ -47,6 +57,9 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [stars, setStars] = useState<Star[]>([]);
   const [formVisible, setFormVisible] = useState(false);
+  
+  // State for time limit exceeded
+  const [timeLimitState, setTimeLimitState] = useState<TimeLimitState | null>(null);
 
   const backgroundStyle: StyleObject = {
     backgroundImage: 'url("/spacemovement.gif")',
@@ -69,6 +82,11 @@ export default function LoginPage() {
     }, 100); // Adjust the delay as needed
   }, []);
 
+  // Reset the time limit exceeded state and return to login form
+  const handleBackToLogin = () => {
+    setTimeLimitState(null);
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -87,9 +105,11 @@ export default function LoginPage() {
           .from('user_account')
           .select(`
             id,
+            user_id,
             upid,
             suspended,
             comments,
+            fullname,
             userprofile!inner (
               upid
             )
@@ -113,6 +133,23 @@ export default function LoginPage() {
           router.push('/parentpage');
         } else if (userData?.userprofile?.upid === 3) {
           try {
+            // Check time limit for child accounts
+            const timeLimitCheck = await timeLimitCheckService.checkUserTimeLimit(userData.id);
+            
+            // If time limit is exceeded, show time limit exceeded page
+            if (timeLimitCheck.isExceeded && timeLimitCheck.timeLimit !== null) {
+              console.log("Time limit exceeded, preventing login");
+              setTimeLimitState({
+                isExceeded: true,
+                timeUsed: timeLimitCheck.timeUsed,
+                timeLimit: timeLimitCheck.timeLimit,
+                username: userData.fullname || "there"
+              });
+              setLoading(false);
+              return;
+            }
+            
+            // Otherwise, proceed with normal flow
             const { data: childDetailsArray, error: childDetailsError } = await supabase
               .from('child_details')
               .select('favourite_genres')
@@ -169,6 +206,18 @@ export default function LoginPage() {
       setLoading(false);
     }
   };
+
+  // If time limit is exceeded, show the time limit exceeded page
+  if (timeLimitState && timeLimitState.isExceeded) {
+    return (
+      <TimeLimitExceededPage
+        timeUsed={timeLimitState.timeUsed}
+        timeLimit={timeLimitState.timeLimit}
+        username={timeLimitState.username}
+        onBack={handleBackToLogin}
+      />
+    );
+  }
 
   return (
     <div
