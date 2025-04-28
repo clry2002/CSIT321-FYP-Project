@@ -1,9 +1,11 @@
 'use client';
 
+import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import DiscussionBoardSection from '../../components/educator/ClassroomDetails/DiscussionBoardSection';
 
-export default function DiscussionBoardPage() {
+// Client Component that uses useSearchParams
+function DiscussionBoardContent() {
   const searchParams = useSearchParams();
   const classroomId = parseInt(searchParams.get('classroomId') || '0', 10);
 
@@ -17,4 +19,13 @@ export default function DiscussionBoardPage() {
   }
 
   return <DiscussionBoardSection classroomId={classroomId} />;
+}
+
+// Page component with Suspense boundary
+export default function DiscussionBoardPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center">Loading discussion board...</div>}>
+      <DiscussionBoardContent />
+    </Suspense>
+  );
 }
