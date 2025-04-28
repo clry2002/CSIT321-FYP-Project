@@ -10,8 +10,7 @@ import { Pencil, Check, X, MessageCircle, Bell, Users } from 'lucide-react';
 
 // Import section components
 import StudentsSection from '../../../components/educator/ClassroomDetails/Students';
-// Import the DiscussionBoardSection instead of the page
-import { DiscussionBoardSection } from '../../discussionBoard/page';
+import DiscussionBoardSection from '../../../components/educator/ClassroomDetails/DiscussionBoardSection';
 import AnnouncementBoardSection from '../../../components/educator/ClassroomDetails/AnnouncementBoard';
 
 type Classroom = {
@@ -28,7 +27,6 @@ enum TabType {
 }
 
 export default function ClassroomDetails() {
-  // Rest of component stays the same...
   const [classroom, setClassroom] = useState<Classroom | null>(null);
   const [loading, setLoading] = useState(true);
   // const [errorMessage, setErrorMessage] = useState('');
