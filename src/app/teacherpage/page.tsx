@@ -122,12 +122,12 @@ export default function ViewClassrooms() {
     }, [router]);
 
     return (
-        <div className="bg-gray-100 min-h-screen">
+        <div className="bg-gradient-to-br from-gray-50 to-gray-200 min-h-screen"> {/* Soft gradient background */}
             <EduNavbar />
             <main className="container mx-auto py-10 px-6 sm:px-8 md:px-10 lg:px-12 mt-20">
-                <h1 className="text-3xl font-semibold text-gray-800 mb-8 flex items-center space-x-2">
-                    <AcademicCapIcon className="h-7 w-7 text-blue-500" />
-                    <span>My Classrooms</span>
+                <h1 className="text-3xl font-semibold text-gray-800 mb-8 flex items-center space-x-3">
+                    <AcademicCapIcon className="h-7 w-7 text-blue-600" /> {/* Richer blue */}
+                    <span className="text-black">My Classrooms</span> {/* Classic black for text */}
                 </h1>
 
                 {loading && <div className="text-center py-6"><p className="text-gray-600 italic">Loading classrooms...</p></div>}
@@ -138,33 +138,34 @@ export default function ViewClassrooms() {
                         <Link
                             key={classroom.crid}
                             href={`/teacher/classroom-details/${classroom.crid}`}
-                            className="block rounded-xl shadow-md border border-gray-200 hover:shadow-lg transition duration-300 overflow-hidden bg-white"
+                            className="block rounded-xl shadow-md border border-gray-200 hover:shadow-lg transition duration-300 overflow-hidden"
                         >
-                            <div className="p-6 flex flex-col h-full">
-                                <div className="bg-indigo-100 text-indigo-800 font-semibold py-2 px-4 rounded-full inline-block mb-4">
-                                    {classroom.name}
+                            <div className="flex flex-col h-full">
+                                <div className="bg-blue-500 text-white p-6"> {/* Top half blue */}
+                                    <div className="font-semibold mb-4 text-xl truncate">{classroom.name}</div> {/* Larger font size */}
                                 </div>
-                                <p className="text-gray-700 mb-4 line-clamp-3 flex-grow">{classroom.description}</p>
-                                <div className="mt-auto flex justify-center space-x-4 text-sm text-gray-500">
-                                    {typeof classroom.acceptedCount === 'number' && (
-                                        <div className="flex items-center space-x-1">
-                                            <UserGroupIcon className="h-4 w-4 text-green-500" />
-                                            <span className="flex items-center"><b className="font-semibold mr-1">{classroom.acceptedCount}</b> Accepted</span>
-                                        </div>
-                                    )}
-                                    {typeof classroom.pendingCount === 'number' && classroom.pendingCount > 0 && (
-                                        <div className="flex items-center space-x-1">
-                                            <ClockIcon className="h-4 w-4 text-yellow-500" />
-                                            <span className="flex items-center"><b className="font-semibold mr-1">{classroom.pendingCount}</b> Pending</span>
-                                        </div>
-                                    )}
-                                    {typeof classroom.rejectedCount === 'number' && classroom.rejectedCount > 0 && (
-                                        <div className="flex items-center space-x-1">
-                                            {/* You might want a different icon for rejected */}
-                                            <UserGroupIcon className="h-4 w-4 text-red-500 opacity-70" />
-                                            <span className="flex items-center"><b className="font-semibold mr-1">{classroom.rejectedCount}</b> Rejected</span>
-                                        </div>
-                                    )}
+                                <div className="bg-white p-6 flex flex-col justify-between flex-grow"> {/* Bottom half white */}
+                                    <p className="text-gray-700 mb-4 line-clamp-3 flex-grow">{classroom.description}</p>
+                                    <div className="mt-2 flex justify-start space-x-4 text-sm text-gray-500">
+                                        {typeof classroom.acceptedCount === 'number' && (
+                                            <div className="flex items-center space-x-1">
+                                                <UserGroupIcon className="h-4 w-4 text-green-600" />
+                                                <span className="flex items-center"><b className="font-semibold mr-1 text-gray-700">{classroom.acceptedCount}</b> Accepted</span>
+                                            </div>
+                                        )}
+                                        {typeof classroom.pendingCount === 'number' && classroom.pendingCount > 0 && (
+                                            <div className="flex items-center space-x-1">
+                                                <ClockIcon className="h-4 w-4 text-yellow-600" />
+                                                <span className="flex items-center"><b className="font-semibold mr-1 text-gray-700">{classroom.pendingCount}</b> Pending</span>
+                                            </div>
+                                        )}
+                                        {typeof classroom.rejectedCount === 'number' && classroom.rejectedCount > 0 && (
+                                            <div className="flex items-center space-x-1">
+                                                <UserGroupIcon className="h-4 w-4 text-red-600 opacity-80" />
+                                                <span className="flex items-center"><b className="font-semibold mr-1 text-gray-700">{classroom.rejectedCount}</b> Rejected</span>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         </Link>
@@ -173,11 +174,11 @@ export default function ViewClassrooms() {
 
                 {classrooms.length === 0 && !loading && canCreateClassroom && (
                     <div className="mt-12 text-center">
-                        <p className="text-gray-600 mb-4">No classrooms created yet. Ready to inspire?</p>
+                        <p className="text-gray-700 mb-4">No classrooms created yet. Ready to inspire?</p>
                         <button
                             type="button"
                             onClick={() => router.push('/teacher/create-classroom-new')}
-                            className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-6 rounded-xl shadow-md transition duration-200 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-xl shadow-md transition duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
                         >
                             <AcademicCapIcon className="h-5 w-5 inline-block mr-2 -mt-0.5" />
                             Create New Classroom
@@ -187,8 +188,8 @@ export default function ViewClassrooms() {
 
                 {classrooms.length === 0 && !loading && !canCreateClassroom && (
                     <div className="mt-12 text-center">
-                        <p className="text-gray-600 mb-4">No classrooms created yet.</p>
-                        <p className="text-red-500">Classroom creation has been temporarily disabled.</p>
+                        <p className="text-gray-700 mb-4">No classrooms created yet.</p>
+                        <p className="text-red-600">Classroom creation has been temporarily disabled.</p>
                     </div>
                 )}
 
@@ -196,7 +197,7 @@ export default function ViewClassrooms() {
                     <button
                         type="button"
                         onClick={() => router.push('/teacher/create-classroom-new')}
-                        className="fixed bottom-8 right-8 bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-6 rounded-full shadow-lg transition duration-200 focus:outline-none focus:ring-2 focus:ring-blue-400 flex items-center space-x-2"
+                        className="fixed bottom-8 right-8 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-full shadow-lg transition duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center space-x-2"
                     >
                         <AcademicCapIcon className="h-5 w-5" />
                         <span>Create Classroom</span>
