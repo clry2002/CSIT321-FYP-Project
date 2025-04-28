@@ -3,11 +3,10 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+// import { useRouter } from 'next/navigation';
 
 export default function LandingPage() {
   const [activeSection, setActiveSection] = useState('');
-  const router = useRouter();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -37,7 +36,7 @@ export default function LandingPage() {
 
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  }, [activeSection]);
 
   const handleLearnMoreClick = () => {
     const section = document.getElementById('parents');
