@@ -38,7 +38,7 @@ export default function ParentalControlPage() {
                         onClick={() => router.back()}
                         className={styles.backButton}
                     >
-                        ← Back
+                        ← Back to Dashboard
                     </button>
 
                     <h2 className={styles.pageTitle}>Parental Controls</h2>
@@ -62,7 +62,7 @@ export default function ParentalControlPage() {
 
                         {/* Time Limit */}
                         <div className={styles.panel}>
-                            <h3 className={styles.panelTitle}>Chatbot Time Limit</h3>
+                            <h3 className={styles.panelTitle}>Screen Time Limit</h3>
                             
                             {/* Checkbox to enable/disable time limit */}
                             <div className={styles.checkboxWrapper}>
@@ -200,21 +200,13 @@ export default function ParentalControlPage() {
 
                         {/* Page Actions */}
                         <div className={styles.bottomActions}>
-                            <button
-                                type="button"
-                                onClick={() => router.push('/parentpage')}
-                                className={styles.backButton}
-                            >
-                                ← Back to Dashboard
-                            </button>
-                            
                             <div className="flex space-x-3">
                                 <button
                                     type="button"
                                     onClick={resetToDefaults}
                                     className={styles.secondaryButton}
                                 >
-                                    Reset to Defaults
+                                    Reset to Default Settings
                                 </button>
                             </div>
                         </div>
