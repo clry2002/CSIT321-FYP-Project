@@ -4,6 +4,10 @@
 
 @import "tailwindcss";
 
+/* Enable Smooth Scroll Globally */
+html {
+  scroll-behavior: smooth;
+}
 
 /* Theme and Background Color */
 @theme {
@@ -74,17 +78,15 @@ body {
   /* No backdrop-filter applied here */
 }
 
-
 strong {
   z-index: 2;
-  font-family: "Roboto", sans-serif;  /* Update this to match your desired font */
-  font-weight: 600;  /* Adjust font-weight if needed */
-  font-size: 16px;  /* Adjust font size */
-  letter-spacing: 2px;  /* Adjust spacing between letters */
+  font-family: "Roboto", sans-serif;
+  font-weight: 600;
+  font-size: 16px;
+  letter-spacing: 2px;
   color: #ffffff;
   text-shadow: 0 0 4px white;
 }
-
 
 #glow {
   position: absolute;
@@ -130,13 +132,13 @@ strong {
 
 /* Space Background Animation */
 #stars {
-  position: fixed; /* Keep stars fixed in place */
+  position: fixed;
   top: 0;
   left: 0;
   background: transparent;
   width: 100vw;
   height: 100vh;
-  z-index: -1; /* Place stars behind content */
+  z-index: -1;
 }
 
 /* Star field animation */
