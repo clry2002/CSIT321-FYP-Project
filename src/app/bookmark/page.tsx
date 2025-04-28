@@ -410,57 +410,57 @@ export default function BookmarksPage() {
   if (loading) return <div>Loading...</div>;
 
   return (
-    <div className="flex h-screen bg-white overflow-hidden">
+    <div className="flex h-screen bg-gradient-to-br from-gray-900 to-indigo-900 overflow-hidden text-white">
       <Navbar />
-      <div className="flex-1 overflow-y-auto pt-16 px-6">
-        <h1 className="text-4xl font-serif mt-10 text-black text-left">Bookmarked Content</h1>
+      <div className="flex-1 overflow-y-auto pt-16 px-8 mt-15">
+        <h1 className="text-3xl font-semibold mb-8 text-indigo-300">Bookmarked Content</h1>
   
         {notification.show && (
-          <div className="fixed top-4 right-4 z-50 bg-rose-500 text-white px-6 py-3 rounded-lg shadow-lg">
+          <div className="fixed top-6 right-6 z-50 bg-rose-600 text-white px-4 py-2 rounded-md shadow-md">
             {notification.message}
           </div>
         )}
   
         {/* Schedule Modal */}
         {showScheduleModal && selectedBook && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-            <div className="bg-white p-6 rounded-xl w-[400px]">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-medium text-black">Schedule Reading</h3>
-                <button onClick={handleCloseModal} className="text-gray-500 hover:text-gray-700">
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center">
+            <div className="bg-gray-800 p-8 rounded-xl shadow-lg w-full max-w-md">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-lg font-medium text-indigo-300">Schedule Reading</h3>
+                <button onClick={handleCloseModal} className="text-gray-500 hover:text-gray-400">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
               </div>
-              
+  
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Book</label>
-                  <p className="text-gray-900 font-medium">{selectedBook.title}</p>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Book</label>
+                  <p className="text-gray-100 font-medium">{selectedBook.title}</p>
                 </div>
-                
+  
                 <div>
-                  <label htmlFor="date" className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                  <label htmlFor="date" className="block text-sm font-medium text-gray-300 mb-1">Date</label>
                   <input
                     type="date"
                     id="date"
                     value={scheduledDate}
                     min={format(new Date(), 'yyyy-MM-dd')}
                     onChange={(e) => setScheduledDate(e.target.value)}
-                    className="w-full border rounded-lg p-2 text-gray-900"
+                    className="w-full border border-gray-700 rounded-md p-2 text-gray-100 bg-gray-700 focus:ring-indigo-500 focus:border-indigo-500"
                   />
                 </div>
   
                 <div>
-                  <label htmlFor="pages" className="block text-sm font-medium text-gray-700 mb-1">Pages to Read</label>
+                  <label htmlFor="pages" className="block text-sm font-medium text-gray-300 mb-1">Pages to Read</label>
                   <input
                     type="number"
                     id="pages"
                     min="1"
                     value={pagesToRead || ''}
                     onChange={(e) => setPagesToRead(parseInt(e.target.value) || 0)}
-                    className="w-full border rounded-lg p-2 text-gray-900"
+                    className="w-full border border-gray-700 rounded-md p-2 text-gray-100 bg-gray-700 focus:ring-indigo-500 focus:border-indigo-500"
                     placeholder="Enter number of pages"
                   />
                 </div>
@@ -468,14 +468,14 @@ export default function BookmarksPage() {
                 <div className="flex justify-end space-x-2 pt-4">
                   <button
                     onClick={handleCloseModal}
-                    className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
+                    className="px-4 py-2 text-gray-300 hover:bg-gray-700 rounded-md"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleSaveSchedule}
                     disabled={!scheduledDate || pagesToRead <= 0}
-                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                    className="px-4 py-2 bg-indigo-500 text-white rounded-md hover:bg-indigo-600 focus:ring-indigo-500 focus:ring-offset-2 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
                   >
                     Save Schedule
                   </button>
@@ -484,54 +484,54 @@ export default function BookmarksPage() {
             </div>
           </div>
         )}
-        
+  
         {/* Search Bar*/}
-        <div className="flex justify-between items-center mb-4">
+        <div className="mb-6">
           <input
             type="text"
             placeholder="Search Bookmarks..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full p-2 border rounded-lg mb-4 mt-2 text-black"
+            className="w-full p-3 border border-gray-700 rounded-md text-gray-100 bg-gray-700 focus:ring-indigo-500 focus:border-indigo-500"
           />
         </div>
   
         {/* Bookmarked Books */}
-        {filteredBooks.length > 0 ? (
-          <div className="space-y-6">
-            <h2 className="text-2xl font-semibold text-blue-900">Books</h2>
+        {filteredBooks.length > 0 && (
+          <div className="space-y-6 mb-10">
+            <h2 className="text-xl font-semibold text-indigo-300 mb-4">Books</h2>
             {filteredBooks.map((book) => (
-              <div key={book.cid} className={`flex items-start space-x-6 p-6 bg-white rounded-lg shadow-md ${
-                book.status === 'suspended' ? 'bg-gray-200' : 'hover:bg-gray-50'
+              <div key={book.cid} className={`flex items-start bg-gray-800 rounded-lg shadow-md ${
+                book.status === 'suspended' ? 'bg-gray-700' : 'hover:shadow-lg transition-shadow duration-200'
               }`}>
                 {book.status === 'suspended' ? (
                   <div className="w-full text-center py-8">
-                    <p className="text-xl text-gray-600 font-medium">Content Suspended</p>
+                    <p className="text-lg text-gray-500 font-medium">Content Suspended</p>
                   </div>
                 ) : (
-                  <>
+                  <div className="flex-1 flex items-center space-x-6 p-6">
                     <div className="flex-shrink-0 w-32 h-48 relative">
                       {book.coverimage ? (
                         <Image src={book.coverimage} alt={book.title} fill className="object-cover rounded-md" />
                       ) : (
-                        <div className="w-full h-full bg-gray-200 flex items-center justify-center rounded-md">
-                          <span className="text-gray-400">No cover</span>
+                        <div className="w-full h-full bg-gray-700 flex items-center justify-center rounded-md">
+                          <span className="text-gray-500 text-sm">No cover</span>
                         </div>
                       )}
                     </div>
                     <div className="flex-grow">
-                      <h3 className="text-2xl font-semibold text-gray-900 mb-2">
-                        <a href={`/bookdetail/${book.cid}`} className="hover:text-rose-500">
+                      <h3 className="text-lg font-semibold text-gray-100 mb-2">
+                        <a href={`/bookdetail/${book.cid}`} className="hover:text-indigo-400">
                           {book.title}
                         </a>
                       </h3>
-                      <p className="text-md text-gray-600 mb-2">{book.credit}</p>
+                      <p className="text-sm text-gray-400 mb-2">{book.credit}</p>
                       {bookGenres[book.cid] && bookGenres[book.cid].length > 0 && (
                         <div className="flex flex-wrap gap-2 mt-2">
                           {bookGenres[book.cid].map((genre, idx) => (
                             <span
                               key={idx}
-                              className="bg-blue-100 text-blue-800 text-sm font-medium px-2.5 py-0.5 rounded"
+                              className="bg-indigo-100 text-indigo-800 text-xs font-medium px-2 py-1 rounded-full"
                             >
                               {genre}
                             </span>
@@ -540,57 +540,57 @@ export default function BookmarksPage() {
                       )}
                       <button
                         onClick={() => handleScheduleBook(book)}
-                        className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                        className="mt-4 px-3 py-2 bg-indigo-500 text-white rounded-md hover:bg-indigo-600 focus:ring-indigo-500 focus:ring-offset-2 transition-colors text-sm"
                       >
-                        Schedule Reading
+                        Schedule
                       </button>
                     </div>
                     <button
-                      className="ml-6 p-2 rounded-full hover:bg-gray-100 text-red-500"
+                      className="ml-6 p-2 rounded-full hover:bg-gray-700 text-red-500 flex-shrink-0"
                       onClick={() => handleRemoveBookmark(book.cid, 2)}
                       aria-label="Remove bookmark"
                     >
-                      <svg className="w-6 h-6" fill="currentColor" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-5 h-5" fill="currentColor" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                       </svg>
                     </button>
-                  </>
+                  </div>
                 )}
               </div>
             ))}
           </div>
-        ) : null}
+        )}
   
         {/* Bookmarked Videos */}
-        {filteredVideos.length > 0 ? (
-          <div className="space-y-6 mt-12">
-            <h2 className="text-2xl font-semibold text-blue-900">Videos</h2>
+        {filteredVideos.length > 0 && (
+          <div className="space-y-6 mt-12 mb-10">
+            <h2 className="text-xl font-semibold text-indigo-300 mb-4">Videos</h2>
             {filteredVideos.map((video) => (
-              <div key={video.cid} className={`flex items-start space-x-6 p-6 bg-white rounded-lg shadow-md ${
-                video.status === 'suspended' ? 'bg-gray-200' : 'hover:bg-gray-50'
+              <div key={video.cid} className={`flex items-start space-x-6 p-6 bg-gray-800 rounded-lg shadow-md ${
+                video.status === 'suspended' ? 'bg-gray-700' : 'hover:shadow-lg transition-shadow duration-200'
               }`}>
                 {video.status === 'suspended' ? (
                   <div className="w-full text-center py-8">
-                    <p className="text-xl text-gray-600 font-medium">Content Suspended</p>
+                    <p className="text-lg text-gray-500 font-medium">Content Suspended</p>
                   </div>
                 ) : (
-                  <>
-                    <div className="flex-shrink-0" style={{ width: '300px', height: '170px' }}>
-                      {video.contenturl && renderYouTubePlayer(video.contenturl, 300, 170)}
+                  <div className="flex-1 flex items-center space-x-6 p-6">
+                    <div className="flex-shrink-0 w-48 h-27 relative">
+                      {video.contenturl && renderYouTubePlayer(video.contenturl, 200, 112)}
                     </div>
                     <div className="flex-grow">
-                      <h3 className="text-2xl font-semibold text-gray-900 mb-2">
-                        <a href={`/videodetail/${video.cid}`} className="hover:text-rose-500">
+                      <h3 className="text-lg font-semibold text-gray-100 mb-2">
+                        <a href={`/videodetail/${video.cid}`} className="hover:text-indigo-400">
                           {video.title}
                         </a>
                       </h3>
-                      <p className="text-md text-gray-600 mb-2">{video.description}</p>
+                      <p className="text-sm text-gray-400 mb-2 line-clamp-2">{video.description}</p>
                       {videoGenres[video.cid] && videoGenres[video.cid].length > 0 && (
                         <div className="flex flex-wrap gap-2 mt-2">
                           {videoGenres[video.cid].map((genre, idx) => (
                             <span
                               key={idx}
-                              className="bg-blue-100 text-blue-800 text-sm font-medium px-2.5 py-0.5 rounded"
+                              className="bg-indigo-100 text-indigo-800 text-xs font-medium px-2 py-1 rounded-full"
                             >
                               {genre}
                             </span>
@@ -599,24 +599,24 @@ export default function BookmarksPage() {
                       )}
                     </div>
                     <button
-                      className="ml-6 p-2 rounded-full hover:bg-gray-100 text-red-500"
+                      className="p-2 rounded-full hover:bg-gray-700 text-red-500 flex-shrink-0"
                       onClick={() => handleRemoveBookmark(video.cid, 1)}
                       aria-label="Remove bookmark"
                     >
-                      <svg className="w-6 h-6" fill="currentColor" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-5 h-5" fill="currentColor" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                       </svg>
                     </button>
-                  </>
+                  </div>
                 )}
               </div>
             ))}
           </div>
-        ) : null}
+        )}
   
         {/* If no books or videos are found */}
         {filteredBooks.length === 0 && filteredVideos.length === 0 && (
-          <div>No books or videos found for your search.</div>
+          <div className="text-gray-400 py-6 text-center">No bookmarked content found in this galaxy.</div>
         )}
       </div>
     </div>

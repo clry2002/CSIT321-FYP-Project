@@ -218,18 +218,18 @@ export default function VideoDetailPage() {
   }
 
   return (
-    <div className="flex h-screen bg-white">
+    <div className="flex h-screen bg-gradient-to-br from-gray-900 to-indigo-900 text-white overflow-hidden">
       {/* Notification Toast */}
       {notification.show && (
         <div
           className={`fixed top-4 right-4 z-50 px-4 py-2 rounded-lg shadow-md transition-opacity duration-300 ${
-            notification.message.includes('Failed') ? 'bg-red-500' : 'bg-green-500'
+            notification.message.includes('Failed') ? 'bg-red-600' : 'bg-green-600'
           } text-white`}
         >
           {notification.message}
         </div>
       )}
-
+  
       <Navbar />
       <div className="flex-1 overflow-y-auto pt-16 px-6">
         <div className="max-w-4xl mx-auto mt-8">
@@ -237,93 +237,93 @@ export default function VideoDetailPage() {
           <div className="flex justify-start">
             <button
               onClick={handleBackToSearch}
-              className="mb-6 px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition"
+              className="mb-6 px-4 py-2 bg-gray-800 text-gray-300 rounded hover:bg-gray-700 transition"
             >
               ← Back
             </button>
           </div>
-
+  
           <div className="flex flex-col md:flex-row gap-8">
             {/* Video Player */}
-            <div className="w-full md:w-2/3">
+            <div className="w-full md:w-2/3 rounded-lg overflow-hidden">
               {video.contenturl && video.contenturl.includes('youtube.com') && (
                 <div className="mt-8">
                   <iframe
-                    className="w-full h-[400px] rounded-lg shadow-sm"
+                    className="w-full h-[400px] rounded-lg border-none"
                     src={`https://www.youtube.com/embed/${video.contenturl.split('v=')[1]}`}
                     title={video.title}
                     frameBorder="0"
-                    allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                     allowFullScreen
                   ></iframe>
                 </div>
               )}
-
+  
               {video.contenturl && !video.contenturl.includes('youtube.com') && (
                 <div className="mt-8">
                   <a
                     href={video.contenturl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="block text-center bg-rose-500 text-white py-2 rounded-lg hover:bg-rose-600 transition-colors"
+                    className="block text-center bg-indigo-500 text-white py-2 rounded-lg hover:bg-indigo-600 transition-colors"
                   >
                     Watch Video
                   </a>
                 </div>
               )}
             </div>
-
+  
             {/* Video Details */}
-            <div className="w-full md:w-1/3">
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">{video.title}</h1>
-              <div className="space-y-4">
+            <div className="w-full md:w-1/3 space-y-4">
+              <h1 className="text-3xl font-bold text-indigo-300">{video.title}</h1>
+              <div>
+                <h2 className="text-gray-400">Director</h2>
+                <p className="text-gray-100">{video.credit}</p>
+              </div>
+              {video.createddate && (
                 <div>
-                  <h2 className="text-gray-600">Director</h2>
-                  <p className="text-gray-900">{video.credit}</p>
+                  <h2 className="text-gray-400">Date Published</h2>
+                  <p className="text-gray-100">
+                    {new Date(video.createddate).toLocaleDateString()}
+                  </p>
                 </div>
-                {video.createddate && (
-                  <div>
-                    <h2 className="text-gray-600">Date Published</h2>
-                    <p className="text-gray-900">
-                      {new Date(video.createddate).toLocaleDateString()}
-                    </p>
-                  </div>
-                )}
-                {genres.length > 0 && (
-                  <div>
-                    <h2 className="text-gray-600">Genres</h2>
-                    <div className="flex flex-wrap gap-2 mt-1">
-                      {genres.map((genre, idx) => (
-                        <span
-                          key={idx}
-                          className="bg-blue-100 text-blue-800 text-sm font-medium px-2.5 py-0.5 rounded"
-                        >
-                          {genre}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
+              )}
+              {genres.length > 0 && (
                 <div>
-                  <h2 className="text-gray-600">Summary</h2>
-                  <p className="text-gray-900">{video.description}</p>
+                  <h2 className="text-gray-400">Genres</h2>
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    {genres.map((genre, idx) => (
+                      <span
+                        key={idx}
+                        className="bg-indigo-100 text-indigo-800 text-sm font-medium px-2.5 py-0.5 rounded-full"
+                      >
+                        {genre}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-
-                <div className="mt-4">
-                  <button
-                    onClick={handleBookmark}
-                    className={`px-4 py-2 rounded-lg ${
-                      bookmarkedVideos.has(video.cid.toString()) ? 'bg-rose-500' : 'bg-yellow-500'
-                    } text-white`}
-                  >
-                    {bookmarkedVideos.has(video.cid.toString()) ? 'Remove Bookmark' : 'Add to Bookmark'}
-                  </button>
-                </div>
+              )}
+              <div>
+                <h2 className="text-gray-400">Summary</h2>
+                <p className="text-gray-100">{video.description}</p>
+              </div>
+  
+              <div className="mt-4">
+                <button
+                  onClick={handleBookmark}
+                  className={`px-4 py-2 rounded-lg ${
+                    bookmarkedVideos.has(video.cid.toString()) ? 'bg-rose-500 hover:bg-rose-600' : 'bg-yellow-500 hover:bg-yellow-600'
+                  } text-white transition-colors`}
+                >
+                  {bookmarkedVideos.has(video.cid.toString()) ? 'Remove Bookmark' : 'Add to Bookmark'}
+                </button>
               </div>
             </div>
           </div>
-
-          <ChatBot />
+  
+          <div className="mt-8">
+            <ChatBot />
+          </div>
         </div>
       </div>
     </div>

@@ -271,47 +271,47 @@ export default function BookDetailPage() {
   }
 
   return (
-    <div className="flex h-screen bg-white">
+    <div className="flex h-screen bg-gradient-to-br from-gray-900 to-indigo-900 text-white overflow-hidden">
       <Navbar />
       <div className="flex-1 overflow-y-auto pt-16 px-6">
         {notification.show && (
-          <div className="fixed top-4 right-4 z-50 bg-rose-500 text-white px-6 py-3 rounded-lg shadow-lg">
+          <div className="fixed top-4 right-4 z-50 bg-rose-600 text-white px-6 py-3 rounded-lg shadow-md">
             {notification.message}
           </div>
         )}
-
+  
         <div className="max-w-4xl mx-auto mt-8">
           <div className="flex justify-start">
             <button
               onClick={handleBackToSearch}
-              className="mb-6 px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition"
+              className="mb-6 px-4 py-2 bg-gray-800 text-gray-300 rounded hover:bg-gray-700 transition"
             >
               ← Back
             </button>
           </div>
-
+  
           <div className="flex flex-col md:flex-row gap-8">
-            <div className="w-full md:w-1/3">
+            <div className="w-full md:w-1/3 rounded-lg shadow-md overflow-hidden">
               <div className="relative w-full h-[400px]">
                 {book.coverimage ? (
                   <Image
                     src={getCleanImageUrl(book.coverimage) || ''}
                     alt={book.title}
                     fill
-                    className="w-full h-full object-contain rounded-md shadow-sm"
+                    className="w-full h-full object-contain rounded-lg"
                   />
                 ) : (
-                  <div className="w-full h-full bg-gray-200 rounded-lg flex items-center justify-center">
-                    <span className="text-gray-400">No cover available</span>
+                  <div className="w-full h-full bg-gray-800 rounded-lg flex items-center justify-center">
+                    <span className="text-gray-500">No cover available</span>
                   </div>
                 )}
               </div>
-
+  
               <div className="mt-4 space-y-2">
                 {book.contenturl && (
                   <button
                     onClick={handleViewBook}
-                    className="block w-full text-center bg-rose-500 text-white py-2 rounded-lg hover:bg-rose-600 transition-colors"
+                    className="block w-full text-center bg-indigo-500 text-white py-2 rounded-lg hover:bg-indigo-600 transition-colors"
                   >
                     View Book
                   </button>
@@ -325,71 +325,71 @@ export default function BookDetailPage() {
                 <button
                   onClick={toggleBookmarkHandler}
                   className={`block w-full text-center ${
-                    isBookmarked ? 'bg-yellow-400 hover:bg-yellow-500' : 'bg-gray-300 hover:bg-gray-400'
+                    isBookmarked ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-gray-700 hover:bg-gray-600'
                   } text-white py-2 rounded-lg transition-colors`}
                 >
                   {isBookmarked ? 'Remove Bookmark' : 'Add to Bookmarks'}
                 </button>
               </div>
             </div>
-
+  
             {showScheduleModal && book && (
-              <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-                <div className="bg-white p-6 rounded-xl w-[400px]">
+              <div className="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center">
+                <div className="bg-gray-800 p-6 rounded-xl w-[400px]">
                   <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-medium text-black">Schedule Reading</h3>
+                    <h3 className="text-lg font-medium text-indigo-300">Schedule Reading</h3>
                     <button
                       onClick={handleCloseModal}
-                      className="text-gray-500 hover:text-gray-700"
+                      className="text-gray-500 hover:text-gray-400"
                     >
                       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                       </svg>
                     </button>
                   </div>
-
+  
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Book</label>
-                      <p className="text-gray-900 font-medium">{book.title}</p>
+                      <label className="block text-sm font-medium text-gray-300 mb-1">Book</label>
+                      <p className="text-gray-100 font-medium">{book.title}</p>
                     </div>
-
+  
                     <div>
-                      <label htmlFor="date" className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                      <label htmlFor="date" className="block text-sm font-medium text-gray-300 mb-1">Date</label>
                       <input
                         type="date"
                         id="date"
                         value={scheduledDate}
                         min={format(new Date(), 'yyyy-MM-dd')}
                         onChange={(e) => setScheduledDate(e.target.value)}
-                        className="w-full border rounded-lg p-2 text-gray-900"
+                        className="w-full border border-gray-700 rounded-lg p-2 text-gray-100 bg-gray-700 focus:ring-indigo-500 focus:border-indigo-500"
                       />
                     </div>
-
+  
                     <div>
-                      <label htmlFor="pages" className="block text-sm font-medium text-gray-700 mb-1">Pages to Read</label>
+                      <label htmlFor="pages" className="block text-sm font-medium text-gray-300 mb-1">Pages to Read</label>
                       <input
                         type="number"
                         id="pages"
                         min="1"
                         value={pagesToRead || ''}
                         onChange={(e) => setPagesToRead(parseInt(e.target.value) || 0)}
-                        className="w-full border rounded-lg p-2 text-gray-900"
+                        className="w-full border border-gray-700 rounded-lg p-2 text-gray-100 bg-gray-700 focus:ring-indigo-500 focus:border-indigo-500"
                         placeholder="Enter number of pages"
                       />
                     </div>
-
+  
                     <div className="flex justify-end space-x-2 pt-4">
                       <button
                         onClick={handleCloseModal}
-                        className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
+                        className="px-4 py-2 text-gray-300 hover:bg-gray-700 rounded-lg"
                       >
                         Cancel
                       </button>
                       <button
                         onClick={handleSaveSchedule}
                         disabled={!scheduledDate || pagesToRead <= 0}
-                        className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                        className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-600 disabled:cursor-not-allowed"
                       >
                         Save Schedule
                       </button>
@@ -398,47 +398,47 @@ export default function BookDetailPage() {
                 </div>
               </div>
             )}
-
-            <div className="w-full md:w-2/3">
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">{book.title}</h1>
-              <div className="space-y-4">
-                <div>
-                  <h2 className="text-gray-600">Author</h2>
-                  <p className="text-gray-900">{book.credit}</p>
-                </div>
-
-                {book.createddate && (
-                  <div>
-                    <h2 className="text-gray-600">Date Published</h2>
-                    <p className="text-gray-900">
-                      {new Date(book.createddate).toLocaleDateString()}
-                    </p>
-                  </div>
-                )}
-
-                {genres.length > 0 && (
-                  <div>
-                    <h2 className="text-gray-600">Genres</h2>
-                    <div className="flex flex-wrap gap-2 mt-1">
-                      {genres.map((genre, idx) => (
-                        <span
-                          key={idx}
-                          className="bg-blue-100 text-blue-800 text-sm font-medium px-2.5 py-0.5 rounded"
-                        >
-                          {genre}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                <div>
-                  <h2 className="text-gray-600">Summary</h2>
-                  <p className="text-gray-900">{book.description}</p>
-                </div>
+  
+            <div className="w-full md:w-2/3 space-y-4">
+              <h1 className="text-3xl font-bold text-indigo-300">{book.title}</h1>
+              <div>
+                <h2 className="text-gray-400">Author</h2>
+                <p className="text-gray-100">{book.credit}</p>
               </div>
-
-              <ChatBot />
+  
+              {book.createddate && (
+                <div>
+                  <h2 className="text-gray-400">Date Published</h2>
+                  <p className="text-gray-100">
+                    {new Date(book.createddate).toLocaleDateString()}
+                  </p>
+                </div>
+              )}
+  
+              {genres.length > 0 && (
+                <div>
+                  <h2 className="text-gray-400">Genres</h2>
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    {genres.map((genre, idx) => (
+                      <span
+                        key={idx}
+                        className="bg-indigo-100 text-indigo-800 text-sm font-medium px-2.5 py-0.5 rounded-full"
+                      >
+                        {genre}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+  
+              <div>
+                <h2 className="text-gray-400">Summary</h2>
+                <p className="text-gray-100">{book.description}</p>
+              </div>
+  
+              <div className="mt-8">
+                <ChatBot />
+              </div>
             </div>
           </div>
         </div>

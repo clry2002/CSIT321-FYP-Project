@@ -402,7 +402,7 @@ export default function ClassroomBoardPage() {
     <div className="flex flex-col h-screen bg-gradient-to-r from-yellow-100 via-pink-100 to-blue-100 overflow-hidden">
       <Navbar />
 
-      <div className="flex-1 overflow-y-auto pt-20 px-6 pb-6">
+      <div className="flex-1 overflow-y-auto pt-20 px-6 pb-6 mt-5">
         <h2 className="text-4xl font-bold text-center text-blue-700 mb-6">Welcome to Your Classroom!</h2>
 
         <div className="bg-white shadow-lg rounded-xl p-8 max-w-xl mx-auto mb-8">
