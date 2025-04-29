@@ -129,3 +129,45 @@ export interface RawBook {
     isEducator: boolean;
   }
   
+  
+  // Educator - Student Tab
+
+  // Enumeration for invitation statuses
+export enum InvitationStatus {
+  Pending = 'pending',
+  Accepted = 'accepted',
+  Rejected = 'rejected',
+}
+
+// Child user type (student account)
+export type ChildUser = {
+  id: string;
+  username: string;
+  fullname: string;
+};
+
+// Classroom student type with account details
+export type ClassroomStudent = {
+  uaid_child: string;
+  invitation_status: InvitationStatus;
+  user_account: {
+    username: string;
+    fullname: string;
+  };
+};
+
+// Raw response type from Supabase
+export type RawClassroomStudentResponse = {
+  uaid_child: string;
+  invitation_status: InvitationStatus;
+  user_account: {
+    username: string;
+    fullname: string;
+  } | null;
+};
+
+// Props for the StudentSection component
+export type StudentsSectionProps = {
+  classroomId: number;
+  educatorId: string | null;
+};

@@ -3,42 +3,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { X } from 'lucide-react';
-
-type ChildUser = {
-  id: string;
-  username: string;
-  fullname: string;
-};
-
-enum InvitationStatus {
-  Pending = 'pending',
-  Accepted = 'accepted',
-  Rejected = 'rejected',
-}
-
-type ClassroomStudent = {
-  uaid_child: string;
-  invitation_status: InvitationStatus;
-  user_account: {
-    username: string;
-    fullname: string;
-  };
-};
-
-// Define the raw response type from Supabase
-type RawClassroomStudentResponse = {
-  uaid_child: string;
-  invitation_status: InvitationStatus;
-  user_account: {
-    username: string;
-    fullname: string;
-  } | null;
-};
-
-type StudentsSectionProps = {
-  classroomId: number;
-  educatorId: string | null;
-};
+import StudentCard from '../StudentCard';
+import { 
+  ChildUser, 
+  ClassroomStudent, 
+  InvitationStatus,
+  RawClassroomStudentResponse,
+  StudentsSectionProps
+} from '../../../../types/database.types';
 
 export default function StudentsSection({ classroomId, educatorId }: StudentsSectionProps) {
   const [allChildren, setAllChildren] = useState<ChildUser[]>([]);
@@ -51,18 +23,13 @@ export default function StudentsSection({ classroomId, educatorId }: StudentsSec
   const [studentToRemove, setStudentToRemove] = useState<ClassroomStudent | null>(null);
   const [isConfirmingDismissRejected, setIsConfirmingDismissRejected] = useState(false);
   const [showAddStudentModal, setShowAddStudentModal] = useState(false);
-
-  const statusLabels = {
-    [InvitationStatus.Accepted]: 'Accepted',
-    [InvitationStatus.Pending]: 'Pending',
-    [InvitationStatus.Rejected]: 'Rejected',
-  };
+  const [studentToDismiss, setStudentToDismiss] = useState<string | null>(null);
 
   const toggleRejected = () => {
     setShowRejected(!showRejected);
   };
 
-  const fetchChildUsers = useCallback (async () => {
+  const fetchChildUsers = useCallback(async () => {
     const { data, error } = await supabase
       .from('user_account')
       .select('id, username, fullname')
@@ -84,10 +51,10 @@ export default function StudentsSection({ classroomId, educatorId }: StudentsSec
       `)
       .eq('crid', classroomId);
 
-      if (!error && data) {
-        const typedData = data as unknown as RawClassroomStudentResponse[];
-        // Check if the user_account exists before trying to access its properties
-        const formattedData = typedData.map((item): ClassroomStudent => {
+    if (!error && data) {
+      const typedData = data as unknown as RawClassroomStudentResponse[];
+      // Check if the user_account exists before trying to access its properties
+      const formattedData = typedData.map((item): ClassroomStudent => {
         if (item.user_account) {
           return {
             ...item,
@@ -118,12 +85,24 @@ export default function StudentsSection({ classroomId, educatorId }: StudentsSec
     } else {
       console.error('Failed to fetch classroom students:', error);
     }
-  },[classroomId]);
+  }, [classroomId]);
 
   useEffect(() => {
     fetchChildUsers();
     fetchClassroomStudents();
   }, [fetchChildUsers, fetchClassroomStudents]);
+
+  // Helper function to get student name by ID
+  const getStudentNameById = (studentId: string): string => {
+    const student = rejectedStudents.find(s => s.uaid_child === studentId);
+    return student ? student.user_account.fullname : 'this student';
+  };
+
+  // Function to handle individual student dismissal
+  const handleDismissIndividual = (student: ClassroomStudent) => {
+    setStudentToDismiss(student.uaid_child);
+    setIsConfirmingDismissRejected(true);
+  };
 
   // Handle email input change
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -211,32 +190,54 @@ export default function StudentsSection({ classroomId, educatorId }: StudentsSec
       setStudentError('Educator ID is not available.');
       console.error('Educator ID is not set');
       setIsConfirmingDismissRejected(false);
+      setStudentToDismiss(null);
       return;
     }
 
     try {
-      // Call the PostgreSQL function
-      const { error } = await supabase
-        .rpc('delete_rejected_classroom_students_v2', {
-          classroom_id: classroomId,
-          educator_id: educatorId
-        });
+      let error;
+
+      if (studentToDismiss) {
+        // Dismiss individual student
+        const { error: deleteError } = await supabase
+          .from('temp_classroomstudents')
+          .delete()
+          .eq('crid', classroomId)
+          .eq('uaid_child', studentToDismiss);
+        
+        error = deleteError;
+      } else {
+        // Dismiss all rejected students
+        const { error: rpcError } = await supabase
+          .rpc('delete_rejected_classroom_students_v2', {
+            classroom_id: classroomId,
+            educator_id: educatorId
+          });
+        
+        error = rpcError;
+      }
 
       if (error) {
-        setStudentError('Failed to dismiss rejected students.');
-        console.error('Error dismissing rejected students:', error);
+        setStudentError('Failed to dismiss student(s).');
+        console.error('Error dismissing students:', error);
       } else {
-        console.log('Successfully dismissed rejected students');
+        console.log(studentToDismiss 
+          ? 'Successfully dismissed individual student' 
+          : 'Successfully dismissed all rejected students');
         fetchClassroomStudents();
-        setShowRejected(false);
-        setRejectedStudents([]);
+        
+        // If we're dismissing an individual and there's only one student, or we're dismissing all
+        if ((studentToDismiss && rejectedStudents.length <= 1) || !studentToDismiss) {
+          setShowRejected(false);
+        }
       }
     } catch (error) {
       console.error('Error:', error);
       setStudentError('An error occurred while dismissing students.');
     } finally {
-      // Hide confirmation UI
+      // Hide confirmation UI and reset state
       setIsConfirmingDismissRejected(false);
+      setStudentToDismiss(null);
     }
   };
 
@@ -259,6 +260,11 @@ export default function StudentsSection({ classroomId, educatorId }: StudentsSec
     setShowConfirmModal(false);
   };
 
+  const openRemoveModal = (student: ClassroomStudent) => {
+    setStudentToRemove(student);
+    setShowConfirmModal(true);
+  };
+
   return (
     <div className="mt-4">
       {/* Validates whether student accounts have been created */}
@@ -274,131 +280,142 @@ export default function StudentsSection({ classroomId, educatorId }: StudentsSec
           <h2 className="text-lg font-semibold text-black">Students in Classroom</h2>
           <button
             onClick={() => setShowAddStudentModal(true)}
-            className="bg-green-500 text-white px-4 py-2 rounded"
+            className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
           >
             Add Student
           </button>
         </div>
         
         {classroomStudents.length > 0 ? (
-          <ul className="list-disc pl-5 text-black">
+          <div className="border rounded-lg overflow-hidden">
             {classroomStudents.map((student) => (
-              <li key={student.uaid_child} className="flex justify-between items-center mb-2">
-                <div>
-                  {student.user_account.fullname} ({student.user_account.username}) - Status:{' '}
-                  <span className="font-medium">
-                    {statusLabels[student.invitation_status] || 'Unknown'}
-                  </span>
-                </div>
-                <button
-                  onClick={() => {
-                    setStudentToRemove(student);
-                    setShowConfirmModal(true);
-                  }}
-                  className="bg-red-500 text-white px-2 py-1 rounded ml-4"
-                >
-                  Remove
-                </button>
-              </li>
+              <StudentCard 
+                key={student.uaid_child}
+                id={student.uaid_child}
+                fullname={student.user_account.fullname}
+                username={student.user_account.username}
+                status={student.invitation_status}
+                onRemove={() => openRemoveModal(student)}
+              />
             ))}
-          </ul>
+          </div>
         ) : (
           <div className="text-center py-10">
             <p className="text-gray-600 mb-6">No students have been added to your classroom yet. Please add students to get started.</p>
           </div>
         )}
       </div>
-
-      {/* Rejected students section */}
-<div className="mt-6 border-t pt-4">
-  <div className="flex items-center mb-2">
-    <span
-      onClick={toggleRejected}
-      className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer flex items-center"
-    >
-      {showRejected ? (
-        <>
-          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
-          Hide Rejected Students
-        </>
-      ) : (
-        <>
-          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-          </svg>
-          Show Rejected Students ({rejectedStudents.length})
-        </>
-      )}
-    </span>
-  </div>
-  
-  {showRejected && (
-    <div className={`mt-2 rounded-lg border ${rejectedStudents.length > 0 ? 'border-red-100' : 'border-gray-200'} overflow-hidden transition-all duration-300`}>
-      {rejectedStudents.length > 0 ? (
-        <>
-          <div className="bg-red-50 px-4 py-3 flex justify-between items-center">
-            <h3 className="font-medium text-red-800">Rejected Students</h3>
-            <button
-              onClick={handleDismissRejected}
-              className="text-red-600 hover:text-red-800 text-sm hover:underline focus:outline-none"
+      
+      {/* Rejected students section - only display when there are any students */}
+      {(classroomStudents.length > 0 || rejectedStudents.length > 0) && (
+        <div className="mt-6 border-t pt-4">
+          <div className="flex items-center mb-2">
+            <span
+              onClick={toggleRejected}
+              className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer flex items-center"
             >
-              Dismiss All
-            </button>
+              {showRejected ? (
+                <>
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                  Hide Rejected Students
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                  Show Rejected Students ({rejectedStudents.length})
+                </>
+              )}
+            </span>
           </div>
           
-          <div className="bg-white">
-            <ul className="divide-y divide-gray-100">
-              {rejectedStudents.map((student) => (
-                <li key={student.uaid_child} className="px-4 py-3 flex items-center justify-between">
-                  <div className="flex items-center">
-                    <div className="bg-red-100 text-red-800 rounded-full w-8 h-8 flex items-center justify-center mr-3">
-                      {student.user_account.fullname.charAt(0).toUpperCase()}
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-800">{student.user_account.fullname}</p>
-                      <p className="text-sm text-gray-500">@{student.user_account.username}</p>
-                    </div>
+          {showRejected && (
+            <div className={`mt-2 rounded-lg border ${rejectedStudents.length > 0 ? 'border-red-100' : 'border-gray-200'} overflow-hidden transition-all duration-300`}>
+              {rejectedStudents.length > 0 ? (
+                <>
+                  <div className="bg-red-50 px-4 py-3 flex justify-between items-center">
+                    <h3 className="font-medium text-red-800">Rejected Students</h3>
+                    {rejectedStudents.length >= 2 && (
+                      <button
+                        onClick={() => {
+                          setStudentToDismiss(null); // Ensure we're dismissing all, not individual
+                          handleDismissRejected();
+                        }}
+                        className="text-red-600 hover:text-red-800 text-sm hover:underline focus:outline-none"
+                      >
+                        Dismiss All
+                      </button>
+                    )}
                   </div>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </>
-      ) : (
-        <div className="bg-gray-50 px-4 py-6 text-center text-gray-500">
-          No rejected students to display
+                  
+                  <div className="bg-white">
+                    <ul className="divide-y divide-gray-100">
+                      {rejectedStudents.map((student) => (
+                        <li key={student.uaid_child} className="px-4 py-3 flex items-center justify-between">
+                          <div className="flex items-center">
+                            <div className="bg-red-100 text-red-800 rounded-full w-8 h-8 flex items-center justify-center mr-3">
+                              {student.user_account.fullname.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <p className="font-medium text-gray-800">{student.user_account.fullname}</p>
+                              <p className="text-sm text-gray-500">@{student.user_account.username}</p>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => handleDismissIndividual(student)}
+                            className="text-red-600 hover:text-red-800 text-sm hover:underline focus:outline-none"
+                          >
+                            Dismiss
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </>
+              ) : (
+                <div className="bg-gray-50 px-4 py-6 text-center text-gray-500">
+                  No rejected students to display
+                </div>
+              )}
+              
+              {/* Confirmation UI for dismissing rejected students */}
+              {isConfirmingDismissRejected && (
+                <div className="bg-red-50 p-4 border-t border-red-100">
+                  <p className="text-gray-700 mb-3">
+                    {studentToDismiss 
+                      ? `Are you sure you want to remove ${getStudentNameById(studentToDismiss)}?` 
+                      : "Are you sure you want to dismiss all rejected students?"}
+                  </p>
+                  <div className="flex justify-end space-x-2">
+                    <button
+                      onClick={() => {
+                        setIsConfirmingDismissRejected(false);
+                        setStudentToDismiss(null);
+                      }}
+                      className="px-3 py-1.5 border border-gray-300 rounded text-gray-700 text-sm hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={confirmDismissRejected}
+                      className="px-3 py-1.5 bg-red-600 text-white rounded text-sm hover:bg-red-700"
+                    >
+                      {studentToDismiss ? "Yes, Remove" : "Yes, Dismiss All"}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
-      
-      {/* Confirmation UI for dismissing all rejected students */}
-      {isConfirmingDismissRejected && (
-        <div className="bg-red-50 p-4 border-t border-red-100">
-          <p className="text-gray-700 mb-3">Are you sure you want to dismiss all rejected students?</p>
-          <div className="flex justify-end space-x-2">
-            <button
-              onClick={() => setIsConfirmingDismissRejected(false)}
-              className="px-3 py-1.5 border border-gray-300 rounded text-gray-700 text-sm hover:bg-gray-50"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={confirmDismissRejected}
-              className="px-3 py-1.5 bg-red-600 text-white rounded text-sm hover:bg-red-700"
-            >
-              Yes, Dismiss All
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  )}
-</div>
 
       {/* Add Student Modal */}
       {showAddStudentModal && (
-       <div className="fixed inset-0 flex items-center justify-center z-50">
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50">
           <div className="bg-white p-6 rounded-lg shadow-lg w-96">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-semibold text-black">Add Student</h3>
@@ -452,13 +469,13 @@ export default function StudentsSection({ classroomId, educatorId }: StudentsSec
       )}
 
       {/* Remove Student Confirmation Modal */}
-      {showConfirmModal && (
+      {showConfirmModal && studentToRemove && (
         <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50">
           <div className="bg-white p-6 rounded-lg shadow-lg">
             <h3 className="text-xl font-semibold mb-4 text-black">
               Are you sure you want to remove {' '}
               <span className="font-bold text-red-600">
-                {studentToRemove!.user_account.fullname}
+                {studentToRemove.user_account.fullname}
               </span> {' '}
               from this classroom?
             </h3>
@@ -470,7 +487,7 @@ export default function StudentsSection({ classroomId, educatorId }: StudentsSec
                 Cancel
               </button>
               <button
-                onClick={() => handleRemoveStudent(studentToRemove!.uaid_child)}
+                onClick={() => handleRemoveStudent(studentToRemove.uaid_child)}
                 className="bg-green-500 text-white px-4 py-2 rounded-md"
               >
                 Confirm
