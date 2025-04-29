@@ -1,26 +1,63 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useChatbot } from '@/hooks/useChatbot';
 import { useSpeech } from '@/hooks/useTextToSpeech';
-import { Send, MessageCircle } from 'lucide-react';
+import { Send } from 'lucide-react';
 import Image from 'next/image';
 import AudioButton from './child/chatbot/audioButton';
+import ReadingCalendar from './ReadingCalendar';
 import './styles.css';
+import { supabase } from '@/lib/supabase';
 
+interface ReadingSchedule {
+  id?: number;
+  date: Date;
+  bookTitle: string;
+  pages: number;
+  status: 'pending' | 'completed';
+  content_id?: number;
+}
 
 const ChatBot: React.FC = () => {
   const { messages, isLoading, sendMessage } = useChatbot();
   const { speakingItemId, isPaused, toggleSpeech, stopAllSpeech } = useSpeech();
   const [input, setInput] = useState('');
-  const [isOpen, setIsOpen] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [enlargedImage, setEnlargedImage] = useState<string | null>(null);
   const chatContainerRef = useRef<HTMLDivElement | null>(null);
   const iframeRefs = useRef<{ [key: number]: HTMLIFrameElement | null }>({});
+  const [pendingSchedules, setPendingSchedules] = useState<ReadingSchedule[]>([]);
+  const [isTransitioning, setIsTransitioning] = useState(false);
 
   useEffect(() => {
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
   }, [messages]);
+
+  // Fetch pending schedules when component mounts and when calendar closes
+  useEffect(() => {
+    const fetchPendingSchedules = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const { data, error } = await supabase
+          .from('reading_schedules')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('status', 'pending');
+
+        if (error) throw error;
+
+        setPendingSchedules(data || []);
+      } catch (error) {
+        console.error('Error fetching pending schedules:', error);
+      }
+    };
+
+    fetchPendingSchedules();
+  }, [isCalendarOpen]); // Add isCalendarOpen as dependency
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -86,16 +123,88 @@ const ChatBot: React.FC = () => {
   const handleCloseChat = () => {
     stopVideoPlayer();
     stopAllSpeech();
-    setIsOpen(false);
+    setIsChatOpen(false);
+  };
+
+  const handleCalendarToggle = () => {
+    if (!isCalendarOpen) {
+      setIsCalendarOpen(true);
+      setIsTransitioning(true);
+      setTimeout(() => setIsTransitioning(false), 300); // Match transition duration
+    } else {
+      setIsTransitioning(true);
+      setTimeout(() => {
+        setIsCalendarOpen(false);
+        setIsTransitioning(false);
+      }, 300); // Match transition duration
+    }
   };
 
   return (
     <div className="chatbot-wrapper">
-      <button onClick={() => setIsOpen(!isOpen)} className="chatbot-button">
-        <MessageCircle size={28} />
-      </button>
+      {/* Blur background when chatbot popup is open */}
+      {isChatOpen && (
+        <div className="chatbot-popup-backdrop visible" />
+      )}
+      <div className="flex flex-col items-end space-y-2">
+        <div className="relative">
+          <button onClick={handleCalendarToggle} className="calendar-button">
+            <img src="/calendar.png" alt="Calendar" className="w-10 h-10 object-contain" />
+          </button>
+          {pendingSchedules.length > 0 && !isChatOpen && (
+            <div className="notification-badge">
+              {pendingSchedules.length}
+            </div>
+          )}
+        </div>
+        <button onClick={() => setIsChatOpen(!isChatOpen)} className="chatbot-button">
+          <img src="/mascot.png" alt="Chatbot" className="w-16 h-16 object-contain" />
+        </button>
+      </div>
 
-      <div className={`chatbot-container ${isOpen ? 'visible' : 'hidden'}`}>
+      {isCalendarOpen && (
+        <>
+          <div 
+            className={`calendar-popup-backdrop ${isTransitioning ? '' : 'visible'}`} 
+            onClick={handleCalendarToggle} 
+          />
+          <div className={`calendar-popup ${isTransitioning ? '' : 'visible'}`}>
+            <div className="calendar-popup-content">
+              <ReadingCalendar onScheduleUpdate={() => {
+                // Trigger a re-fetch of pending schedules
+                const fetchPendingSchedules = async () => {
+                  try {
+                    const { data: { user } } = await supabase.auth.getUser();
+                    if (!user) return;
+
+                    const { data, error } = await supabase
+                      .from('reading_schedules')
+                      .select('*')
+                      .eq('user_id', user.id)
+                      .eq('status', 'pending');
+
+                    if (error) throw error;
+
+                    setPendingSchedules(data || []);
+                  } catch (error) {
+                    console.error('Error fetching pending schedules:', error);
+                  }
+                };
+
+                fetchPendingSchedules();
+              }} />
+              <button 
+                onClick={handleCalendarToggle} 
+                className="close-button"
+              >
+                ✖
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      <div className={`chatbot-container ${isChatOpen ? 'visible' : 'hidden'}`}>
         <div className="chatbot-header">
           <h2 className="text-lg font-semibold">CoReadability Bot</h2>
           <button onClick={handleCloseChat} className="close-button">✖</button>

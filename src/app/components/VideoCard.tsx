@@ -102,9 +102,9 @@ const VideoCard: React.FC<VideoCardProps> = ({
           )}
 
           <div className="p-2">
-            <h3 className="font-medium text-xs text-black leading-tight line-clamp-2">{title}</h3>
+            <h3 className="font-bold text-xs text-white leading-tight line-clamp-2" style={{ fontFamily: 'Quicksand, Nunito, Arial Rounded MT Bold, Arial, sans-serif' }}>{title}</h3>
             {credit && (
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-white text-xs mt-1" style={{ fontFamily: 'Quicksand, Nunito, Arial Rounded MT Bold, Arial, sans-serif' }}>
                 {credit}
               </p>
             )}

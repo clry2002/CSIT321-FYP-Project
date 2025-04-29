@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Navbar from '../components/Navbar';
 import BookCard from '../components/BookCard';
-import ReadingCalendar from '../components/ReadingCalendar';
 import ChatBot from '../components/ChatBot';
 import ScreenTimeIndicator from '../components/child/ScreenTimeIndicator';
 import TimeLimitModal from '../components/child/TimeLimitModal';
@@ -28,6 +27,8 @@ export default function ChildPage() {
   const [showTimeLimitModal, setShowTimeLimitModal] = useState(false);
   const [userFullName, setUserFullName] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [availableBooksIndex, setAvailableBooksIndex] = useState(0);
+  const [recommendedBooksIndex, setRecommendedBooksIndex] = useState(0);
   
   // Handle time limit exceeded - use a stable callback
   const handleTimeLimitExceeded = useCallback(() => {
@@ -213,8 +214,24 @@ export default function ChildPage() {
     console.log("Rendering ChildPage, showTimeLimitModal:", showTimeLimitModal);
   }, [isTimeLoading, isLimitExceeded]);
 
+  // Helper function to handle navigation
+  const handleNavigation = (direction: 'left' | 'right', type: 'available' | 'recommended') => {
+    const books = type === 'available' ? availableBooks : recommendedBooksWithGenre;
+    const setIndex = type === 'available' ? setAvailableBooksIndex : setRecommendedBooksIndex;
+    
+    if (direction === 'left') {
+      setIndex((prev) => (prev > 0 ? prev - 1 : Math.max(0, books.length - 5)));
+    } else {
+      setIndex((prev) => (prev + 5 < books.length ? prev + 1 : 0));
+    }
+  };
+
   return (
-    <div className="flex flex-col h-screen bg-white">
+    <div className="flex flex-col min-h-screen relative">
+      <div 
+        className="absolute inset-0 bg-repeat bg-center"
+        style={{ backgroundImage: 'url(/stars.png)' }}
+      />
       <Navbar/>
       
       {/* Screen Time Components - Only render once */}
@@ -233,30 +250,32 @@ export default function ChildPage() {
       )}
       
       {/* Main Content */}
-      <div className="flex flex-1 overflow-hidden pt-16">
-        {/* Left Section */}
-        <div className="w-1/2 overflow-y-auto p-6 border-r">
+      <main className="flex-1 pt-16 relative">
+        <div className="max-w-7xl mx-auto px-6">
           {/* Happy Reading Section */}
-          <div className="mb-8">
-            <h1 className="text-2xl font-serif mb-1.5 text-black">
-              Happy reading,<br />
-              {isLoading ? '...' : userFullName ? userFullName.split(' ')[0] : 'User'}
+          <div className="mb-14 flex flex-col items-center mt-20">
+            <h1
+              className="text-5xl font-extrabold text-yellow-400 text-center font-sans rounded-md drop-shadow-md mb-2"
+              style={{ fontFamily: 'Quicksand, Nunito, Arial Rounded MT Bold, Arial, sans-serif' }}
+            >
+              Happy reading,{' '}
+              {isLoading
+                ? '...'
+                : userFullName
+                  ? userFullName.split(' ')[0].toLowerCase()
+                  : 'user'}!
             </h1>
-            <p className="text-gray-800 mb-2 text-sm">
-              Welcome, {isLoading ? '...' : userFullName || 'User'}!
+            <p className="text-white text-lg text-center font-sans mb-2">
+              Meet your book buddy on a reading adventure!
             </p>
-            <button className="bg-gray-900 text-white px-4 py-1.5 rounded-lg inline-flex items-center text-xs">
-              Start reading
-              <span className="ml-1.5">↗</span>
-            </button>
           </div>
 
           {/* Available Books Section */}
-          <div className="mb-8">
-            <h2 className="text-lg font-serif mb-3 text-black">Available Books</h2>
+          <div className="mb-16">
+            <h2 className="text-3xl font-extrabold text-yellow-400 drop-shadow text-center font-sans mb-3" style={{ fontFamily: 'Quicksand, Nunito, Arial Rounded MT Bold, Arial, sans-serif' }}>Available Books</h2>
             {isLoadingRecommendations ? (
-              <div className="grid grid-cols-4 gap-2">
-                {Array.from({ length: 4 }).map((_, index) => (
+              <div className="grid grid-cols-5 gap-2">
+                {Array.from({ length: 5 }).map((_, index) => (
                   <div key={index} className="border rounded-lg overflow-hidden">
                     <div className="w-full aspect-[3/4] bg-gray-200 animate-pulse" />
                     <div className="p-2 space-y-2">
@@ -266,17 +285,44 @@ export default function ChildPage() {
                   </div>
                 ))}
               </div>
-            ) : 
-            <div className="grid grid-cols-4 gap-2">
-              {availableBooks.slice(0,8).map((book, index) => (
-                <BookCard key={index} {...book} />
-              ))}
-            </div>
-            }
+            ) : (
+              <div className="flex items-center justify-center w-full relative">
+                <button
+                  onClick={() => handleNavigation('left', 'available')}
+                  className="bg-blue-800 text-white hover:bg-blue-900 p-2 rounded-full shadow-md absolute left-[-50px] z-10"
+                  aria-label="Previous books"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+                <div className="overflow-hidden w-[1200px] mx-4 px-4"> {/* Increased width and added padding */}
+                  <div
+                    className="flex transition-transform duration-500 ease-in-out"
+                    style={{ transform: `translateX(-${availableBooksIndex * 240}px)` }}
+                  >
+                    {availableBooks.map((book, index) => (
+                      <div key={index} style={{ minWidth: 220, maxWidth: 220, marginRight: '20px' }} className="bg-white/20 backdrop-blur-md shadow-lg rounded-lg">
+                        <BookCard {...book} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <button
+                  onClick={() => handleNavigation('right', 'available')}
+                  className="bg-blue-800 text-white hover:bg-blue-900 p-2 rounded-full shadow-md absolute right-[-50px] z-10"
+                  aria-label="Next books"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
+            )}
           </div>
         
           {/* Explore More Books */}
-          <div className="mt-4 text-right">
+          <div className="mt-2 text-right">
             <a
               href="/search"
               className="text-blue-600 hover:underline text-sm font-medium"
@@ -286,12 +332,12 @@ export default function ChildPage() {
           </div>
 
           {/* Recommended Books Section with Loading State */}
-          <div className="mb-8">
-            <h2 className="text-lg font-serif mb-3 text-black">Recommended For You!</h2>
+          <div className="mb-16">
+            <h2 className="text-3xl font-extrabold text-yellow-400 drop-shadow text-center font-sans mb-3" style={{ fontFamily: 'Quicksand, Nunito, Arial Rounded MT Bold, Arial, sans-serif' }}>Recommended For You!</h2>
 
             {isLoadingRecommendations ? (
-              <div className="grid grid-cols-4 gap-2">
-                {Array.from({ length: 4 }).map((_, index) => (
+              <div className="grid grid-cols-5 gap-2">
+                {Array.from({ length: 5 }).map((_, index) => (
                   <div key={index} className="border rounded-lg overflow-hidden">
                     <div className="w-full aspect-[3/4] bg-gray-200 animate-pulse" />
                     <div className="p-2 space-y-2">
@@ -302,14 +348,41 @@ export default function ChildPage() {
                 ))}
               </div>
             ) : recommendedBooksWithGenre.length > 0 ? (
-              <div className="grid grid-cols-4 gap-2">
-                {recommendedBooksWithGenre.map((book, index) => (
-                  <BookCard key={index} {...book} />
-                ))}
+              <div className="flex items-center justify-center w-full relative">
+                <button
+                  onClick={() => handleNavigation('left', 'recommended')}
+                  className="bg-blue-800 text-white hover:bg-blue-900 p-2 rounded-full shadow-md absolute left-[-50px] z-10"
+                  aria-label="Previous books"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+                <div className="overflow-hidden w-[1200px] mx-4 px-4"> {/* Increased width and added padding */}
+                  <div
+                    className="flex transition-transform duration-500 ease-in-out"
+                    style={{ transform: `translateX(-${recommendedBooksIndex * 240}px)` }}
+                  >
+                    {recommendedBooksWithGenre.map((book, index) => (
+                      <div key={index} style={{ minWidth: 220, maxWidth: 220, marginRight: '20px' }} className="bg-white/20 backdrop-blur-md shadow-lg rounded-lg">
+                        <BookCard {...book} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <button
+                  onClick={() => handleNavigation('right', 'recommended')}
+                  className="bg-blue-800 text-white hover:bg-blue-900 p-2 rounded-full shadow-md absolute right-[-50px] z-10"
+                  aria-label="Next books"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
               </div>
             ) : (
-              <div className="grid grid-cols-4 gap-2">
-                <p className="text-lg col-span-4 font-serif text-black font-sm">
+              <div className="grid grid-cols-5 gap-2">
+                <p className="text-lg col-span-5 font-serif text-black font-sm">
                   We currently have no books to recommend...
                 </p>
               </div>
@@ -317,8 +390,8 @@ export default function ChildPage() {
           </div>
 
           {/* Videos for You Section */}
-          <div>
-            <h2 className="text-lg font-serif mb-3 text-black">Videos for You</h2>
+          <div className="mb-16">
+            <h2 className="text-3xl font-extrabold text-yellow-400 drop-shadow text-center font-sans mb-3" style={{ fontFamily: 'Quicksand, Nunito, Arial Rounded MT Bold, Arial, sans-serif' }}>Videos for You</h2>
             <div className="grid grid-cols-4 gap-2">
               {loading ? (
                 Array.from({ length: 4 }).map((_, index) => (
@@ -333,7 +406,7 @@ export default function ChildPage() {
                   const videoId = video.contenturl?.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/)?.[1];
                 
                   return (
-                    <div key={video.title} className="border rounded-lg overflow-hidden">
+                    <div key={video.title} className="border rounded-lg overflow-hidden bg-white/20 backdrop-blur-md shadow-lg">
                       <div className="aspect-video relative">
                         {videoId ? (
                           <iframe
@@ -350,7 +423,7 @@ export default function ChildPage() {
                         )}
                       </div>
                       <div className="p-2">
-                        <h3 className="font-medium text-xs text-black leading-tight">{video.title}</h3>
+                        <h3 className="font-medium text-xs text-white leading-tight" style={{ fontFamily: 'Quicksand, Nunito, Arial Rounded MT Bold, Arial, sans-serif' }}>{video.title}</h3>
                       </div>
                     </div>
                   );
@@ -364,8 +437,8 @@ export default function ChildPage() {
             </div>
           </div>
 
-           {/* Explore More Videos */}
-           <div className="mt-4 text-right">
+          {/* Explore More Videos */}
+          <div className="mt-2 text-right">
             <a
               href="/search"
               className="text-blue-600 hover:underline text-sm font-medium"
@@ -373,31 +446,19 @@ export default function ChildPage() {
               Explore more videos →
             </a>
           </div>
-        </div>
-      
-        {/* Right Section */}
-        <div className="w-1/2 overflow-y-auto p-6">
-          <div className="h-full flex flex-col">
-            {/* Calendar Section - With custom positioning */}
-            <div className="flex-1">
-              <div className="mt-12">
-                <div className="w-[320px] mx-auto">
-                  <ReadingCalendar />
-                </div>
-              </div>
-            </div>
 
-            {/* ChatBot Section - Bottom */}
-            <div className="mt-auto">
-              <ChatBot />
-            </div>
-            
-            {/* Score Debugger Section */}
-            <div className="mt-8">
-              <h2 className="text-lg font-serif mb-3 text-black">Recommendation Score Debug</h2>
-              <ScoreDebugger />
-            </div>
+          {/* ChatBot Section */}
+          <div className="mb-8">
+            <ChatBot />
           </div>
+        </div>
+      </main>
+
+      {/* Score Debugger Section - At the very bottom */}
+      <div className="relative">
+        <div className="max-w-7xl mx-auto px-6 py-4">
+          <h2 className="text-lg font-serif mb-3 text-yellow-400 drop-shadow">Recommendation Score Debug</h2>
+          <ScoreDebugger />
         </div>
       </div>
     </div>

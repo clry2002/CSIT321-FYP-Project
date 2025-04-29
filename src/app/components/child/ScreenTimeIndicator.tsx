@@ -3,6 +3,7 @@
 import { useEffect, memo, useRef, useState } from 'react';
 import { useScreenTime } from '@/hooks/useScreenTime';
 import { screenTimeService } from '@/services/screenTimeService';
+import { FiMinus, FiClock } from 'react-icons/fi';
 
 interface ScreenTimeIndicatorProps {
   onTimeExceeded?: () => void;
@@ -52,6 +53,8 @@ const ScreenTimeIndicator = memo(({
   const [sessionDuration, setSessionDuration] = useState<number>(0);
   const sessionTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isUnlimitedModeRef = useRef<boolean>(false);
+
+  const [minimized, setMinimized] = useState(false);
 
   // Check if we're in unlimited mode
   useEffect(() => {
@@ -301,7 +304,7 @@ const ScreenTimeIndicator = memo(({
   if (error) {
     console.error("Screen time error:", error);
     return (
-      <div className="fixed top-16 right-4 bg-white border border-red-200 p-3 rounded-lg shadow-md w-48 z-50">
+      <div className="fixed top-16 right-4 bg-white/20 backdrop-blur-md border border-red-200 p-3 rounded-lg shadow-md w-48 z-50">
         <h3 className="text-sm font-medium mb-1 text-red-700">Reading Time</h3>
         <p className="text-xs text-red-600">
           Unable to load screen time
@@ -314,12 +317,24 @@ const ScreenTimeIndicator = memo(({
   if (!childId) {
     console.log("Missing child ID, rendering placeholder");
     return (
-      <div className="fixed top-16 right-4 bg-white border border-gray-200 p-3 rounded-lg shadow-md w-48 z-50">
+      <div className="fixed top-16 right-4 bg-white/20 backdrop-blur-md border border-gray-200 p-3 rounded-lg shadow-md w-48 z-50">
         <h3 className="text-sm font-medium mb-1">Reading Time</h3>
         <p className="text-xs text-gray-600">
           Unable to track time usage
         </p>
       </div>
+    );
+  }
+
+  if (minimized) {
+    return (
+      <button
+        className="fixed top-16 right-4 bg-white/30 backdrop-blur-md border border-gray-200 p-2 rounded-full shadow-lg z-50 flex items-center justify-center hover:bg-white/50 transition"
+        onClick={() => setMinimized(false)}
+        aria-label="Maximize time indicator"
+      >
+        <FiClock className="w-6 h-6 text-white" />
+      </button>
     );
   }
 
@@ -373,10 +388,6 @@ const ScreenTimeIndicator = memo(({
     }
   }
 
-  // Determine colors based on time remaining
-  let currentProgressColor = "bg-green-500";
-  let currentTextColor = "text-green-700";
-  
   // Calculate percent remaining based on local time used
   let realTimePercentRemaining = 100;
   
@@ -385,15 +396,15 @@ const ScreenTimeIndicator = memo(({
     const effectiveTimeUsed = Math.max(localTimeUsed, timeUsed);
     const remainingTime = Math.max(0, timeLimit - effectiveTimeUsed);
     realTimePercentRemaining = Math.min(100, Math.max(0, (remainingTime / timeLimit) * 100));
-    
-    // Determine colors based on remaining percentage
-    if (realTimePercentRemaining < 25) {
-      currentProgressColor = "bg-red-500";
-      currentTextColor = "text-red-700";
-    } else if (realTimePercentRemaining < 50) {
-      currentProgressColor = "bg-yellow-500";
-      currentTextColor = "text-yellow-700";
-    }
+  }
+
+  // Determine colors based on time remaining
+  let currentProgressColor = "bg-green-500";
+  
+  if (realTimePercentRemaining < 25) {
+    currentProgressColor = "bg-red-500";
+  } else if (realTimePercentRemaining < 50) {
+    currentProgressColor = "bg-yellow-500";
   }
 
   console.log("Rendering indicator with:", { 
@@ -410,10 +421,17 @@ const ScreenTimeIndicator = memo(({
   });
 
   return (
-    <div className="fixed top-16 right-4 bg-white border border-gray-200 p-3 rounded-lg shadow-md w-64 z-50">
+    <div className="fixed top-16 right-4 bg-white/20 backdrop-blur-md border border-gray-200 p-3 rounded-lg shadow-md w-64 z-50">
+      <button
+        className="absolute -top-4 right-0 bg-red-500 hover:bg-red-600 text-white rounded-full p-1 transition z-10 border border-red-500 shadow-lg"
+        onClick={() => setMinimized(true)}
+        aria-label="Minimize time indicator"
+      >
+        <FiMinus className="w-4 h-4 text-white" />
+      </button>
       <div className="mb-1 flex justify-between items-center">
-        <h3 className="text-sm text-black font-medium">Time Remaining</h3>
-        <span className={`text-sm font-medium ${isUnlimitedTime ? 'text-green-700' : currentTextColor}`}>
+        <h3 className="text-sm text-white font-medium">Time Remaining</h3>
+        <span className={`text-sm font-medium ${isUnlimitedTime ? 'text-green-300' : ''}`} style={{ color: isUnlimitedTime ? '#6ee7b7' : '#fff' }}>
           {displayedTimeRemaining} {timeLeftLabel}
         </span>
       </div>
@@ -436,7 +454,7 @@ const ScreenTimeIndicator = memo(({
         </div>
       )}
       
-      <div className="mt-1 text-xs text-gray-600 flex justify-between">
+      <div className="mt-1 text-xs text-white flex justify-between">
         <span>{displayTimeUsedValue} min used</span>
         <span>
           {timeLimit === null || timeLimit === 0 ? 
@@ -450,7 +468,7 @@ const ScreenTimeIndicator = memo(({
       
       {/* Session duration display for unlimited mode */}
       {isUnlimitedTime && (
-        <div className="mt-1 text-xs text-gray-600 text-center border-t border-gray-100 pt-1">
+        <div className="mt-1 text-xs text-white text-center border-t border-gray-100 pt-1">
           <span>Session: {sessionDuration.toFixed(1)} min</span>
         </div>
       )}

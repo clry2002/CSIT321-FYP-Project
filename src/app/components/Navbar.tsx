@@ -23,20 +23,15 @@ export default function Navbar() {
     setActiveLink(href);
   };
 
-  // Array of universe-inspired colors for the gradient
-  const universeColors = ['#0B3C5D', '#328CC1', '#D9B310', '#F2AF29'];
-
   return (
     <nav
-      className={`fixed top-0 w-full bg-gradient-to-b from-${universeColors[0]} to-${universeColors[1]} flex justify-around py-3 z-50 shadow-md`}
-      style={{
-        background: `linear-gradient(to bottom, ${universeColors[0]}, ${universeColors[1]})`,
-      }}
+      className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-transparent flex flex-row justify-center items-center gap-2 px-4 py-1 rounded-2xl z-50 backdrop-blur-md"
+      style={{ minWidth: 'fit-content', boxShadow: '0 2px 12px 0 rgba(0,0,0,0.04)' }}
     >
       <Link
         href="/childpage"
-        className={`flex flex-col items-center p-2 rounded-lg transition-transform duration-300 transform-gpu hover:scale-105 ${
-          activeLink === '/childpage' ? 'bg-blue-200 text-blue-700' : 'hover:bg-blue-100 text-gray-700'
+        className={`group flex flex-col items-center px-1 py-1 rounded-md transition-transform duration-200 hover:scale-105 ${
+          activeLink === '/childpage' ? 'bg-blue-100 text-blue-700' : 'hover:bg-blue-50 text-gray-700'
         }`}
         onClick={() => handleLinkClick('/childpage')}
       >
@@ -49,13 +44,13 @@ export default function Navbar() {
             activeLink === '/childpage' ? 'animate-bounce' : 'hover:filter brightness-110 saturate-120'
           }`}
         />
-        <b className={`text-sm transition-colors duration-300 ${activeLink === '/childpage' ? 'text-blue-700' : 'text-gray-800 hover:text-blue-600'}`}>Home</b>
+        <b className={`text-xs transition-colors duration-200 ${activeLink === '/childpage' ? 'text-blue-700' : 'text-white group-hover:text-blue-600'}`}>Home</b>
       </Link>
 
       <Link
         href="/search"
-        className={`flex flex-col items-center p-2 rounded-lg transition-transform duration-300 transform-gpu hover:scale-105 ${
-          activeLink === '/search' ? 'bg-green-200 text-green-700' : 'hover:bg-green-100 text-gray-700'
+        className={`group flex flex-col items-center px-1 py-1 rounded-md transition-transform duration-200 hover:scale-105 ${
+          activeLink === '/search' ? 'bg-green-100 text-green-700' : 'hover:bg-green-50 text-gray-700'
         }`}
         onClick={() => handleLinkClick('/search')}
       >
@@ -68,13 +63,13 @@ export default function Navbar() {
             activeLink === '/search' ? 'hover:filter brightness-110 saturate-120 animate-pulse' : 'hover:filter brightness-110 saturate-120'
           }`}
         />
-        <b className={`text-sm transition-colors duration-300 ${activeLink === '/search' ? 'text-green-700 animate-pulse' : 'text-gray-800 hover:text-green-600'}`}>Search</b>
+        <b className={`text-xs transition-colors duration-200 ${activeLink === '/search' ? 'text-green-700 animate-pulse' : 'text-white group-hover:text-green-600'}`}>Search</b>
       </Link>
 
       <Link
         href="/bookmark"
-        className={`flex flex-col items-center p-2 rounded-lg transition-transform duration-300 transform-gpu hover:scale-105 ${
-          activeLink === '/bookmark' ? 'bg-yellow-200 text-yellow-700' : 'hover:bg-yellow-100 text-gray-700'
+        className={`group flex flex-col items-center px-1 py-1 rounded-md transition-transform duration-200 hover:scale-105 ${
+          activeLink === '/bookmark' ? 'bg-yellow-100 text-yellow-700' : 'hover:bg-yellow-50 text-gray-700'
         }`}
         onClick={() => handleLinkClick('/bookmark')}
       >
@@ -87,13 +82,13 @@ export default function Navbar() {
             activeLink === '/bookmark' ? 'hover:filter brightness-110 saturate-120 animate-pulse' : 'hover:filter brightness-110 saturate-120'
           }`}
         />
-        <b className={`text-sm transition-colors duration-300 ${activeLink === '/bookmark' ? 'text-yellow-700 animate-pulse' : 'text-gray-800 hover:text-yellow-600'}`}>Bookmarks</b>
+        <b className={`text-xs transition-colors duration-200 ${activeLink === '/bookmark' ? 'text-yellow-700 animate-pulse' : 'text-white group-hover:text-yellow-600'}`}>Bookmarks</b>
       </Link>
 
       <Link
         href="/classroom"
-        className={`flex flex-col items-center p-2 rounded-lg transition-transform duration-300 transform-gpu hover:scale-105 ${
-          activeLink === '/classroom' ? 'bg-purple-200 text-purple-700' : 'hover:bg-purple-100 text-gray-700'
+        className={`group flex flex-col items-center px-1 py-1 rounded-md transition-transform duration-200 hover:scale-105 ${
+          activeLink === '/classroom' ? 'bg-purple-100 text-purple-700' : 'hover:bg-purple-50 text-gray-700'
         }`}
         onClick={() => handleLinkClick('/classroom')}
       >
@@ -106,13 +101,13 @@ export default function Navbar() {
             activeLink === '/classroom' ? 'hover:filter brightness-110 saturate-120 animate-pulse' : 'hover:filter brightness-110 saturate-120'
           }`}
         />
-        <b className={`text-sm transition-colors duration-300 ${activeLink === '/classroom' ? 'text-purple-700 animate-pulse' : 'text-gray-800 hover:text-purple-600'}`}>Classroom</b>
+        <b className={`text-xs transition-colors duration-200 ${activeLink === '/classroom' ? 'text-purple-700 animate-pulse' : 'text-white group-hover:text-purple-600'}`}>Classroom</b>
       </Link>
 
       <Link
         href="/childsettings"
-        className={`flex flex-col items-center p-2 rounded-lg transition-transform duration-300 transform-gpu hover:scale-105 ${
-          activeLink === '/childsettings' ? 'bg-orange-200 text-orange-700' : 'hover:bg-orange-100 text-gray-700'
+        className={`group flex flex-col items-center px-1 py-1 rounded-md transition-transform duration-200 hover:scale-105 ${
+          activeLink === '/childsettings' ? 'bg-orange-100 text-orange-700' : 'hover:bg-orange-50 text-gray-700'
         }`}
         onClick={() => handleLinkClick('/childsettings')}
       >
@@ -125,14 +120,14 @@ export default function Navbar() {
             activeLink === '/childsettings' ? 'hover:filter brightness-110 saturate-120 animate-pulse' : 'hover:filter brightness-110 saturate-120'
           }`}
         />
-        <b className={`text-sm transition-colors duration-300 ${activeLink === '/childsettings' ? 'text-orange-700 animate-pulse' : 'text-gray-800 hover:text-orange-600'}`}>Settings</b>
+        <b className={`text-xs transition-colors duration-200 ${activeLink === '/childsettings' ? 'text-orange-700 animate-pulse' : 'text-white group-hover:text-orange-600'}`}>Settings</b>
       </Link>
 
       {/* Logout link */}
       <Link
         href="/logout"
-        className={`flex flex-col items-center p-2 rounded-lg transition-transform duration-300 transform-gpu hover:scale-105 ${
-          activeLink === '/logout' ? 'bg-red-200 text-red-700' : 'hover:bg-red-100 text-gray-700'
+        className={`group flex flex-col items-center px-1 py-1 rounded-md transition-transform duration-200 hover:scale-105 ${
+          activeLink === '/logout' ? 'bg-red-100 text-red-700' : 'hover:bg-red-50 text-gray-700'
         }`}
         onClick={() => handleLinkClick('/logout')}
       >
@@ -145,7 +140,7 @@ export default function Navbar() {
             activeLink === '/logout' ? 'hover:filter brightness-110 saturate-120 animate-pulse' : 'hover:filter brightness-110 saturate-120'
           }`}
         />
-        <b className={`text-sm transition-colors duration-300 ${activeLink === '/logout' ? 'text-red-700 animate-pulse' : 'text-gray-800 hover:text-red-600'}`}>Log Out</b>
+        <b className={`text-xs transition-colors duration-200 ${activeLink === '/logout' ? 'text-red-700 animate-pulse' : 'text-white group-hover:text-red-600'}`}>Log Out</b>
       </Link>
     </nav>
   );

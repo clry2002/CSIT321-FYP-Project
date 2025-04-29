@@ -301,7 +301,7 @@ function SearchResults({ query }: { query: string }) {
       ) : books.length > 0 ? (
         <div className="space-y-4">
           {books.map((book) => (
-            <div key={book.cid} className="flex items-start space-x-4 p-4 bg-white rounded-lg hover:bg-gray-50 transition-colors">
+            <div key={book.cid} className="flex items-start space-x-4 p-4 bg-white/20 backdrop-blur-md rounded-lg shadow-lg">
               <div className="flex-shrink-0 w-24 h-36 relative">
                 {book.coverimage && book.coverimage.trim() !== "" ? (
                   <Image
@@ -323,7 +323,7 @@ function SearchResults({ query }: { query: string }) {
               </div>
 
               <div className="flex-grow">
-                <h3 className="text-lg font-semibold text-gray-900">
+                <h3 className="text-lg font-semibold text-white" style={{ fontFamily: 'Quicksand, Nunito, Arial Rounded MT Bold, Arial, sans-serif' }}>
                   <a 
                     href={`/bookdetail/${book.cid}`} 
                     className="hover:text-rose-500 transition-colors"
@@ -332,9 +332,9 @@ function SearchResults({ query }: { query: string }) {
                     {book.title}
                   </a>
                 </h3>
-                <p className="text-sm text-gray-600">{book.credit}</p>
+                <p className="text-sm text-white" style={{ fontFamily: 'Quicksand, Nunito, Arial Rounded MT Bold, Arial, sans-serif' }}>{book.credit}</p>
                 {book.genreNames && (
-                  <div className="text-xs text-gray-500 mt-1">
+                  <div className="text-xs text-white mt-1" style={{ fontFamily: 'Quicksand, Nunito, Arial Rounded MT Bold, Arial, sans-serif' }}>
                     {book.genreNames.join(', ')}
                   </div>
                 )}

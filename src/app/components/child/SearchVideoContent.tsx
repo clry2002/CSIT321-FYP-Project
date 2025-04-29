@@ -377,7 +377,7 @@ useEffect(() => {
                 const isBookmarked = bookmarkedVideos.has(video.cid.toString());
 
                 return (
-                  <div key={video.cid} className="border rounded-lg overflow-hidden">
+                  <div key={video.cid} className="border rounded-lg overflow-hidden bg-white/20 backdrop-blur-md shadow-lg">
                     <div className="aspect-video relative">
                       {videoId ? (
                         <iframe
@@ -397,12 +397,16 @@ useEffect(() => {
                         href={`/videodetail/${video.cid}`}
                         onClick={() => handleVideoClick(video.cid)}
                       >
-                        <h3 className="font-medium text-lg text-black cursor-pointer pr-12">{video.title}</h3>
+                        <h3 className="font-medium text-lg text-white cursor-pointer pr-12" style={{ fontFamily: 'Quicksand, Nunito, Arial Rounded MT Bold, Arial, sans-serif' }}>{video.title}</h3>
                       </Link>
-                      <p className="text-sm text-gray-600 mt-1">{video.description}</p>
+                      <p className="text-sm text-white mt-1" style={{ fontFamily: 'Quicksand, Nunito, Arial Rounded MT Bold, Arial, sans-serif' }}>{video.description}</p>
                       {video.genreNames && (
-                        <div className="text-xs text-gray-500 mt-1">
-                          {video.genreNames.join(', ')}
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {video.genreNames.map((g, i) => (
+                            <span key={i} className="text-white text-[12px] bg-blue-800 px-2 py-0.5 rounded-full" style={{ fontFamily: 'Quicksand, Nunito, Arial Rounded MT Bold, Arial, sans-serif', maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', display: 'inline-block', whiteSpace: 'nowrap' }}>
+                              {g.length > 20 ? g.slice(0, 19) + '...' : g}
+                            </span>
+                          ))}
                         </div>
                       )}
                       <div className="mt-2 flex items-center text-sm text-gray-500">

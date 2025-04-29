@@ -257,26 +257,40 @@ const BookCard: React.FC<BookCardProps> = ({
           )}
         </div>
         
-        <div className="p-2">
-          <h3 className="font-medium text-xs leading-tight text-black">{truncateTitle(title)}</h3>
-          <p className="text-gray-600 text-xs mt-0.5">{displayAuthor}</p>
-          
-          {/* Display genres if requested */}
+        <div className="p-2 flex flex-col justify-between min-h-[100px] h-[100px]">
+          <h3 className="font-bold text-xs leading-tight text-white" style={{ fontFamily: 'Quicksand, Nunito, Arial Rounded MT Bold, Arial, sans-serif' }}>{truncateTitle(title)}</h3>
+          {/* Credits/Author: always 2 lines, ellipsis if too long */}
+          <p
+            className="text-white text-xs mt-0.5 overflow-hidden text-ellipsis"
+            style={{
+              fontFamily: 'Quicksand, Nunito, Arial Rounded MT Bold, Arial, sans-serif',
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              minHeight: '32px', // 2 lines
+              maxHeight: '32px',
+              lineHeight: '16px',
+              whiteSpace: 'normal',
+            }}
+            title={displayAuthor}
+          >
+            {displayAuthor}
+          </p>
+          {/* Genre always on the last line, allow more space for tags */}
           {showGenre && genre.length > 0 && (
             <div className="mt-1 flex flex-wrap gap-1">
               {genre.slice(0, 2).map((g, i) => (
-                <span key={i} className="text-black text-[12px] bg-gray-100 px-1.5 py-0.5 rounded">
-                  {g}
+                <span key={i} className="text-white text-[12px] bg-blue-800 px-2 py-0.5 rounded-full" style={{ fontFamily: 'Quicksand, Nunito, Arial Rounded MT Bold, Arial, sans-serif', maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', display: 'inline-block', whiteSpace: 'nowrap' }}>
+                  {g.length > 20 ? g.slice(0, 19) + '...' : g}
                 </span>
               ))}
               {genre.length > 2 && (
-                <span className="text-black text-[12px] bg-gray-100 px-1.5 py-0.5 rounded">
+                <span className="text-white text-[12px] bg-blue-800 px-2 py-0.5 rounded-full" style={{ fontFamily: 'Quicksand, Nunito, Arial Rounded MT Bold, Arial, sans-serif' }}>
                   +{genre.length - 2}
                 </span>
               )}
             </div>
           )}
-
           {/* Education-specific metadata (only shown to educators) */}
           {isEducator && (
             <div className="mt-2 pt-2 border-t border-gray-100">
@@ -300,7 +314,6 @@ const BookCard: React.FC<BookCardProps> = ({
                   {viewCount} views
                 </div>
               )}
-              
               {createddate && (
                 <div className="flex items-center text-xs text-gray-500 mt-1">
                   <svg
