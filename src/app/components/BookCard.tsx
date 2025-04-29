@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { useInteractions } from '../../hooks/useInteractions';
 import { useRouter } from 'next/navigation';
 import AssignBookModal from './educator/ClassroomDetails/AssignBookModal';
+import Image from 'next/image';
 
 interface BookCardProps {
   cid: string | number; 
@@ -44,6 +45,7 @@ const BookCard: React.FC<BookCardProps> = ({
   const [isChecking, setIsChecking] = useState<boolean>(true);
   const [showAssignModal, setShowAssignModal] = useState<boolean>(false);
   const { toggleBookmark, recordBookView } = useInteractions();
+  const [imageError, setImageError] = useState<boolean>(false);
 
   // Use the coverimage as a fallback if coverurl is not provided
   const imageUrl = coverurl || coverimage || null;
@@ -53,6 +55,7 @@ const BookCard: React.FC<BookCardProps> = ({
 
   // Convert cid to string for consistent handling
   const contentId = typeof cid === 'number' ? cid.toString() : cid;
+  
 
   useEffect(() => {
     // Only check bookmarks for students, not educators
@@ -165,25 +168,18 @@ const BookCard: React.FC<BookCardProps> = ({
           }}
         >
           <div className="aspect-[3/4] bg-gray-100 relative overflow-hidden">
-            {imageUrl ? (
-              <img
-                src={imageUrl}
-                alt={title}
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  // Instead of trying to load a placeholder image, just replace with a div
-                  const target = e.target as HTMLImageElement;
-                  const parent = target.parentNode;
-                  if (parent) {
-                    // Create replacement div
-                    const div = document.createElement('div');
-                    div.className = "w-full h-full flex items-center justify-center bg-gray-200";
-                    div.innerHTML = `<span class="text-gray-500 text-xs">${title}</span>`;
-                    // Replace the img with the div
-                    parent.replaceChild(div, target);
-                  }
-                }}
-              />
+            {imageUrl && !imageError ? (
+              <div className="relative w-full h-full">
+                <Image
+                  src={imageUrl}
+                  alt={title}
+                  fill
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                  style={{ objectFit: 'cover' }}
+                  onError={() => setImageError(true)}
+                  priority={false}
+                />
+              </div>
             ) : (
               <div className="w-full h-full flex items-center justify-center bg-gray-200">
                 <span className="text-gray-500 text-xs">{title}</span>
