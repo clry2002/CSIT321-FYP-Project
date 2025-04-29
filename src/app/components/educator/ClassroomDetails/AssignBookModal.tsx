@@ -113,7 +113,7 @@ const AssignBookModal: React.FC<AssignBookModalProps> = ({
         
         <h2 className="text-xl text-black font-semibold mb-4">Assign Book</h2>
         <p className="text-gray-600 mb-4">
-          Assign {bookTitle} to a classroom
+          Assign <span className="font-bold">{bookTitle}</span> to a classroom
         </p>
         
         {error && (
