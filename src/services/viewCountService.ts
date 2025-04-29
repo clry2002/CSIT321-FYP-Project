@@ -75,14 +75,14 @@ export const getViewCount = async (contentId: string): Promise<number> => {
       .from('temp_content')
       .select('viewCount')
       .eq('cid', contentId)
-      .single();
+      .maybeSingle();
       
     if (error) {
       console.error('Error fetching view count:', error);
       return 0;
     }
     
-    return data.viewCount || 0;
+    return data?.viewCount || 0;
   } catch (error) {
     console.error('Error in getViewCount:', error);
     return 0;

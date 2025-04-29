@@ -78,7 +78,7 @@ export default function CreateChildAccount() {
       await supabase.from('isparentof').insert({
         parent_id: parentData.id,
         child_id: userAccountData.id,
-        timeLimitMinute: 60,
+        timeLimitMinute: 0,
       });
 
       setShowReauthModal(true);

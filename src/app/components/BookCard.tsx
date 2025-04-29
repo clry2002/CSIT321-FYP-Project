@@ -1,8 +1,9 @@
 // components/BookCard.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useInteractions } from '../../hooks/useInteractions';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import AssignBookModal from './educator/ClassroomDetails/AssignBookModal';
 
 interface BookCardProps {
@@ -34,16 +35,19 @@ const BookCard: React.FC<BookCardProps> = ({
   genre = [],
   showGenre = true,
   minimumage,
-
   createddate,
-  viewCount = 0,
+  viewCount: initialViewCount = 0,
   isEducator = false,
 }) => {
   const router = useRouter();
   const [isBookmarked, setIsBookmarked] = useState<boolean>(false);
   const [isChecking, setIsChecking] = useState<boolean>(true);
   const [showAssignModal, setShowAssignModal] = useState<boolean>(false);
-  const { toggleBookmark, recordBookView } = useInteractions();
+  const [imageError, setImageError] = useState<boolean>(false);
+  const [actualViewCount, setActualViewCount] = useState<number>(initialViewCount);
+  const [isLoadingViewCount, setIsLoadingViewCount] = useState<boolean>(isEducator);
+  const interactions = useInteractions();
+  const hasLoadedViewCount = useRef(false);
 
   // Use the coverimage as a fallback if coverurl is not provided
   const imageUrl = coverurl || coverimage || null;
@@ -52,10 +56,12 @@ const BookCard: React.FC<BookCardProps> = ({
   const displayAuthor = author || credit || '';
 
   // Convert cid to string for consistent handling
-  const contentId = typeof cid === 'number' ? cid.toString() : cid;
+  const contentId = useMemo(() => {
+    return typeof cid === 'number' ? cid.toString() : cid;
+  }, [cid]);
 
+  // Effect for checking bookmarks (students only)
   useEffect(() => {
-    // Only check bookmarks for students, not educators
     if (!isEducator) {
       const checkIfBookmarked = async () => {
         try {
@@ -95,31 +101,51 @@ const BookCard: React.FC<BookCardProps> = ({
     }
   }, [contentId, isEducator]);
 
-  const handleBookmarkToggle = async (e: React.MouseEvent) => {
+  // Fetch view count only once when the component mounts
+  useEffect(() => {
+    if (!isEducator || hasLoadedViewCount.current) return;
+    
+    const fetchViewCount = async () => {
+      try {
+        setIsLoadingViewCount(true);
+        const count = await interactions.getContentViewCount(contentId);
+        setActualViewCount(count);
+        hasLoadedViewCount.current = true;
+      } catch (error) {
+        console.error('Error fetching view count:', error);
+      } finally {
+        setIsLoadingViewCount(false);
+      }
+    };
+    
+    fetchViewCount();
+  }, [contentId, isEducator, interactions]);
+
+  const handleBookmarkToggle = useCallback(async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     
-    const success = await toggleBookmark(contentId, !isBookmarked);
+    const success = await interactions.toggleBookmark(contentId, !isBookmarked);
     if (success) {
       setIsBookmarked(!isBookmarked);
     }
-  };
+  }, [contentId, isBookmarked, interactions]);
 
-  const handleClick = async () => {
+  const handleClick = useCallback(async () => {
     // Only record views for students, not educators
     if (!isEducator) {
-      await recordBookView(contentId);
+      await interactions.recordBookView(contentId);
     }
-  };
+  }, [contentId, isEducator, interactions]);
 
-  const handleAssign = (e: React.MouseEvent) => {
+  const handleAssign = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setShowAssignModal(true);
-  };
+  }, []);
 
   // Function to handle navigation
-  const navigateToDetail = (e: React.MouseEvent<HTMLDivElement> | React.KeyboardEvent<HTMLDivElement>) => {
+  const navigateToDetail = useCallback((e: React.MouseEvent<HTMLDivElement> | React.KeyboardEvent<HTMLDivElement>) => {
     e.preventDefault();
     handleClick(); // Record the view for students only
     
@@ -129,18 +155,18 @@ const BookCard: React.FC<BookCardProps> = ({
     } else {
       router.push(`/bookdetail/${contentId}`);
     }
-  };
+  }, [contentId, handleClick, isEducator, router]);
 
   // Function to truncate title if it's too long
-  const truncateTitle = (title: string) => {
+  const truncateTitle = useCallback((title: string) => {
     return title.length > 20 ? `${title.substring(0, 20)}...` : title;
-  };
+  }, []);
 
   // Format date for display
-  const formatDate = (dateString: string | null) => {
+  const formatDate = useCallback((dateString: string | null) => {
     if (!dateString) return 'N/A';
     return new Date(dateString).toLocaleDateString();
-  };
+  }, []);
 
   return (
     <>
@@ -148,42 +174,29 @@ const BookCard: React.FC<BookCardProps> = ({
         {/* Main content with hover effect */}
         <div 
           className="relative group cursor-pointer" 
-          onClick={(e) => navigateToDetail(e)} 
+          onClick={navigateToDetail} 
           role="button"
           tabIndex={0} 
           aria-label={`View details for ${title}`}
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
-              e.preventDefault();
-              handleClick();
-              if (isEducator) {
-                router.push(`/teacher/bookdetail/${contentId}`);
-              } else {
-                router.push(`/bookdetail/${contentId}`);
-              }
+              navigateToDetail(e);
             }
           }}
         >
           <div className="aspect-[3/4] bg-gray-100 relative overflow-hidden">
-            {imageUrl ? (
-              <img
-                src={imageUrl}
-                alt={title}
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  // Instead of trying to load a placeholder image, just replace with a div
-                  const target = e.target as HTMLImageElement;
-                  const parent = target.parentNode;
-                  if (parent) {
-                    // Create replacement div
-                    const div = document.createElement('div');
-                    div.className = "w-full h-full flex items-center justify-center bg-gray-200";
-                    div.innerHTML = `<span class="text-gray-500 text-xs">${title}</span>`;
-                    // Replace the img with the div
-                    parent.replaceChild(div, target);
-                  }
-                }}
-              />
+            {imageUrl && !imageError ? (
+              <div className="relative w-full h-full">
+                <Image
+                  src={imageUrl}
+                  alt={title}
+                  fill
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                  style={{ objectFit: 'cover' }}
+                  onError={() => setImageError(true)}
+                  priority={false}
+                />
+              </div>
             ) : (
               <div className="w-full h-full flex items-center justify-center bg-gray-200">
                 <span className="text-gray-500 text-xs">{title}</span>
@@ -207,26 +220,13 @@ const BookCard: React.FC<BookCardProps> = ({
           
           {/* Action buttons - positioned based on user type */}
           {isEducator ? (
-            // Assign button for educators
+            // Assign button for educators (now using text-based button style from VideoCard)
             <button
-              className="absolute top-2 right-2 p-1.5 bg-green-500 text-white rounded-full shadow-md z-10"
+              className="absolute top-2 right-2 bg-green-500 text-white text-xs px-2 py-1 rounded shadow hover:bg-green-600 transition-colors z-10"
               onClick={handleAssign}
               aria-label="Assign book"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                <polyline points="22 4 12 14.01 9 11.01"></polyline>
-              </svg>
+              Assign
             </button>
           ) : (
             // Bookmark button for students
@@ -294,26 +294,29 @@ const BookCard: React.FC<BookCardProps> = ({
           {/* Education-specific metadata (only shown to educators) */}
           {isEducator && (
             <div className="mt-2 pt-2 border-t border-gray-100">
-              {viewCount !== undefined && (
-                <div className="flex items-center text-xs text-gray-500 mt-1">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="12"
-                    height="12"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="mr-1"
-                  >
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                    <circle cx="12" cy="12" r="3"></circle>
-                  </svg>
-                  {viewCount} views
-                </div>
-              )}
+              <div className="flex items-center text-xs text-gray-500 mt-1">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="mr-1"
+                >
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                  <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+                {isEducator && isLoadingViewCount ? (
+                  <span className="ml-1 w-3 h-3 inline-block animate-spin border-2 border-gray-300 border-t-transparent rounded-full"></span>
+                ) : (
+                  <>{actualViewCount} views</>
+                )}
+              </div>
+              
               {createddate && (
                 <div className="flex items-center text-xs text-gray-500 mt-1">
                   <svg
