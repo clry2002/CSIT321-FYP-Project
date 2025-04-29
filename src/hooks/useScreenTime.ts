@@ -18,6 +18,7 @@ export interface UseScreenTimeResult {
   isLoading: boolean;
   isLimitExceeded: boolean;
   error: string | null;
+  sessionDuration: number; // Added for unlimited mode tracking
 
   // Formatted values
   formattedTimeRemaining: string;
@@ -27,6 +28,7 @@ export interface UseScreenTimeResult {
   // Actions
   startSessionTracking: () => Promise<void>;
   endSessionTracking: () => Promise<void>;
+  resetLimitExceededState: () => Promise<boolean>;
 }
 
 export const useScreenTime = ({ onTimeExceeded }: UseScreenTimeProps = {}): UseScreenTimeResult => {
@@ -36,10 +38,12 @@ export const useScreenTime = ({ onTimeExceeded }: UseScreenTimeProps = {}): UseS
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isLimitExceeded, setIsLimitExceeded] = useState(false);
+  const [sessionDuration, setSessionDuration] = useState<number>(0); // Added for tracking session time
   
   // Use refs to maintain values without triggering re-renders
   const hasCalledTimeExceededRef = useRef(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const sessionTimerRef = useRef<NodeJS.Timeout | null>(null); // Added for session timing
   const childIdRef = useRef<string | null>(null);
   const timeLimitRef = useRef<number | null>(null);
   const timeUsedRef = useRef<number>(0);
@@ -47,6 +51,7 @@ export const useScreenTime = ({ onTimeExceeded }: UseScreenTimeProps = {}): UseS
   const initCompletedRef = useRef(false);
   const lastUpdateTimeRef = useRef<number>(Date.now());
   const initialLoginTimeRef = useRef<number>(Date.now());
+  const sessionStartTimeRef = useRef<number>(Date.now()); // Added to track session start
   const isNewLoginSessionRef = useRef(true);
   const shouldEnforceTimeLimitRef = useRef(false);
   const gracePeriodTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -55,16 +60,17 @@ export const useScreenTime = ({ onTimeExceeded }: UseScreenTimeProps = {}): UseS
   const updateCountRef = useRef(0);
   
   // Calculate derived values safely
-  const calculateDerivedValues = () => {
+  const calculateDerivedValues = useCallback(() => {
     // Get latest values from refs
     const currentTimeLimit = timeLimitRef.current;
     const currentTimeUsed = timeUsedRef.current;
     
-    // Calculate time remaining - handle large limits specially
+    // Calculate time remaining - handle special cases
     let timeRemainingValue: number | null = null;
     let percentRemainingValue: number | null = null;
     
-    if (currentTimeLimit === null) {
+    // Handle special cases: no limit, 0 limit, or unlimited (≥1000)
+    if (currentTimeLimit === null || currentTimeLimit === 0) {
       // No limit case
       timeRemainingValue = null;
       percentRemainingValue = 100; // Always show full
@@ -73,8 +79,10 @@ export const useScreenTime = ({ onTimeExceeded }: UseScreenTimeProps = {}): UseS
       timeRemainingValue = 999; // Just a large number for display
       percentRemainingValue = 100; // Always show full
     } else {
-      // Normal limit case
+      // Normal limit case with precise calculation
+      // Maintain fractions for seconds-level precision
       timeRemainingValue = Math.max(0, currentTimeLimit - currentTimeUsed);
+      
       percentRemainingValue = currentTimeLimit > 0 
         ? Math.min(100, Math.max(0, (timeRemainingValue / currentTimeLimit) * 100))
         : 100;
@@ -94,31 +102,45 @@ export const useScreenTime = ({ onTimeExceeded }: UseScreenTimeProps = {}): UseS
       }
     }
 
-    // Format time string
+    // Format time string - now with seconds for small values
     let formattedTimeRemainingValue = 'No limit';
     
-    if (currentTimeLimit !== null) {
+    if (currentTimeLimit !== null && currentTimeLimit > 0) {
       if (currentTimeLimit >= 1000) {
         formattedTimeRemainingValue = 'Unlimited';
       } else if (timeRemainingValue !== null) {
-        if (timeRemainingValue >= 60) {
-          const hours = Math.floor(timeRemainingValue / 60);
-          const minutes = Math.floor(timeRemainingValue % 60);
+        // Convert to seconds for precision
+        const totalSeconds = timeRemainingValue * 60;
+        const hours = Math.floor(timeRemainingValue / 60);
+        const minutes = Math.floor(timeRemainingValue % 60);
+        const seconds = Math.floor(totalSeconds % 60);
+        
+        if (hours > 0) {
+          // Hours and minutes format
           formattedTimeRemainingValue = `${hours}h ${minutes}m`;
+        } else if (minutes > 0) {
+          if (minutes < 5) {
+            // Minutes and seconds format when under 5 minutes
+            formattedTimeRemainingValue = `${minutes}m ${seconds}s`;
+          } else {
+            // Just minutes when 5 minutes or more
+            formattedTimeRemainingValue = `${minutes}m`;
+          }
         } else {
-          formattedTimeRemainingValue = `${Math.floor(timeRemainingValue)}m`;
+          // Only seconds when less than a minute
+          formattedTimeRemainingValue = `${seconds}s`;
         }
       }
     }
-    
-    return {
-      timeRemaining: timeRemainingValue,
-      percentRemaining: percentRemainingValue,
-      progressColor,
-      textColor,
-      formattedTimeRemaining: formattedTimeRemainingValue
-    };
+  
+  return {
+    timeRemaining: timeRemainingValue,
+    percentRemaining: percentRemainingValue,
+    progressColor,
+    textColor,
+    formattedTimeRemaining: formattedTimeRemainingValue
   };
+}, []);
   
   // Create a memoized derived values object
   const derivedValuesRef = useRef(calculateDerivedValues());
@@ -126,7 +148,130 @@ export const useScreenTime = ({ onTimeExceeded }: UseScreenTimeProps = {}): UseS
   // Update derived values when source values change
   const updateDerivedValues = useCallback(() => {
     derivedValuesRef.current = calculateDerivedValues();
-  }, []);
+  }, [calculateDerivedValues]);
+
+  // Function to reset limit exceeded state
+  const resetLimitExceededState = useCallback(async () => {
+    console.log("Resetting limit exceeded state");
+    
+    // Reset the internal ref first
+    isLimitExceededRef.current = false;
+    
+    // Then update the state
+    setIsLimitExceeded(false);
+    
+    // Reset the flag for calling onTimeExceeded
+    hasCalledTimeExceededRef.current = false;
+    
+    // Force a fresh check of time limit
+    const currentChildId = childIdRef.current;
+    if (currentChildId) {
+      try {
+        // Get fresh time data using the service
+        const { timeLimit: freshLimit, timeUsed: freshUsed, success } = 
+          await screenTimeService.refreshTimeLimitData(currentChildId);
+          
+        if (success) {
+          // Update refs first
+          timeLimitRef.current = freshLimit;
+          timeUsedRef.current = freshUsed;
+          
+          // Then update state
+          setTimeLimit(freshLimit);
+          setTimeUsed(freshUsed);
+          
+          // Update derived values
+          updateDerivedValues();
+          
+          console.log("Successfully reset limit exceeded state with fresh data:", {
+            timeLimit: freshLimit,
+            timeUsed: freshUsed
+          });
+          
+          return true;
+        }
+      } catch (error) {
+        console.error("Error resetting limit exceeded state:", error);
+      }
+    }
+    
+    return false;
+  }, [updateDerivedValues]);
+
+  // Function to check if time limit is exceeded
+  const checkTimeLimitExceeded = useCallback(() => {
+    // Get latest values
+    const currentTimeLimit = timeLimitRef.current;
+    const currentTimeUsed = timeUsedRef.current;
+    
+    // Log current state for debugging
+    console.log("Checking time limit:", {
+      timeLimit: currentTimeLimit,
+      timeUsed: currentTimeUsed,
+      shouldEnforce: shouldEnforceTimeLimitRef.current,
+      isLimitExceeded: isLimitExceededRef.current,
+      hasCalledTimeExceeded: hasCalledTimeExceededRef.current
+    });
+    
+    // Check if we need to enforce time limits yet
+    if (!shouldEnforceTimeLimitRef.current) {
+      console.log("Not enforcing time limit yet (in grace period)");
+      
+      // IMPORTANT: even in grace period, check if we've significantly exceeded the limit
+      // This ensures the modal shows even during grace period if the user is way over limit
+      if (currentTimeLimit !== null && 
+          currentTimeLimit > 0 && 
+          currentTimeLimit < 1000 && 
+          currentTimeUsed > 0 && 
+          currentTimeUsed >= (currentTimeLimit + 1)) { // Only trigger if more than 1 minute over
+          
+        console.log("Significantly over time limit, enforcing despite grace period");
+        shouldEnforceTimeLimitRef.current = true; // Force enforcement
+      } else {
+        return; // Otherwise respect grace period
+      }
+    }
+    
+    // Only check if we have valid data, a non-zero time limit that's not unlimited
+    if (currentTimeLimit !== null && 
+        currentTimeLimit > 0 &&
+        currentTimeLimit < 1000 && 
+        currentTimeUsed > 0) {
+        
+      // Check if we're over the limit
+      if (currentTimeUsed >= currentTimeLimit) {
+        // Even if we've already exceeded, log the current status
+        console.log(`Time used (${currentTimeUsed.toFixed(1)}) exceeds limit (${currentTimeLimit})`);
+        
+        // If we haven't already set the exceeded state, do it now
+        if (!isLimitExceededRef.current) {
+          console.log("Setting time limit exceeded state to true");
+          isLimitExceededRef.current = true;
+          setIsLimitExceeded(true);
+          
+          // Call onTimeExceeded callback if provided and not already called
+          if (onTimeExceeded && !hasCalledTimeExceededRef.current) {
+            console.log("Calling onTimeExceeded callback");
+            hasCalledTimeExceededRef.current = true;
+            onTimeExceeded();
+          }
+        }
+      } else if (isLimitExceededRef.current) {
+        // We were exceeding but now we're not (limit increased)
+        console.log("Time limit no longer exceeded (limit increased):", {
+          timeLimit: currentTimeLimit,
+          timeUsed: currentTimeUsed
+        });
+        
+        // Reset the exceeded state
+        isLimitExceededRef.current = false;
+        setIsLimitExceeded(false);
+        
+        // Allow calling onTimeExceeded again if needed in the future
+        hasCalledTimeExceededRef.current = false;
+      }
+    }
+  }, [onTimeExceeded]);
 
   // Setup grace period for time limit enforcement
   const setupTimeLimitGracePeriod = useCallback(() => {
@@ -134,6 +279,9 @@ export const useScreenTime = ({ onTimeExceeded }: UseScreenTimeProps = {}): UseS
     
     // Mark as new login session
     isNewLoginSessionRef.current = true;
+    
+    // Initialize the session start time
+    sessionStartTimeRef.current = Date.now();
     
     // Initially don't enforce time limits (grace period)
     shouldEnforceTimeLimitRef.current = false;
@@ -154,49 +302,7 @@ export const useScreenTime = ({ onTimeExceeded }: UseScreenTimeProps = {}): UseS
       // Check time limit after grace period ends
       checkTimeLimitExceeded();
     }, 15 * 1000);
-  }, []);
-
-  // Function to check if time limit is exceeded
-  const checkTimeLimitExceeded = useCallback(() => {
-    // Get latest values
-    const currentTimeLimit = timeLimitRef.current;
-    const currentTimeUsed = timeUsedRef.current;
-    
-    // Skip check if we shouldn't enforce time limit yet
-    if (!shouldEnforceTimeLimitRef.current) {
-      console.log("Not enforcing time limit yet (in grace period)");
-      return;
-    }
-    
-    console.log("Checking time limit:", {
-      timeLimit: currentTimeLimit,
-      timeUsed: currentTimeUsed,
-      shouldEnforce: shouldEnforceTimeLimitRef.current,
-      isLimitExceeded: isLimitExceededRef.current,
-      hasCalledTimeExceeded: hasCalledTimeExceededRef.current
-    });
-    
-    // Only check if we have valid data and haven't already exceeded
-    if (currentTimeLimit !== null && 
-        currentTimeLimit < 1000 && 
-        currentTimeUsed > 0 && 
-        currentTimeUsed >= currentTimeLimit && 
-        !isLimitExceededRef.current) {
-      
-      console.log("Time limit exceeded:", {
-        timeLimit: currentTimeLimit, 
-        timeUsed: currentTimeUsed
-      });
-      
-      isLimitExceededRef.current = true;
-      setIsLimitExceeded(true);
-      
-      if (onTimeExceeded && !hasCalledTimeExceededRef.current) {
-        hasCalledTimeExceededRef.current = true;
-        onTimeExceeded();
-      }
-    }
-  }, [onTimeExceeded]);
+  }, [checkTimeLimitExceeded]);
 
   // Clean up timers when component unmounts
   useEffect(() => {
@@ -206,11 +312,35 @@ export const useScreenTime = ({ onTimeExceeded }: UseScreenTimeProps = {}): UseS
         timerRef.current = null;
       }
       
+      if (sessionTimerRef.current) {
+        clearInterval(sessionTimerRef.current);
+        sessionTimerRef.current = null;
+      }
+      
       if (gracePeriodTimerRef.current) {
         clearTimeout(gracePeriodTimerRef.current);
         gracePeriodTimerRef.current = null;
       }
     };
+  }, []);
+
+  // Start session duration timer
+  const startSessionDurationTimer = useCallback(() => {
+    if (sessionTimerRef.current) {
+      clearInterval(sessionTimerRef.current);
+    }
+    
+    console.log("Starting session duration timer");
+    
+    // Update session duration immediately
+    const currentDuration = (Date.now() - sessionStartTimeRef.current) / (1000 * 60);
+    setSessionDuration(currentDuration);
+    
+    // Set up timer to update session duration every 10 seconds
+    sessionTimerRef.current = setInterval(() => {
+      const elapsedMinutes = (Date.now() - sessionStartTimeRef.current) / (1000 * 60);
+      setSessionDuration(elapsedMinutes);
+    }, 10000);
   }, []);
 
   // Internal helper function for starting session tracking
@@ -230,13 +360,19 @@ export const useScreenTime = ({ onTimeExceeded }: UseScreenTimeProps = {}): UseS
       
       if (sessionData.hasValidSession) {
         screenTimeService.startHeartbeat();
+        
+        // Reset the session start time for accurate duration tracking
+        sessionStartTimeRef.current = Date.now();
+        
+        // Start the session duration timer (for both limited and unlimited modes)
+        startSessionDurationTimer();
       } else {
         console.error("Failed to create valid session!");
       }
     } catch (error) {
       console.error("Error starting session tracking:", error);
     }
-  }, []);
+  }, [startSessionDurationTimer]);
 
   // Fetch initial time data - run only once
   useEffect(() => {
@@ -383,10 +519,9 @@ export const useScreenTime = ({ onTimeExceeded }: UseScreenTimeProps = {}): UseS
         gracePeriodTimerRef.current = null;
       }
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [setupTimeLimitGracePeriod, checkTimeLimitExceeded, updateDerivedValues, startSessionTrackingInternal]);
 
-  // Set up periodic updates for time used - dependencies minimized
+  // Set up periodic updates for time used - for both limited and unlimited modes
   useEffect(() => {
     // Only run if we have a child ID
     const currentChildId = childIdRef.current;
@@ -421,6 +556,7 @@ export const useScreenTime = ({ onTimeExceeded }: UseScreenTimeProps = {}): UseS
       updateCountRef.current++;
       
       try {
+        // Always track time usage even in unlimited mode
         const used = await screenTimeService.getTodayUsage(currentChildId);
         
         // Update ref immediately
@@ -436,10 +572,17 @@ export const useScreenTime = ({ onTimeExceeded }: UseScreenTimeProps = {}): UseS
           updateDerivedValues();
         }
 
-        // Check if time limit is now exceeded
-        checkTimeLimitExceeded();
+        // Only check time limit exceeded for limited mode
+        const currentTimeLimit = timeLimitRef.current;
+        const isUnlimitedMode = !currentTimeLimit || currentTimeLimit === 0 || currentTimeLimit >= 1000;
         
-        console.log(`Time update #${updateCountRef.current}: used=${used.toFixed(1)}, limit=${timeLimitRef.current}`);
+        if (!isUnlimitedMode) {
+          // Check if time limit is now exceeded (only for limited mode)
+          checkTimeLimitExceeded();
+        }
+        
+        // Log update for either mode
+        console.log(`Time update #${updateCountRef.current}: used=${used.toFixed(1)}, limit=${timeLimitRef.current}, mode=${isUnlimitedMode ? 'unlimited' : 'limited'}`);
       } catch (error) {
         console.error("Error updating time usage:", error);
       }
@@ -452,7 +595,6 @@ export const useScreenTime = ({ onTimeExceeded }: UseScreenTimeProps = {}): UseS
         timerRef.current = null;
       }
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); 
 
   // Start session tracking - memoized with useCallback
@@ -475,6 +617,14 @@ export const useScreenTime = ({ onTimeExceeded }: UseScreenTimeProps = {}): UseS
   // End session tracking - memoized with useCallback
   const endSessionTracking = useCallback(async () => {
     console.log("Ending session tracking");
+    
+    // Clean up session timer
+    if (sessionTimerRef.current) {
+      clearInterval(sessionTimerRef.current);
+      sessionTimerRef.current = null;
+    }
+    
+    // End the session in the service
     await screenTimeService.endSession();
   }, []);
 
@@ -488,6 +638,7 @@ export const useScreenTime = ({ onTimeExceeded }: UseScreenTimeProps = {}): UseS
     isLoading,
     isLimitExceeded,
     error,
+    sessionDuration, // Added for unlimited mode
 
     // Formatted values
     formattedTimeRemaining: derivedValuesRef.current.formattedTimeRemaining,
@@ -496,6 +647,7 @@ export const useScreenTime = ({ onTimeExceeded }: UseScreenTimeProps = {}): UseS
     
     // Actions
     startSessionTracking,
-    endSessionTracking
+    endSessionTracking,
+    resetLimitExceededState
   };
 };

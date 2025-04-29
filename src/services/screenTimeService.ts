@@ -386,6 +386,7 @@ export const screenTimeService = {
     }
   },
 
+  // Update this function in your screenTimeService.ts file
   getTimeLimit: async (childDbId: string): Promise<number | null> => {
     console.log("Getting time limit for child ID:", childDbId);
     
@@ -432,6 +433,13 @@ export const screenTimeService = {
       if (data && data.length > 0) {
         // Get the first parent's time limit (if multiple)
         const timeLimit = data[0].timeLimitMinute;
+        
+        // If timeLimit is 0, treat it as no limit (null)
+        if (timeLimit === 0) {
+          console.log("Time limit is 0, treating as no limit");
+          return null;
+        }
+        
         console.log("Time limit found:", timeLimit);
         return timeLimit;
       } 
@@ -599,6 +607,91 @@ export const screenTimeService = {
     } catch (e) {
       console.error("Exception in getAllUsage:", e);
       return { error: String(e) };
+    }
+  },
+
+  resetLimitState: async (childId: string): Promise<boolean> => {
+    try {
+      console.log("Completely resetting time limit state for child:", childId);
+      
+      // 1. End current session to record usage properly
+      await screenTimeService.endSession();
+      
+      // 2. Clear session storage to force fresh initialization
+      sessionStorage.removeItem('sessionStartTime');
+      sessionStorage.removeItem('childDbId');
+      
+      // 3. Clear isLimitExceeded state from localStorage
+      const limitExceededKey = `limit_exceeded_${childId}`;
+      safeLocalStorage.removeItem(limitExceededKey);
+      
+      // 4. Force check for new time limit
+      await screenTimeService.checkAndResetDailyUsage(childId);
+      
+      // 5. Restart the session tracking
+      await screenTimeService.startSession(childId);
+      
+      console.log("Time limit state has been completely reset");
+      return true;
+    } catch (error) {
+      console.error("Error resetting time limit state:", error);
+      return false;
+    }
+  },
+  
+  hasLimitChanged: async (childId: string, currentLimit: number | null): Promise<boolean> => {
+    try {
+      // Check stored previous limit
+      const previousLimitKey = `previous_limit_${childId}`;
+      const previousLimitStr = safeLocalStorage.getItem(previousLimitKey);
+      const previousLimit = previousLimitStr ? parseFloat(previousLimitStr) : null;
+      
+      // Store current limit for future checks
+      if (currentLimit !== null) {
+        safeLocalStorage.setItem(previousLimitKey, currentLimit.toString());
+      } else {
+        safeLocalStorage.removeItem(previousLimitKey);
+      }
+      
+      // Check if limit changed
+      if (previousLimit === null && currentLimit === null) {
+        return false; // Both null, no change
+      } else if (previousLimit === null || currentLimit === null) {
+        return true; // One is null, the other isn't - it changed
+      } else {
+        return Math.abs(previousLimit - currentLimit) > 0.1; // Changed if difference > 0.1
+      }
+    } catch (error) {
+      console.error("Error checking if limit changed:", error);
+      return false;
+    }
+  },
+
+
+  refreshTimeLimitData: async (childId: string) => {
+    try {
+      console.log("Force refreshing time limit data for child:", childId);
+      
+      // Get fresh time limit
+      const limit = await screenTimeService.getTimeLimit(childId);
+      
+      // Get fresh usage - check for table existence first
+      // Make sure we properly check for daily reset
+      await screenTimeService.checkAndResetDailyUsage(childId);
+      
+      // Now get the current usage for today
+      const used = await screenTimeService.getTodayUsage(childId);
+      
+      console.log("Fresh time data fetched:", { limit, used });
+      
+      return { 
+        timeLimit: (limit === undefined || limit === null) ? null : Number(limit),
+        timeUsed: used || 0,
+        success: true
+      };
+    } catch (error) {
+      console.error("Error refreshing time limit data:", error);
+      return { success: false, timeLimit: null, timeUsed: 0 };
     }
   }
 };

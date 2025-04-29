@@ -16,6 +16,7 @@ import ScoreDebugger from '../components/ScoreDebugger';
 import { useInteractions } from '../../hooks/useInteractions';
 import { debugUserInteractions } from '../../services/userInteractionsService';
 import { getRecommendedBooks } from '../../services/recommendationService';
+import { useScreenTime } from '../../hooks/useScreenTime'; // Add this import
 
 export default function ChildPage() {
   // Use refs to maintain stable references
@@ -27,6 +28,28 @@ export default function ChildPage() {
   const [showTimeLimitModal, setShowTimeLimitModal] = useState(false);
   const [userFullName, setUserFullName] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Handle time limit exceeded - use a stable callback
+  const handleTimeLimitExceeded = useCallback(() => {
+    console.log('Time limit exceeded handler called');
+    
+    // Prevent multiple calls
+    if (isTimeLimitExceededRef.current) {
+      console.log('Already handled time limit exceeded, ignoring');
+      return;
+    }
+    
+    isTimeLimitExceededRef.current = true;
+    setShowTimeLimitModal(true);
+  }, []);
+  
+  // Use the screen time hook directly in the component to monitor limit state
+  const {
+    isLimitExceeded,
+    isLoading: isTimeLoading
+  } = useScreenTime({
+    onTimeExceeded: handleTimeLimitExceeded
+  });
   
   // Hooks
   const { availableBooks } = useBooks();
@@ -148,19 +171,14 @@ export default function ChildPage() {
     };
   }, []);
 
-  // Handle time limit exceeded - use a stable callback
-  const handleTimeLimitExceeded = useCallback(() => {
-    console.log('Time limit exceeded handler called');
-    
-    // Prevent multiple calls
-    if (isTimeLimitExceededRef.current) {
-      console.log('Already handled time limit exceeded, ignoring');
-      return;
+  // Effect to also check isLimitExceeded state from the hook
+  useEffect(() => {
+    if (isLimitExceeded && !isTimeLimitExceededRef.current) {
+      console.log('Time limit exceeded detected from hook state');
+      isTimeLimitExceededRef.current = true;
+      setShowTimeLimitModal(true);
     }
-    
-    isTimeLimitExceededRef.current = true;
-    setShowTimeLimitModal(true);
-  }, []);
+  }, [isLimitExceeded]);
 
   // Handle modal close and logout - use a stable callback
   const handleModalClose = useCallback(async () => {
@@ -179,7 +197,21 @@ export default function ChildPage() {
     }
   }, []);
 
-  console.log("Rendering ChildPage, showTimeLimitModal:", showTimeLimitModal);
+  // Add logging for when modal state changes
+  useEffect(() => {
+    console.log('Modal state changed:', { showTimeLimitModal, isLimitExceeded });
+  }, [showTimeLimitModal, isLimitExceeded]);
+
+  // Check time limit on component load
+  useEffect(() => {
+    // If we have loaded time data, check if it's already exceeded
+    if (!isTimeLoading && isLimitExceeded) {
+      console.log("Time already exceeded on page load");
+      setShowTimeLimitModal(true);
+    }
+    
+    console.log("Rendering ChildPage, showTimeLimitModal:", showTimeLimitModal);
+  }, [isTimeLoading, isLimitExceeded]);
 
   return (
     <div className="flex flex-col h-screen bg-white">
@@ -189,6 +221,7 @@ export default function ChildPage() {
       <ScreenTimeIndicator 
         key="screen-time-indicator"
         onTimeExceeded={handleTimeLimitExceeded} 
+        forceCheckInterval={15000} // Check every 15 seconds
       />
       
       {/* Display Time Limit Modal if needed */}

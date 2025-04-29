@@ -41,12 +41,16 @@ export const timeLimitCheckService = {
       // Debug parent data
       console.log("Parent data for time limit:", parentData);
       
-      // If no time limit is set or no parent relationship exists
-      if (!parentData || parentData.length === 0 || !parentData[0].timeLimitMinute) {
+      // If no time limit is set, no parent relationship exists, or time limit is 0
+      if (!parentData || 
+          parentData.length === 0 || 
+          parentData[0].timeLimitMinute === undefined || 
+          parentData[0].timeLimitMinute === null ||
+          parentData[0].timeLimitMinute === 0) { // Add check for 0 time limit
         return {
           isExceeded: false,
           timeUsed: 0,
-          timeLimit: null,
+          timeLimit: null, // Treat 0 as null (no limit)
           message: "No time limit set"
         };
       }
@@ -99,7 +103,7 @@ export const timeLimitCheckService = {
       // Convert to minutes
       const timeUsed = totalSeconds / 60;
       
-      console.log(`Time limit check: Used=${timeUsed.toFixed(2)} minutes, Limit=${timeLimit} minutes`);
+      console.log(`Time limit check: Used=${timeUsed.toFixed(2)} minutes, Limit=${timeLimit} minutes (Limit type: ${typeof timeLimit})`);
       
       // Add a small buffer (0.1 min) to prevent false triggers on very small overages
       const buffer = 0.1;
