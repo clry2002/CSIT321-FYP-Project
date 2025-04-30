@@ -330,6 +330,7 @@ export default function LoginPage() {
                   <Link
                     href="/auth/resetpassword"
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-purple-700"
+                    title="Reset Password"
                   >
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
