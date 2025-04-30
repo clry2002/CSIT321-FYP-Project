@@ -142,6 +142,14 @@ const ChatBot: React.FC = () => {
 
   return (
     <div className="chatbot-wrapper">
+      {/* Show mascot to the left of the popup when open */}
+      {isChatOpen && (
+        <img 
+          src="/mascot.png" 
+          alt="Mascot" 
+          className="chatbot-mascot-image"
+        />
+      )}
       {/* Blur background when chatbot popup is open */}
       {isChatOpen && (
         <div className="chatbot-popup-backdrop visible" />
@@ -263,14 +271,14 @@ const ChatBot: React.FC = () => {
                                   href={item.contenturl}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="inline-block mr-2 bg-blue-500 text-white px-3 py-1 rounded"
+                                  className="chatbot-button-style view-book-link"
                                 >
                                   View Book
                                 </a>
                                 {item.cid && item.cid !== 0 ? (
                                   <a
                                     href={`/bookdetail/${item.cid}`}
-                                    className="inline-block bg-emerald-500 text-white px-3 py-1 rounded"
+                                    className="chatbot-button-style view-details-link"
                                   >
                                     View Details
                                   </a>
