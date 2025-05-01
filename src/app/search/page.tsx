@@ -21,33 +21,37 @@ export default function SearchPage() {
   };
 
   return (
-    <div className="flex h-screen bg-white overflow-hidden">
+    <div className="flex flex-col min-h-screen relative">
+      <div 
+        className="absolute inset-0 bg-repeat bg-center"
+        style={{ backgroundImage: 'url(/stars.png)' }}
+      />
       <Navbar />
       {/* Main Content */}
-      <div className="flex-1 overflow-y-auto pt-16 px-6">
+      <div className="flex-1 overflow-y-auto pt-16 px-6 relative">
         <div className="max-w-2xl mx-auto mt-20">
           {/* Search Interface */}
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-4">Search Content</h1>
+          <div className="text-center mb-8 bg-black/50 backdrop-blur-sm p-8 rounded-xl shadow-lg">
+            <h1 className="text-3xl font-bold text-yellow-400 mb-4">Search Content</h1>
             <div className="relative">
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Enter your search query..."
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent text-black"
+                className="w-full px-4 py-3 bg-white/10 border border-yellow-400/30 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent text-white placeholder:text-yellow-400/50"
               />
             </div>
             <div className="mt-4 flex justify-center space-x-4">
               <button
                 onClick={() => handleSearch('books')}
-                className="px-6 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2"
+                className="px-6 py-2 bg-yellow-400 text-black rounded-lg hover:bg-yellow-500 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-offset-2 transition-colors"
               >
                 Search Books
               </button>
               <button
                 onClick={() => handleSearch('videos')}
-                className="px-6 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2"
+                className="px-6 py-2 bg-yellow-400 text-black rounded-lg hover:bg-yellow-500 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-offset-2 transition-colors"
               >
                 Search Videos
               </button>

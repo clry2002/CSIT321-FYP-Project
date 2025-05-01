@@ -107,8 +107,9 @@ export default function ProfilesPage() {
   const fetchCustomProfiles = async () => {
     try {
       const { data, error } = await supabase
-        .from('userprofile_custom')
-        .select('*');
+        .from('userprofile')
+        .select('*')
+        .gt('upid', 5); // Get only custom profiles (upid > 5)
       if (error) throw error;
       setCustomProfiles(data || []);
     } catch (err) {
@@ -121,9 +122,24 @@ export default function ProfilesPage() {
     try {
       if (!newProfileName.trim()) return;
 
+      // Get the next upid
+      const { data: maxUpidData, error: maxError } = await supabase
+        .from('userprofile')
+        .select('upid')
+        .order('upid', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (maxError) throw maxError;
+      const nextUpid = (maxUpidData?.upid || 5) + 1;
+
       const { error } = await supabase
-        .from('userprofile_custom')
-        .insert({ name: newProfileName.trim() });
+        .from('userprofile')
+        .insert({ 
+          upid: nextUpid,
+          name: newProfileName.trim(),
+          suspended: false
+        });
 
       if (error) throw error;
 
@@ -139,7 +155,7 @@ export default function ProfilesPage() {
   const handleDeleteCustomProfile = async (name: string) => {
     try {
       const { error } = await supabase
-        .from('userprofile_custom')
+        .from('userprofile')
         .delete()
         .eq('name', name);
 

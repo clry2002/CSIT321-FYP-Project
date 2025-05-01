@@ -22,14 +22,16 @@ interface Book {
 interface ReadingCalendarProps {
   selectedBook?: Book;
   onClose?: () => void;
+  onScheduleUpdate?: () => void;
 }
 
-export default function ReadingCalendar({ selectedBook, onClose }: ReadingCalendarProps) {
+export default function ReadingCalendar({ selectedBook, onClose, onScheduleUpdate }: ReadingCalendarProps) {
   const router = useRouter();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [schedules, setSchedules] = useState<ReadingSchedule[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [newSchedule, setNewSchedule] = useState({
     bookTitle: selectedBook?.title || '',
     pages: 0,
@@ -43,9 +45,13 @@ export default function ReadingCalendar({ selectedBook, onClose }: ReadingCalend
   // Fetch schedules on mount and store in localStorage
   useEffect(() => {
     const fetchSchedules = async () => {
+      setIsLoading(true);
       try {
         const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
+        if (!user) {
+          setIsLoading(false);
+          return;
+        }
 
         const { data, error } = await supabase
           .from('reading_schedules')
@@ -77,6 +83,8 @@ export default function ReadingCalendar({ selectedBook, onClose }: ReadingCalend
             status: schedule.status || 'pending'
           })));
         }
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -142,6 +150,11 @@ export default function ReadingCalendar({ selectedBook, onClose }: ReadingCalend
             : schedule
         )
       );
+
+      // Call onScheduleUpdate if provided
+      if (onScheduleUpdate) {
+        onScheduleUpdate();
+      }
     } catch (error) {
       console.error('Error completing schedule:', error);
     }
@@ -160,6 +173,11 @@ export default function ReadingCalendar({ selectedBook, onClose }: ReadingCalend
       setSchedules(prev =>
         prev.filter(schedule => schedule.id !== scheduleId)
       );
+
+      // Call onScheduleUpdate if provided
+      if (onScheduleUpdate) {
+        onScheduleUpdate();
+      }
     } catch (error) {
       console.error('Error removing schedule:', error);
     }
@@ -229,6 +247,11 @@ export default function ReadingCalendar({ selectedBook, onClose }: ReadingCalend
       setNewSchedule({ bookTitle: '', pages: 0, content_id: 0 });
       setIsModalOpen(false);
       
+      // Call onScheduleUpdate if provided
+      if (onScheduleUpdate) {
+        onScheduleUpdate();
+      }
+      
       // Close the parent modal if onClose is provided
       if (onClose) {
         onClose();
@@ -248,188 +271,189 @@ export default function ReadingCalendar({ selectedBook, onClose }: ReadingCalend
   };
 
   return (
-    <div>
-      <div className="mb-20"></div>
-      <h2 className="text-2xl font-serif mb-6 text-black text-center">Reading Schedule</h2>
-      <div className="w-full max-w-sm mx-auto bg-white rounded-xl shadow-sm">
-        {/* Calendar Header */}
-        <div className="flex justify-between items-center p-4">
-          <button onClick={handlePrevMonth} className="text-gray-600 hover:text-gray-800">
-            ‹
-          </button>
-          <h3 className="font-medium text-gray-900">
-            {format(currentDate, 'MMMM yyyy')}
-          </h3>
-          <button onClick={handleNextMonth} className="text-gray-600 hover:text-gray-800">
-            ›
-          </button>
-        </div>
-
-        {/* Calendar Grid */}
-        <div className="px-4 pb-4">
-          <div className="grid grid-cols-7 mb-2">
-            {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map((day) => (
-              <div key={day} className="text-center text-xs text-gray-500 py-1">
-                {day}
-              </div>
-            ))}
+    <div className="bg-gray-900 w-full h-full rounded-xl shadow-sm">
+      <div className="p-4">
+        <h2 className="text-2xl font-serif mb-6 text-yellow-400 text-center">Reading Schedule</h2>
+        <div className={`w-full bg-gray-800 rounded-xl shadow-sm border border-gray-700${isModalOpen ? ' calendar-blur' : ''}`}>
+          {/* Calendar Header */}
+          <div className="flex justify-between items-center p-4">
+            <button onClick={handlePrevMonth} className="text-gray-300 hover:text-yellow-400">
+              ‹
+            </button>
+            <h3 className="font-medium text-yellow-200">
+              {format(currentDate, 'MMMM yyyy')}
+            </h3>
+            <button onClick={handleNextMonth} className="text-gray-300 hover:text-yellow-400">
+              ›
+            </button>
           </div>
 
-          <div className="grid grid-cols-7 gap-1">
-            {emptyDays.map((_, index) => (
-              <div key={`empty-${index}`} className="p-2" />
-            ))}
-            
-            {days.map((day) => {
-              const schedule = schedules.find((s) => isSameDay(s.date, day));
-              const isPastDate = isBefore(day, startOfDay(new Date()));
-              const isPendingSchedule = schedule && schedule.status !== 'completed';
-              
-              return (
-                <button
-                  key={day.toString()}
-                  onClick={() => handleDateClick(day)}
-                  disabled={isPastDate}
-                  className={`
-                    relative p-2 text-center rounded-lg text-sm
-                    ${isSameDay(day, new Date()) 
-                      ? 'bg-blue-500 text-white' 
-                      : isPastDate
-                        ? 'text-gray-400 cursor-not-allowed bg-gray-50'
-                        : 'text-gray-700 hover:bg-gray-100'}
-                    ${isPendingSchedule ? 'ring-2 ring-blue-500' : ''}
-                  `}
-                >
-                  {format(day, 'd')}
-                  {isPendingSchedule && (
-                    <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-blue-500 rounded-full" />
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+          {/* Calendar Grid */}
+          <div className="px-4 pb-4">
+            <div className="grid grid-cols-7 mb-2">
+              {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map((day) => (
+                <div key={day} className="text-center text-xs text-yellow-300 py-1">
+                  {day}
+                </div>
+              ))}
+            </div>
 
-        {/* Schedules Display */}
-        <div className="px-4 pb-4 mt-2">
-          {schedules.length === 0 ? (
-            <p className="text-sm text-gray-600 text-center">
-              No scheduled reading. Click on a date to start scheduling!
-            </p>
-          ) : (
-            <div className="space-y-4">
-              {/* Pending Schedules */}
-              <div className="space-y-2">
-                <h3 className="font-medium text-gray-900">Current Schedule</h3>
-                {pendingSchedules.length > 0 ? (
-                  pendingSchedules
-                    .sort((a, b) => a.date.getTime() - b.date.getTime())
-                    .map((schedule, index) => (
-                      <div key={index} className="text-sm text-gray-900 p-2 bg-gray-50 rounded-lg">
-                        <div className="font-medium">{format(schedule.date, 'MMM d, yyyy')}</div>
-                        <div>
-                          <button
-                            onClick={() => schedule.content_id && navigateToBookDetail(schedule.content_id)}
-                            className="text-blue-600 hover:text-blue-800 hover:underline"
-                          >
-                            {schedule.bookTitle}
-                          </button>
-                          {' - '}{schedule.pages} pages
-                        </div>
-                        <div className="flex justify-end space-x-2 mt-2">
-                          <button
-                            onClick={() => schedule.id && handleCompleteSchedule(schedule.id)}
-                            className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600"
-                          >
-                            Complete
-                          </button>
-                          <button
-                            onClick={() => schedule.id && handleRemoveSchedule(schedule.id)}
-                            className="px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600"
-                          >
-                            Remove
-                          </button>
-                        </div>
-                      </div>
-                    ))
-                ) : (
-                  <p className="text-sm text-gray-600 text-center py-2">
-                    No pending schedules. Click{' '}
-                    <button 
-                      onClick={() => openScheduleModal()}
-                      className="font-bold underline text-blue-600 hover:text-blue-800"
-                    >
-                      here
-                    </button>
-                    {' '}or on a date to start scheduling!
-                  </p>
-                )}
-              </div>
-
-              {/* Completed Schedules */}
-              {completedSchedules.length > 0 && (
-                <div className="space-y-2">
+            <div className="grid grid-cols-7 gap-1">
+              {emptyDays.map((_, index) => (
+                <div key={`empty-${index}`} className="p-2" />
+              ))}
+              {days.map((day) => {
+                const schedule = schedules.find((s) => isSameDay(s.date, day));
+                const isPastDate = isBefore(day, startOfDay(new Date()));
+                const isPendingSchedule = schedule && schedule.status !== 'completed';
+                const isToday = isSameDay(day, new Date());
+                return (
                   <button
-                    onClick={() => setShowCompleted(!showCompleted)}
-                    className="flex items-center justify-between w-full text-left font-medium text-gray-900 hover:text-gray-600"
+                    key={day.toString()}
+                    onClick={() => handleDateClick(day)}
+                    disabled={isPastDate}
+                    className={
+                      `relative p-2 text-center rounded-lg text-sm transition-colors duration-200
+                      ${isToday ? 'bg-yellow-400 text-gray-900 font-bold' :
+                        isPastDate ? 'text-gray-500 cursor-not-allowed bg-gray-700' :
+                        'text-yellow-100 hover:bg-gray-700'}
+                      ${isPendingSchedule ? 'ring-2 ring-yellow-400' : ''}`
+                    }
                   >
-                    <span>Completed ({completedSchedules.length})</span>
-                    <span className="transform transition-transform duration-200" style={{ 
-                      transform: showCompleted ? 'rotate(180deg)' : 'rotate(0deg)'
-                    }}>
-                      ▼
-                    </span>
+                    {format(day, 'd')}
+                    {isPendingSchedule && (
+                      <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-yellow-400 rounded-full" />
+                    )}
                   </button>
-                  
-                  {showCompleted && (
-                    <div className="space-y-2 mt-2">
-                      {completedSchedules
-                        .sort((a, b) => b.date.getTime() - a.date.getTime()) // Most recent first
-                        .map((schedule, index) => (
-                          <div key={index} className="text-sm text-gray-900 p-2 bg-gray-50 rounded-lg border-l-4 border-green-500">
-                            <div className="font-medium">{format(schedule.date, 'MMM d, yyyy')}</div>
-                            <div className="flex justify-between items-center">
-                              <button
-                                onClick={() => schedule.content_id && navigateToBookDetail(schedule.content_id)}
-                                className="text-blue-600 hover:text-blue-800 hover:underline"
-                              >
-                                {schedule.bookTitle}
-                              </button>
-                              <span className="text-xs text-green-600">✓ Completed</span>
-                            </div>
-                            <div className="text-gray-500">{schedule.pages} pages</div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Schedules Display */}
+          <div className="px-4 pb-4 mt-2">
+            {isLoading ? (
+              <div className="flex justify-center items-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-400"></div>
+              </div>
+            ) : schedules.length === 0 ? (
+              <p className="text-sm text-yellow-200 text-center">
+                No scheduled reading. Click on a date to start scheduling!
+              </p>
+            ) : (
+              <div className="space-y-4">
+                {/* Pending Schedules */}
+                <div className="space-y-2">
+                  <h3 className="font-medium text-yellow-300">Current Schedule</h3>
+                  {pendingSchedules.length > 0 ? (
+                    pendingSchedules
+                      .sort((a, b) => a.date.getTime() - b.date.getTime())
+                      .map((schedule, index) => (
+                        <div key={index} className="text-sm text-yellow-100 p-2 bg-gray-700 rounded-lg">
+                          <div className="font-medium text-yellow-200">{format(schedule.date, 'MMM d, yyyy')}</div>
+                          <div>
+                            <button
+                              onClick={() => schedule.content_id && navigateToBookDetail(schedule.content_id)}
+                              className="text-yellow-400 hover:text-yellow-200 hover:underline"
+                            >
+                              {schedule.bookTitle}
+                            </button>
+                            {' - '}{schedule.pages} pages
                           </div>
-                        ))}
-                    </div>
+                          <div className="flex justify-end space-x-2 mt-2">
+                            <button
+                              onClick={() => schedule.id && handleCompleteSchedule(schedule.id)}
+                              className="px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700"
+                            >
+                              Complete
+                            </button>
+                            <button
+                              onClick={() => schedule.id && handleRemoveSchedule(schedule.id)}
+                              className="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                  ) : (
+                    <p className="text-sm text-yellow-200 text-center py-2">
+                      No pending schedules. Click{' '}
+                      <button 
+                        onClick={() => openScheduleModal()}
+                        className="font-bold underline text-yellow-400 hover:text-yellow-200"
+                      >
+                        here
+                      </button>
+                      {' '}or on a date to start scheduling!
+                    </p>
                   )}
                 </div>
-              )}
-            </div>
-          )}
+
+                {/* Completed Schedules */}
+                {completedSchedules.length > 0 && (
+                  <div className="space-y-2">
+                    <button
+                      onClick={() => setShowCompleted(!showCompleted)}
+                      className="flex items-center justify-between w-full text-left font-medium text-yellow-300 hover:text-yellow-200"
+                    >
+                      <span>Completed ({completedSchedules.length})</span>
+                      <span className="transform transition-transform duration-200" style={{ 
+                        transform: showCompleted ? 'rotate(180deg)' : 'rotate(0deg)'
+                      }}>
+                        ▼
+                      </span>
+                    </button>
+                    {showCompleted && (
+                      <div className="space-y-2 mt-2">
+                        {completedSchedules
+                          .sort((a, b) => b.date.getTime() - a.date.getTime())
+                          .map((schedule, index) => (
+                            <div key={index} className="text-sm text-yellow-100 p-2 bg-gray-800 rounded-lg border-l-4 border-green-500">
+                              <div className="font-medium text-yellow-200">{format(schedule.date, 'MMM d, yyyy')}</div>
+                              <div className="flex justify-between items-center">
+                                <button
+                                  onClick={() => schedule.content_id && navigateToBookDetail(schedule.content_id)}
+                                  className="text-yellow-400 hover:text-yellow-200 hover:underline"
+                                >
+                                  {schedule.bookTitle}
+                                </button>
+                                <span className="text-xs text-green-400">✓ Completed</span>
+                              </div>
+                              <div className="text-yellow-300">{schedule.pages} pages</div>
+                            </div>
+                          ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
       {/* Schedule Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-xl w-96">
+          <div className="bg-gray-800 p-6 rounded-xl w-96 border border-gray-700 text-yellow-100">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-medium text-black">
+              <h3 className="text-lg font-medium text-yellow-300">
                 Schedule Reading
               </h3>
               <input
                 type="date"
                 value={selectedDate ? format(selectedDate, 'yyyy-MM-dd') : ''}
                 onChange={(e) => setSelectedDate(new Date(e.target.value))}
-                className="border rounded-lg p-2 text-black"
+                className="border border-gray-600 bg-gray-700 rounded-lg p-2 text-yellow-100"
               />
             </div>
             <div className="space-y-4">
               <div className="relative">
-                <label className="block text-sm font-medium text-black mb-1">Book Title</label>
+                <label className="block text-sm font-medium text-yellow-200 mb-1">Book Title</label>
                 <input
                   type="text"
-                  className="w-full border rounded-lg p-2 text-black"
+                  className="w-full border border-gray-600 bg-gray-700 rounded-lg p-2 text-yellow-100"
                   value={bookSearch}
                   onChange={(e) => {
                     const value = e.target.value;
@@ -443,11 +467,11 @@ export default function ReadingCalendar({ selectedBook, onClose }: ReadingCalend
                   placeholder="Search for a book..."
                 />
                 {showSearchResults && searchResults.length > 0 && (
-                  <div className="absolute z-60 w-full bg-white border rounded-lg mt-1 shadow-lg max-h-60 overflow-y-auto">
+                  <div className="absolute z-10 w-full bg-gray-800 border border-gray-600 rounded-lg mt-1 shadow-lg max-h-60 overflow-y-auto">
                     {searchResults.map((book) => (
                       <button
                         key={book.cid}
-                        className="w-full text-left px-4 py-2 hover:bg-gray-100 text-black"
+                        className="w-full text-left px-4 py-2 hover:bg-gray-700 text-yellow-100"
                         onClick={() => handleBookSelect(book)}
                       >
                         {book.title}
@@ -457,18 +481,18 @@ export default function ReadingCalendar({ selectedBook, onClose }: ReadingCalend
                 )}
               </div>
               <div>
-                <label className="block text-sm font-medium text-black mb-1">Pages to Read</label>
+                <label className="block text-sm font-medium text-yellow-200 mb-1">Pages to Read</label>
                 <input
                   type="number"
                   min="1"
-                  className="w-full border rounded-lg p-2 text-black"
+                  className="w-full border border-gray-600 bg-gray-700 rounded-lg p-2 text-yellow-100"
                   value={newSchedule.pages || ''}
                   onChange={(e) => setNewSchedule(prev => ({ ...prev, pages: parseInt(e.target.value) || 0 }))}
                 />
               </div>
               <div className="flex justify-end space-x-2">
                 <button
-                  className="px-4 py-2 text-black hover:bg-gray-100 rounded-lg"
+                  className="px-4 py-2 text-yellow-300 hover:bg-gray-700 rounded-lg border border-gray-600"
                   onClick={() => {
                     setIsModalOpen(false);
                     setBookSearch('');
@@ -478,7 +502,7 @@ export default function ReadingCalendar({ selectedBook, onClose }: ReadingCalend
                   Cancel
                 </button>
                 <button
-                  className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                  className="px-4 py-2 bg-yellow-500 text-gray-900 rounded-lg hover:bg-yellow-400"
                   onClick={handleScheduleSubmit}
                   disabled={!newSchedule.bookTitle || newSchedule.pages <= 0}
                 >
@@ -491,4 +515,4 @@ export default function ReadingCalendar({ selectedBook, onClose }: ReadingCalend
       )}
     </div>
   );
-} 
+}

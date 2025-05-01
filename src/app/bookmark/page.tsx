@@ -410,11 +410,9 @@ export default function BookmarksPage() {
   if (loading) return <div>Loading...</div>;
 
   return (
-    <div className="flex h-screen bg-gradient-to-br from-gray-900 to-indigo-900 overflow-hidden text-white">
+    <div className="flex flex-col min-h-screen relative bg-gradient-to-br from-gray-900 to-indigo-900">
       <Navbar />
-      <div className="flex-1 overflow-y-auto pt-16 px-8 mt-15">
-        <h1 className="text-3xl font-semibold mb-8 text-indigo-300">Bookmarked Content</h1>
-  
+      <div className="flex-1 overflow-y-auto pt-32 px-8 relative">
         {notification.show && (
           <div className="fixed top-6 right-6 z-50 bg-rose-600 text-white px-4 py-2 rounded-md shadow-md">
             {notification.message}
