@@ -1,69 +1,18 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense, useCallback } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import React, { ReactNode } from 'react';
 import { useSession } from '@/contexts/SessionContext';
 
-// Define route permissions with upid values
-const ROUTE_PERMISSIONS: Record<string, number[]> = {
-  '/adminpage': [4],             // admin only
-  '/parentpage': [2],            // parent only
-  '/publisherpage': [1],         // publisher only
-  '/childpage': [3],             // child only
-  '/educatorpage': [5],          // educator only
-  
-  // Add profile sub-routes to the permissions
-  // Publisher
-  '/publisher': [1],
-
-  // Parent
-  '/parent': [2],
-
-  // Child
-  '/child': [3],
-
-  // Admin
-  '/admin': [4],
-  
-  // Teacher
-  '/teacher': [5],
-
-};
-
-// List of paths that don't require authentication
-const PUBLIC_PATHS: string[] = [
-  '/landing',
-  '/auth/login',
-  '/auth/signup',
-  '/auth/resetpassword',
-  '/auth/adminlogin',
-  '/auth/callback',
-  '/auth/confirm',
-  '/auth/update-password',
-];
-
-// Define paths that should be exempt from role checking (for reauthentication flows)
-const REAUTH_EXEMPT_PATHS: string[] = [
-  '/parent/createchild',
-];
-
-// Default redirect for authenticated users based on role
-const DEFAULT_REDIRECTS: Record<number, string> = {
-  1: '/publisherpage',  // publisher goes to publisher dashboard
-  2: '/parentpage',     // parent goes to parent dashboard
-  3: '/childpage',      // child goes to child dashboard 
-  4: '/adminpage',      // admin goes to admin dashboard
-  5: '/educatorpage',   // educator goes to educator dashboard
-  0: '/dashboard',      // fallback for unknown roles
-};
-
-export default function AuthRouteGuard({ children }: { children: ReactNode }) {
+// Inner component that uses useSearchParams safely within Suspense
+function AuthGuardInner({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [isLoading, setIsLoading] = useState(true);
+  const [authChecked, setAuthChecked] = useState(false);
   const sessionContext = useSession();
   
   // Extract the loading state from your context
@@ -77,11 +26,75 @@ export default function AuthRouteGuard({ children }: { children: ReactNode }) {
                         searchParams?.get('action') === 'signup' ||
                         searchParams?.get('authProcess') === 'true';
 
+  // Define route permissions with upid values
+  const ROUTE_PERMISSIONS: Record<string, number[]> = {
+    '/adminpage': [4],             // admin only
+    '/parentpage': [2],            // parent only
+    '/publisherpage': [1],         // publisher only
+    '/childpage': [3],             // child only
+    '/educatorpage': [5],          // educator only
+    
+    // Add profile sub-routes to the permissions
+    // Publisher
+    '/publisher': [1],
+
+    // Parent
+    '/parent': [2],
+
+    // Child
+    '/child': [3],
+
+    // Admin
+    '/admin': [4],
+    
+    // Teacher
+    '/teacher': [5],
+  };
+
+  // List of paths that don't require authentication
+  const PUBLIC_PATHS: string[] = [
+    '/landing',
+    '/auth/login',
+    '/auth/signup',
+    '/auth/resetpassword',
+    '/auth/adminlogin',
+    '/auth/callback',
+    '/auth/confirm',
+    '/auth/update-password',
+  ];
+
+  // Define paths that should be exempt from role checking (for reauthentication flows)
+  const REAUTH_EXEMPT_PATHS: string[] = [
+    '/parent/createchild',
+  ];
+
+  // Default redirect for authenticated users based on role
+  const DEFAULT_REDIRECTS: Record<number, string> = {
+    1: '/publisherpage',  // publisher goes to publisher dashboard
+    2: '/parentpage',     // parent goes to parent dashboard
+    3: '/childpage',      // child goes to child dashboard 
+    4: '/adminpage',      // admin goes to admin dashboard
+    5: '/educatorpage',   // educator goes to educator dashboard
+    0: '/dashboard',      // fallback for unknown roles
+  };
+
+  // Handle redirect with a useCallback to avoid infinite loops
+  const redirectTo = useCallback((path: string) => {
+    console.log(`Redirecting to: ${path}`);
+    // Use replace instead of push to avoid adding to history
+    router.replace(path);
+  }, [router]);
+
   useEffect(() => {
     console.log('AuthGuard effect running. Path:', pathname);
     console.log('Session loading?', isSessionLoading);
     console.log('Is auth process?', isAuthProcess);
     console.log('Is reauth process?', isReauthProcess);
+    
+    // Don't run the effect if we've already checked auth
+    if (authChecked) {
+      return;
+    }
     
     // Check if current path is in public paths
     const isPublicPath = PUBLIC_PATHS.some(path => 
@@ -105,6 +118,7 @@ export default function AuthRouteGuard({ children }: { children: ReactNode }) {
         (isReauthExemptPath && isReauthProcess)) {
       console.log('Skipping auth check - public path, auth directory, auth process, or reauth exempt path');
       setIsLoading(false);
+      setAuthChecked(true);
       return;
     }
     
@@ -121,13 +135,13 @@ export default function AuthRouteGuard({ children }: { children: ReactNode }) {
         
         if (authError) {
           console.error('Auth error:', authError);
-          router.push('/auth/login'); // Go to your login path
+          redirectTo('/auth/login'); // Go to your login path
           return;
         }
         
         if (!user) {
           console.log('No authenticated user found, redirecting to login');
-          router.push('/auth/login'); // Go to your login path
+          redirectTo('/auth/login'); // Go to your login path
           return;
         }
 
@@ -142,7 +156,7 @@ export default function AuthRouteGuard({ children }: { children: ReactNode }) {
 
         if (error) {
           console.error('Error fetching user profile:', error);
-          router.push('/error');
+          redirectTo('/error');
           return;
         }
 
@@ -154,7 +168,7 @@ export default function AuthRouteGuard({ children }: { children: ReactNode }) {
         if (pathname === '/' || pathname === '') {
           const targetDashboard = DEFAULT_REDIRECTS[userRoleId] || '/dashboard';
           console.log('Root path detected, redirecting to dashboard:', targetDashboard);
-          router.push(targetDashboard);
+          redirectTo(targetDashboard);
           return;
         }
 
@@ -162,6 +176,7 @@ export default function AuthRouteGuard({ children }: { children: ReactNode }) {
         if (isReauthExemptPath && isReauthProcess) {
           console.log('Reauth exempt path, skipping role check');
           setIsLoading(false);
+          setAuthChecked(true);
           return;
         }
 
@@ -190,21 +205,30 @@ export default function AuthRouteGuard({ children }: { children: ReactNode }) {
           
           if (!allowedRoleIds.includes(userRoleId)) {
             console.log(`Access denied: User with role ${userRoleId} cannot access ${pathname}`);
-            router.push('/unauthorized');
+            redirectTo('/unauthorized');
             return;
           }
         }
 
         console.log('Authentication check successful, rendering page');
         setIsLoading(false);
+        setAuthChecked(true);
       } catch (error) {
         console.error('Auth check failed:', error);
-        router.push('/error');
+        redirectTo('/error');
       }
     };
 
     checkAuth();
-  }, [pathname, router, isSessionLoading, isAuthProcess, isReauthProcess, searchParams]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    pathname, 
+    redirectTo, 
+    isSessionLoading, 
+    isAuthProcess, 
+    isReauthProcess, 
+    authChecked
+  ]);
 
   // Skip loading screen for public paths and auth processes
   if (isSessionLoading || isLoading) {
@@ -240,18 +264,20 @@ export default function AuthRouteGuard({ children }: { children: ReactNode }) {
   return children as React.ReactElement;
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+// Outer component that wraps with Suspense
+export default function AuthRouteGuard({ children }: { children: ReactNode }) {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen bg-gray-100">
+        <div className="p-8 text-center">
+          <h1 className="text-2xl font-bold">Loading</h1>
+          <p>Please wait while we verify your access...</p>
+        </div>
+      </div>
+    }>
+      <AuthGuardInner>
+        {children}
+      </AuthGuardInner>
+    </Suspense>
+  );
+}
