@@ -213,8 +213,8 @@
   position: fixed;
   bottom: 80px;
   right: 60px;
-  width: 1050px;
-  height: 750px;
+  width: 800px;
+  height: 600px;
   background: url('/spacegreen.jpg') center/cover;
   border-radius: 18px;
   box-shadow: 0 8px 32px rgba(0,0,0,0.5);
@@ -675,15 +675,16 @@ body .calendar-popup.visible ~ .notification-badge,
 }
 
 /* Mascot image to the left of the chatbot popup */
+/* styles.css */
 .chatbot-mascot-image {
   position: fixed;
-  bottom: 90px;
-  right: 1200px; /* 1000px (chatbot width) + 20px gap */
-  width: auto;
-  height: 590px; /* 90% of 650px popup height */
+  bottom: 20px; /* Adjust bottom position as needed */
+  right: 20px; /* Adjust right position as needed */
+  width: 80px; /* Set a specific, smaller width */
+  height: auto; /* Maintain aspect ratio based on the width */
   z-index: 1101;
-  object-fit: contain;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.15);
+  object-fit: contain; /* Keeps the image within its bounds */
+  box-shadow: none; /* Remove the shadow if it looks like a border */
   transition: transform 0.2s;
   background: none;
   border-radius: 0;
