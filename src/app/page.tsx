@@ -41,25 +41,14 @@
 //   return null; // No UI needed here, just redirects
 // }
 
-
 'use client';
 
-import React from 'react';
-import AuthRouteGuard from './components/AuthGuard';
-
-// Add proper TypeScript types for the children prop
-export default function RootLayout({ 
-  children 
-}: { 
-  children: React.ReactNode
-}) {
-  return (
-    <html lang="en">
-      <body>
-        <AuthRouteGuard>
-          {children}
-        </AuthRouteGuard>
-      </body>
-    </html>
-  );
+// This is the content for app/page.tsx
+export default function HomePage() {
+  // This component will be wrapped by your layout component
+  // No authentication logic needed here - AuthRouteGuard handles that
+  
+  // Return null or a minimal loading component
+  // The AuthRouteGuard will handle redirection
+  return null;
 }
