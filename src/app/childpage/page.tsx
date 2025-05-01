@@ -15,7 +15,8 @@ import ScoreDebugger from '../components/ScoreDebugger';
 import { useInteractions } from '../../hooks/useInteractions';
 import { debugUserInteractions } from '../../services/userInteractionsService';
 import { getRecommendedBooks } from '../../services/recommendationService';
-import { useScreenTime } from '../../hooks/useScreenTime'; // Add this import
+import { getTrendingBooks, getPopularBooks } from '../../services/trendingPopularService';
+import { useScreenTime } from '../../hooks/useScreenTime';
 
 export default function ChildPage() {
   // Use refs to maintain stable references
@@ -23,12 +24,18 @@ export default function ChildPage() {
   
   // State that affects rendering
   const [recommendedBooks, setRecommendedBooks] = useState<Book[]>([]);
+  const [trendingBooks, setTrendingBooks] = useState<Book[]>([]);
+  const [popularBooks, setPopularBooks] = useState<Book[]>([]);
   const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(true);
+  const [isLoadingTrending, setIsLoadingTrending] = useState(true);
+  const [isLoadingPopular, setIsLoadingPopular] = useState(true);
   const [showTimeLimitModal, setShowTimeLimitModal] = useState(false);
   const [userFullName, setUserFullName] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [availableBooksIndex, setAvailableBooksIndex] = useState(0);
   const [recommendedBooksIndex, setRecommendedBooksIndex] = useState(0);
+  const [trendingBooksIndex, setTrendingBooksIndex] = useState(0);
+  const [popularBooksIndex, setPopularBooksIndex] = useState(0);
   
   // Handle time limit exceeded - use a stable callback
   const handleTimeLimitExceeded = useCallback(() => {
@@ -60,6 +67,24 @@ export default function ChildPage() {
 
   // Combine genre component display with recommended books
   const recommendedBooksWithGenre = recommendedBooks.map((book) => {
+    const matchingBook = availableBooks.find((b) => b.cid === book.cid);
+    return {
+      ...book,
+      genre: matchingBook?.genre || [],
+    };
+  });
+  
+  // Combine genre for trending books
+  const trendingBooksWithGenre = trendingBooks.map((book) => {
+    const matchingBook = availableBooks.find((b) => b.cid === book.cid);
+    return {
+      ...book,
+      genre: matchingBook?.genre || [],
+    };
+  });
+  
+  // Combine genre for popular books
+  const popularBooksWithGenre = popularBooks.map((book) => {
     const matchingBook = availableBooks.find((b) => b.cid === book.cid);
     return {
       ...book,
@@ -140,7 +165,7 @@ export default function ChildPage() {
     };
   }, []);
 
-  // Fetch recommended books using the new service
+  // Fetch recommended books using the service
   useEffect(() => {
     // Use a mounted flag to avoid state updates after unmount
     let mounted = true;
@@ -166,6 +191,70 @@ export default function ChildPage() {
     };
 
     fetchRecommendedBooks();
+    
+    return () => {
+      mounted = false;
+    };
+  }, []);
+  
+  // Fetch trending books (from the last 30 days)
+  useEffect(() => {
+    // Use a mounted flag to avoid state updates after unmount
+    let mounted = true;
+    
+    const fetchTrendingBooks = async () => {
+      if (mounted) {
+        setIsLoadingTrending(true);
+      }
+      
+      try {
+        const books = await getTrendingBooks();
+        
+        if (mounted) {
+          setTrendingBooks(books);
+        }
+      } catch (error) {
+        console.error('Error fetching trending books:', error);
+      } finally {
+        if (mounted) {
+          setIsLoadingTrending(false);
+        }
+      }
+    };
+
+    fetchTrendingBooks();
+    
+    return () => {
+      mounted = false;
+    };
+  }, []);
+  
+  // Fetch popular books (all time)
+  useEffect(() => {
+    // Use a mounted flag to avoid state updates after unmount
+    let mounted = true;
+    
+    const fetchPopularBooks = async () => {
+      if (mounted) {
+        setIsLoadingPopular(true);
+      }
+      
+      try {
+        const books = await getPopularBooks();
+        
+        if (mounted) {
+          setPopularBooks(books);
+        }
+      } catch (error) {
+        console.error('Error fetching popular books:', error);
+      } finally {
+        if (mounted) {
+          setIsLoadingPopular(false);
+        }
+      }
+    };
+
+    fetchPopularBooks();
     
     return () => {
       mounted = false;
@@ -215,15 +304,103 @@ export default function ChildPage() {
   }, [isTimeLoading, isLimitExceeded]);
 
   // Helper function to handle navigation
-  const handleNavigation = (direction: 'left' | 'right', type: 'available' | 'recommended') => {
-    const books = type === 'available' ? availableBooks : recommendedBooksWithGenre;
-    const setIndex = type === 'available' ? setAvailableBooksIndex : setRecommendedBooksIndex;
+  const handleNavigation = (direction: 'left' | 'right', type: 'available' | 'recommended' | 'trending' | 'popular') => {
+    let books: Book[] = [];
+    let setIndex: React.Dispatch<React.SetStateAction<number>>;
+    
+    switch (type) {
+      case 'available':
+        books = availableBooks;
+        setIndex = setAvailableBooksIndex;
+        break;
+      case 'recommended':
+        books = recommendedBooksWithGenre;
+        setIndex = setRecommendedBooksIndex;
+        break;
+      case 'trending':
+        books = trendingBooksWithGenre;
+        setIndex = setTrendingBooksIndex;
+        break;
+      case 'popular':
+        books = popularBooksWithGenre;
+        setIndex = setPopularBooksIndex;
+        break;
+      default:
+        setIndex = setAvailableBooksIndex;
+    }
     
     if (direction === 'left') {
       setIndex((prev) => (prev > 0 ? prev - 1 : Math.max(0, books.length - 5)));
     } else {
       setIndex((prev) => (prev + 5 < books.length ? prev + 1 : 0));
     }
+  };
+
+  // Helper function to render book carousel
+  const renderBookCarousel = (
+    books: Book[], 
+    index: number, 
+    type: 'available' | 'recommended' | 'trending' | 'popular', 
+    title: string, 
+    isLoading: boolean
+  ) => {
+    return (
+      <div className="mb-16">
+        <h2 className="text-3xl font-extrabold text-yellow-400 drop-shadow text-center font-sans mb-3" style={{ fontFamily: 'Quicksand, Nunito, Arial Rounded MT Bold, Arial, sans-serif' }}>{title}</h2>
+        {isLoading ? (
+          <div className="grid grid-cols-5 gap-2">
+            {Array.from({ length: 5 }).map((_, index) => (
+              <div key={index} className="border rounded-lg overflow-hidden">
+                <div className="w-full aspect-[3/4] bg-gray-200 animate-pulse" />
+                <div className="p-2 space-y-2">
+                  <div className="h-3 bg-gray-200 rounded animate-pulse w-3/4" />
+                  <div className="h-2 bg-gray-200 rounded animate-pulse w-1/2" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : books.length > 0 ? (
+          <div className="flex items-center justify-center w-full relative">
+            <button
+              onClick={() => handleNavigation('left', type)}
+              className="bg-blue-800 text-white hover:bg-blue-900 p-2 rounded-full shadow-md absolute left-[-50px] z-10"
+              aria-label="Previous books"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <div className="overflow-hidden w-[1200px] mx-4 px-4">
+              <div
+                className="flex transition-transform duration-500 ease-in-out"
+                style={{ transform: `translateX(-${index * 240}px)` }}
+              >
+                {books.map((book: Book, idx: number) => (
+                  <div key={idx} style={{ minWidth: 220, maxWidth: 220, marginRight: '20px' }} className="bg-white/20 backdrop-blur-md shadow-lg rounded-lg">
+                    <BookCard {...book} />
+                  </div>
+                ))}
+              </div>
+            </div>
+            <button
+              onClick={() => handleNavigation('right', type)}
+              className="bg-blue-800 text-white hover:bg-blue-900 p-2 rounded-full shadow-md absolute right-[-50px] z-10"
+              aria-label="Next books"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-5 gap-2">
+            <p className="text-lg col-span-5 font-serif text-white font-sm">
+              No books available at the moment
+            </p>
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -271,55 +448,7 @@ export default function ChildPage() {
           </div>
 
           {/* Available Books Section */}
-          <div className="mb-16">
-            <h2 className="text-3xl font-extrabold text-yellow-400 drop-shadow text-center font-sans mb-3" style={{ fontFamily: 'Quicksand, Nunito, Arial Rounded MT Bold, Arial, sans-serif' }}>Available Books</h2>
-            {isLoadingRecommendations ? (
-              <div className="grid grid-cols-5 gap-2">
-                {Array.from({ length: 5 }).map((_, index) => (
-                  <div key={index} className="border rounded-lg overflow-hidden">
-                    <div className="w-full aspect-[3/4] bg-gray-200 animate-pulse" />
-                    <div className="p-2 space-y-2">
-                      <div className="h-3 bg-gray-200 rounded animate-pulse w-3/4" />
-                      <div className="h-2 bg-gray-200 rounded animate-pulse w-1/2" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="flex items-center justify-center w-full relative">
-                <button
-                  onClick={() => handleNavigation('left', 'available')}
-                  className="bg-blue-800 text-white hover:bg-blue-900 p-2 rounded-full shadow-md absolute left-[-50px] z-10"
-                  aria-label="Previous books"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                  </svg>
-                </button>
-                <div className="overflow-hidden w-[1200px] mx-4 px-4"> {/* Increased width and added padding */}
-                  <div
-                    className="flex transition-transform duration-500 ease-in-out"
-                    style={{ transform: `translateX(-${availableBooksIndex * 240}px)` }}
-                  >
-                    {availableBooks.map((book, index) => (
-                      <div key={index} style={{ minWidth: 220, maxWidth: 220, marginRight: '20px' }} className="bg-white/20 backdrop-blur-md shadow-lg rounded-lg">
-                        <BookCard {...book} />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <button
-                  onClick={() => handleNavigation('right', 'available')}
-                  className="bg-blue-800 text-white hover:bg-blue-900 p-2 rounded-full shadow-md absolute right-[-50px] z-10"
-                  aria-label="Next books"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
-              </div>
-            )}
-          </div>
+          {renderBookCarousel(availableBooks, availableBooksIndex, 'available', 'Available Books', isLoading)}
         
           {/* Explore More Books */}
           <div className="mt-2 text-right">
@@ -331,63 +460,14 @@ export default function ChildPage() {
             </a>
           </div>
 
-          {/* Recommended Books Section with Loading State */}
-          <div className="mb-16">
-            <h2 className="text-3xl font-extrabold text-yellow-400 drop-shadow text-center font-sans mb-3" style={{ fontFamily: 'Quicksand, Nunito, Arial Rounded MT Bold, Arial, sans-serif' }}>Recommended For You!</h2>
+          {/* Recommended Books Section */}
+          {renderBookCarousel(recommendedBooksWithGenre, recommendedBooksIndex, 'recommended', 'Recommended For You!', isLoadingRecommendations)}
 
-            {isLoadingRecommendations ? (
-              <div className="grid grid-cols-5 gap-2">
-                {Array.from({ length: 5 }).map((_, index) => (
-                  <div key={index} className="border rounded-lg overflow-hidden">
-                    <div className="w-full aspect-[3/4] bg-gray-200 animate-pulse" />
-                    <div className="p-2 space-y-2">
-                      <div className="h-3 bg-gray-200 rounded animate-pulse w-3/4" />
-                      <div className="h-2 bg-gray-200 rounded animate-pulse w-1/2" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : recommendedBooksWithGenre.length > 0 ? (
-              <div className="flex items-center justify-center w-full relative">
-                <button
-                  onClick={() => handleNavigation('left', 'recommended')}
-                  className="bg-blue-800 text-white hover:bg-blue-900 p-2 rounded-full shadow-md absolute left-[-50px] z-10"
-                  aria-label="Previous books"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                  </svg>
-                </button>
-                <div className="overflow-hidden w-[1200px] mx-4 px-4"> {/* Increased width and added padding */}
-                  <div
-                    className="flex transition-transform duration-500 ease-in-out"
-                    style={{ transform: `translateX(-${recommendedBooksIndex * 240}px)` }}
-                  >
-                    {recommendedBooksWithGenre.map((book, index) => (
-                      <div key={index} style={{ minWidth: 220, maxWidth: 220, marginRight: '20px' }} className="bg-white/20 backdrop-blur-md shadow-lg rounded-lg">
-                        <BookCard {...book} />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <button
-                  onClick={() => handleNavigation('right', 'recommended')}
-                  className="bg-blue-800 text-white hover:bg-blue-900 p-2 rounded-full shadow-md absolute right-[-50px] z-10"
-                  aria-label="Next books"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
-              </div>
-            ) : (
-              <div className="grid grid-cols-5 gap-2">
-                <p className="text-lg col-span-5 font-serif text-black font-sm">
-                  We currently have no books to recommend...
-                </p>
-              </div>
-            )}
-          </div>
+          {/* Currently Trending Books Section */}
+          {renderBookCarousel(trendingBooksWithGenre, trendingBooksIndex, 'trending', 'Currently Trending', isLoadingTrending)}
+
+          {/* Popular Books Section */}
+          {renderBookCarousel(popularBooksWithGenre, popularBooksIndex, 'popular', 'Most Popular', isLoadingPopular)}
 
           {/* Videos for You Section */}
           <div className="mb-16">
