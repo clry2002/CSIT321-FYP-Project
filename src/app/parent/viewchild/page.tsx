@@ -483,8 +483,8 @@ function ClientViewChild() {
 
           {/* Genre Selection Modal */}
           {showGenreModal && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-              <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-auto"> {/* Added overflow-auto here */}
+              <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4 overflow-y-auto max-h-[90vh]"> {/* Added overflow-y-auto and max-h-[90vh] here */}
                 <h3 className="text-lg font-semibold mb-4 text-black">Select Genres to Block</h3>
                 <div className="space-y-2 mb-4">
                   {availableGenres.map((genre) => (
@@ -505,7 +505,7 @@ function ClientViewChild() {
                     </label>
                   ))}
                 </div>
-                <div className="flex justify-end space-x-4">
+                <div className="flex justify-end space-x-4 mt-4"> {/* Added mt-4 for spacing */}
                   <button
                     onClick={() => setShowGenreModal(false)}
                     className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
