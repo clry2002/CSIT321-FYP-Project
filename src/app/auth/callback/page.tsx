@@ -3,6 +3,21 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { PostgrestError } from '@supabase/supabase-js';
+
+type UserProfile = {
+  upid: number;
+};
+
+type UserAccount = {
+  id: string;
+  user_id: string;
+  upid: number;
+  suspended: boolean;
+  comments: string | null;
+  fullname: string;
+  userprofile: UserProfile;
+};
 
 export default function AuthCallbackPage() {
   const router = useRouter();
@@ -30,7 +45,7 @@ export default function AuthCallbackPage() {
             )
           `)
           .eq('user_id', user.id)
-          .single();
+          .single() as { data: UserAccount | null, error: PostgrestError | null };
 
         if (userError) {
           if (userError.code === 'PGRST116') {
