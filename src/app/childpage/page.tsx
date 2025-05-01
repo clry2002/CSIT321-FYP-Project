@@ -17,6 +17,7 @@ import { debugUserInteractions } from '../../services/userInteractionsService';
 import { getRecommendedBooks } from '../../services/recommendationService';
 import { getTrendingBooks, getPopularBooks } from '../../services/trendingPopularService';
 import { useScreenTime } from '../../hooks/useScreenTime';
+import { useRouter } from 'next/navigation';
 
 export default function ChildPage() {
   // Use refs to maintain stable references
@@ -36,6 +37,27 @@ export default function ChildPage() {
   const [recommendedBooksIndex, setRecommendedBooksIndex] = useState(0);
   const [trendingBooksIndex, setTrendingBooksIndex] = useState(0);
   const [popularBooksIndex, setPopularBooksIndex] = useState(0);
+  const router = useRouter();
+
+  useEffect(() => {
+      const checkAuth = async () => {
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+  
+          if (!user) {
+            router.push('/landing'); // Redirect unauthenticated users to the landing page
+            return;
+          }
+  
+        } catch (error) {
+          console.error('Error checking auth state:', error);
+          router.push('/landing');
+        }
+      };
+  
+      checkAuth();
+    }, [router]);
+  
   
   // Handle time limit exceeded - use a stable callback
   const handleTimeLimitExceeded = useCallback(() => {
