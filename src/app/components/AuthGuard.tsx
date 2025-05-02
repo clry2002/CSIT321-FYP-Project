@@ -135,15 +135,19 @@ function AuthGuardInner({ children }: { children: ReactNode }) {
         console.log('Checking authentication status...');
         const { data: { user }, error: authError } = await supabase.auth.getUser();
         
+        // Handle auth error by redirecting to landing page
         if (authError) {
           console.error('Auth error:', authError);
-          redirectTo('/auth/login'); // Go to your login path
+          // Redirect to landing page instead of login
+          redirectTo('/landing');
           return;
         }
         
+        // If no user, redirect to landing page
         if (!user) {
-          console.log('No authenticated user found, redirecting to login');
-          redirectTo('/auth/login'); // Go to your login path
+          console.log('No authenticated user found, redirecting to landing page');
+          // Redirect to landing page instead of login
+          redirectTo('/landing');
           return;
         }
 
@@ -271,7 +275,7 @@ export default function AuthRouteGuard({ children }: { children: ReactNode }) {
   return (
     <Suspense fallback={
       <div className="flex items-center justify-center min-h-screen bg-gray-100">
-        <div className="p-8 text-center">
+        <div className="p-8 text-center text-black">
           <h1 className="text-2xl font-bold">Loading</h1>
           <p>Please wait while we verify your access...</p>
         </div>
