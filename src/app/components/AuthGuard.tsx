@@ -247,8 +247,8 @@ function AuthGuardInner({ children }: { children: ReactNode }) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-100">
         <div className="p-8 text-center">
-          <h1 className="text-2xl font-bold">Loading</h1>
-          <p>Please wait while we verify your access...</p>
+          <h1 className="text-2xl font-bold text-black">Loading...</h1>
+          <p className="text-black">Please wait while we verify your access...</p>
         </div>
       </div>
     );
@@ -259,8 +259,8 @@ function AuthGuardInner({ children }: { children: ReactNode }) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-100">
         <div className="p-8 text-center">
-          <h1 className="text-2xl font-bold">Welcome</h1>
-          <p>Redirecting to your dashboard...</p>
+          <h1 className="text-2xl font-bold text-black">Welcome</h1>
+          <p className="text-black">Redirecting to your dashboard...</p>
         </div>
       </div>
     );
@@ -275,9 +275,9 @@ export default function AuthRouteGuard({ children }: { children: ReactNode }) {
   return (
     <Suspense fallback={
       <div className="flex items-center justify-center min-h-screen bg-gray-100">
-        <div className="p-8 text-center text-black">
-          <h1 className="text-2xl font-bold">Loading</h1>
-          <p>Please wait while we verify your access...</p>
+        <div className="p-8 text-center">
+          <h1 className="text-2xl font-bold text-black">Loading...</h1>
+          <p className="text-black">Please wait while we verify your access...</p>
         </div>
       </div>
     }>
