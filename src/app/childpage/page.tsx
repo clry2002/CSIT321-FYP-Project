@@ -8,7 +8,6 @@ import ScreenTimeIndicator from '../components/child/ScreenTimeIndicator';
 import TimeLimitModal from '../components/child/TimeLimitModal';
 import { useBooks } from '../../hooks/useBooks';
 import { useVideos } from '../../hooks/useVideos';
-import { useSession } from '@/contexts/SessionContext';
 import { supabase } from '@/lib/supabase';
 import { Book } from '../../types/database.types';
 import ScoreDebugger from '../components/ScoreDebugger';
@@ -82,9 +81,8 @@ export default function ChildPage() {
   });
   
   // Hooks
-  const { availableBooks } = useBooks();
+  const { availableBooks, loading } = useBooks();
   const { videos } = useVideos();
-  const { loading } = useSession();
   const { syncFavoriteGenresForUser } = useInteractions();
 
   // Combine genre component display with recommended books
@@ -323,7 +321,7 @@ export default function ChildPage() {
     }
     
     console.log("Rendering ChildPage, showTimeLimitModal:", showTimeLimitModal);
-  }, [isTimeLoading, isLimitExceeded]);
+  }, [isTimeLoading, isLimitExceeded, showTimeLimitModal]);
 
   // Helper function to handle navigation
   const handleNavigation = (direction: 'left' | 'right', type: 'available' | 'recommended' | 'trending' | 'popular') => {
@@ -470,7 +468,7 @@ export default function ChildPage() {
           </div>
 
           {/* Available Books Section */}
-          {renderBookCarousel(availableBooks, availableBooksIndex, 'available', 'Available Books', isLoading)}
+          {renderBookCarousel(availableBooks, availableBooksIndex, 'available', 'Available Books', loading)}
         
           {/* Explore More Books */}
           <div className="mt-2 text-right">
