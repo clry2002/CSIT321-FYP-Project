@@ -67,6 +67,7 @@ function AuthGuardInner({ children }: { children: ReactNode }) {
   // Define paths that should be exempt from role checking (for reauthentication flows)
   const REAUTH_EXEMPT_PATHS: string[] = [
     '/parent/createchild',
+    '/parent/reauth', 
   ];
 
   // Default redirect for authenticated users based on role

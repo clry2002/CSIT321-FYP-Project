@@ -13,13 +13,7 @@ export default function CreateChildAccount() {
   const [age, setAge] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [parentEmail, setParentEmail] = useState('');
-  const [showReauthModal, setShowReauthModal] = useState(false);
-  const [parentPassword, setParentPassword] = useState('');
-  const [reauthError, setReauthError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
-  const [showParentPassword, setShowParentPassword] = useState(false);
-
   const [passwordError, setPasswordError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -42,73 +36,60 @@ export default function CreateChildAccount() {
     setLoading(true);
 
     try {
+      // Get the current parent user
       const { data: { user: parentUser }, error: parentUserError } = await supabase.auth.getUser();
-      if (parentUserError || !parentUser) throw new Error('Authentication error. Please log in again.');
-      setParentEmail(parentUser.email || '');
-
+      if (parentUserError || !parentUser) {
+        throw new Error('Authentication error. Please log in again.');
+      }
+      
+      // Get the parent account details
       const { data: parentData, error: parentDataError } = await supabase
         .from('user_account')
         .select('id, user_id')
         .eq('user_id', parentUser.id)
         .eq('upid', 2)
         .single();
-      if (parentDataError || !parentData) throw new Error('Failed to fetch parent profile.');
-
-      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({ email, password });
-      if (signUpError || !signUpData.user) throw new Error('Failed to create child account.');
-
-      const childUser = signUpData.user;
-
-      const { data: userAccountData, error: userAccountError } = await supabase
-        .from('user_account')
-        .insert({
-          user_id: childUser.id,
-          username,
-          fullname: fullName,
-          age: parseInt(age),
-          upid: 3,
-        })
-        .select('*')
-        .single();
-
-      if (userAccountError || !userAccountData) {
-        throw new Error('Failed to create user account record.');
+        
+      if (parentDataError || !parentData) {
+        throw new Error('Failed to fetch parent profile.');
       }
 
-      await supabase.from('isparentof').insert({
-        parent_id: parentData.id,
-        child_id: userAccountData.id,
-        timeLimitMinute: 0,
-      });
+      // Create a child data object
+      const childData = {
+        parentId: parentData.id,
+        username,
+        email,
+        password,
+        fullName,
+        age: parseInt(age),
+        parentEmail: parentUser.email
+      };
 
-      setShowReauthModal(true);
+      // Store the child data in localStorage
+      // Important: We're NOT creating the child account yet - just storing the data
+      try {
+        localStorage.setItem('pendingChildData', JSON.stringify(childData));
+        
+        // Debug: Log to console to verify it was set
+        console.log('pendingChildData saved:', childData);
+        
+        // Add a small delay before redirect to ensure localStorage is updated
+        setTimeout(() => {
+          // Redirect to the parent reauth page with reauth=true parameter
+          router.push('/parent/reauth?reauth=true');
+        }, 100);
+      } catch (storageError) {
+        console.error('LocalStorage error:', storageError);
+        throw new Error('Failed to save child data. Please check your browser settings.');
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred.');
       setLoading(false);
     }
   };
 
-  const handleParentReauth = async () => {
-    setReauthError(null);
-    const { error: reauthError } = await supabase.auth.signInWithPassword({
-      email: parentEmail,
-      password: parentPassword,
-    });
-
-    if (reauthError) {
-      setReauthError('Incorrect password. Please try again.');
-      return;
-    }
-
-    router.push('/parentpage?success=Child account successfully created!');
-  };
-
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword);
-  };
-
-  const toggleParentPasswordVisibility = () => {
-    setShowParentPassword(!showParentPassword);
   };
 
   return (
@@ -122,10 +103,11 @@ export default function CreateChildAccount() {
             <p className="mt-1 text-md text-gray-500">Create a reading account for your little one &lt;3</p>
           </div>
           <button
+            type="button"
             className="inline-flex items-center px-4 py-2 bg-gray-800 text-white rounded-md font-semibold text-sm hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-800 focus:ring-opacity-50 transition-colors"
             onClick={() => router.push('/parentpage')}
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
             Back to Dashboard
@@ -142,8 +124,9 @@ export default function CreateChildAccount() {
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
                 <input
+                  id="fullName"
                   type="text"
                   required
                   value={fullName}
@@ -154,8 +137,9 @@ export default function CreateChildAccount() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Age</label>
+                <label htmlFor="age" className="block text-sm font-medium text-gray-700 mb-1">Age</label>
                 <input
+                  id="age"
                   type="number"
                   required
                   min="1"
@@ -168,8 +152,9 @@ export default function CreateChildAccount() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">Username</label>
                 <input
+                  id="username"
                   type="text"
                   required
                   value={username}
@@ -181,8 +166,9 @@ export default function CreateChildAccount() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email</label>
                 <input
+                  id="email"
                   type="email"
                   required
                   value={email}
@@ -193,9 +179,10 @@ export default function CreateChildAccount() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">Password</label>
                 <div className="relative">
                   <input
+                    id="password"
                     type={showPassword ? 'text' : 'password'}
                     required
                     value={password}
@@ -207,13 +194,14 @@ export default function CreateChildAccount() {
                     type="button"
                     onClick={togglePasswordVisibility}
                     className="absolute inset-y-0 right-0 pr-3 flex items-center text-sm leading-5 text-gray-500 hover:text-gray-700 focus:outline-none"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
                   >
                     {showPassword ? (
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5" aria-hidden="true">
                         <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17a5 5 0 1 1 0-10 5 5 0 0 1 0 10zM12 12a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/>
                       </svg>
                     ) : (
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5" aria-hidden="true">
                         <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17a5 5 0 1 1 0-10 5 5 0 0 1 0 10zM12 12a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/>
                       </svg>
                     )}
@@ -238,53 +226,12 @@ export default function CreateChildAccount() {
                 disabled={loading}
                 className="px-4 py-2 bg-indigo-500 text-white rounded-md hover:bg-indigo-600"
               >
-                {loading ? 'Creating...' : 'Create Account'}
+                {loading ? 'Continuing...' : 'Continue'}
               </button>
             </div>
           </form>
         </div>
       </div>
-      {showReauthModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
-          <div className="bg-white p-8 rounded-xl shadow-2xl max-w-md w-full mx-4">
-            <h3 className="text-xl font-semibold text-gray-800 mb-5">Re-enter Parent Password</h3>
-            <p className="text-gray-600 mb-6">Please enter your password to complete the child account creation.</p>
-            <div className="relative mb-3"> {/* Added a wrapper div for positioning */}
-              <input
-                type={showParentPassword ? 'text' : 'password'}
-                value={parentPassword}
-                onChange={(e) => setParentPassword(e.target.value)}
-                placeholder="Parent Password"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-black"
-              />
-              <button
-                type="button"
-                onClick={toggleParentPasswordVisibility}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-sm leading-5 text-gray-500 hover:text-gray-700 focus:outline-none"
-              >
-                {showParentPassword ? (
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-                  <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17a5 5 0 1 1 0-10 5 5 0 0 1 0 10zM12 12a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/>
-                </svg>
-              ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-                  <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17a5 5 0 1 1 0-10 5 5 0 0 1 0 10zM12 12a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/>
-                </svg>
-                )}
-              </button>
-            </div>
-            {reauthError && (
-              <div className="text-red-500 text-sm mb-4">{reauthError}</div>
-            )}
-            <button
-              onClick={handleParentReauth}
-              className="w-full bg-indigo-500 text-white py-2 rounded-md hover:bg-indigo-600"
-            >
-              Continue as Parent
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
