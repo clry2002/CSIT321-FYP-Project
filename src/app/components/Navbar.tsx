@@ -25,7 +25,7 @@ export default function Navbar() {
 
   return (
     <nav
-      className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-transparent flex flex-row justify-center items-center gap-2 px-4 py-1 rounded-2xl z-50 backdrop-blur-md"
+      className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-transparent flex flex-row justify-center items-center gap-6 px-8 py-2 rounded-2xl z-50 backdrop-blur-md"
       style={{ minWidth: 'fit-content', boxShadow: '0 2px 12px 0 rgba(0,0,0,0.04)' }}
     >
       <Link
