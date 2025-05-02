@@ -12,14 +12,6 @@ type Classroom = {
   name: string;
   description: string;
   educatorFullName: string;
-  cid: number | null; // Allow cid to be null
-};
-
-type Content = {
-  coverimage: string; 
-  title: string; 
-  cfid: number; 
-  contenturl: string; 
 };
 
 type Announcement = {
@@ -36,7 +28,6 @@ type Announcement = {
 
 export default function ClassroomBoardPage() {
   const [classroom, setClassroom] = useState<Classroom | null>(null);
-  const [content, setContent] = useState<Content | null>(null); 
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -128,7 +119,7 @@ export default function ClassroomBoardPage() {
         // Retrieve classroom details
         const { data: classroomData, error: classroomError } = await supabase
           .from('temp_classroom')
-          .select('crid, name, description, uaid_educator, cid')
+          .select('crid, name, description, uaid_educator')
           .eq('crid', id)
           .single();
         
@@ -158,34 +149,10 @@ export default function ClassroomBoardPage() {
           crid: classroomData.crid,
           name: classroomData.name,
           description: classroomData.description,
-          educatorFullName: educatorData?.fullname || 'Unknown Educator',
-          cid: classroomData.cid
+          educatorFullName: educatorData?.fullname || 'Unknown Educator'
         });
-        
-        // Retrieve content if available
-        if (classroomData.cid !== null) {
-          console.log(`Fetching content for CID: ${classroomData.cid}`);
-          
-          const { data: contentData, error: contentError } = await supabase
-            .from('temp_content')
-            .select('coverimage, title, cfid, contenturl')
-            .eq('cid', classroomData.cid)
-            .single();
-          
-          if (contentError) {
-            console.error('Content data error:', contentError);
-            // Don't set error - classroom can exist without content
-          } else if (contentData) {
-            setContent({
-              coverimage: contentData.coverimage,
-              title: contentData.title,
-              cfid: contentData.cfid,
-              contenturl: contentData.contenturl,
-            });
-          }
-        }
 
-                  // Fetch announcements for this classroom
+        // Fetch announcements for this classroom
         const { data: announcementsData, error: announcementsError } = await supabase
           .from('announcement_board')
           .select('*')
@@ -429,58 +396,6 @@ export default function ClassroomBoardPage() {
               <h4 className="text-lg font-medium text-gray-600">{classroom.educatorFullName}</h4>
             </div>
           </div>
-
-          {/* Display content only if cid is not null */}
-          {classroom.cid !== null && content && (
-            <>
-              {content.cfid === 1 ? (
-                <div className="mt-6">
-                  <h4 className="text-xl font-semibold text-gray-600 mb-2">Videos to watch!</h4>
-                  <div className="relative" style={{ paddingBottom: '56.25%' }}>
-                    <iframe
-                      src={`https://www.youtube.com/embed/${getYoutubeVideoId(content.contenturl)}`}
-                      title={content.title}
-                      frameBorder="0"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                      allowFullScreen
-                      className="absolute top-0 left-0 w-full h-[280px] rounded-lg"
-                    />
-                  </div>
-                  <h4
-                    onClick={() => classroom.cid !== null && handleRedirectToDetail(
-                      classroom.cid, 
-                      content.cfid === 1 ? 'video' : 'book'
-                    )}
-                    className="mt-4 text-2xl text-blue-600 font-semibold text-center cursor-pointer"
-                  >
-                    {content.title}
-                  </h4>
-                </div>
-              ) : (
-                <div className="mt-6">
-                  <h4 className="text-xl font-semibold text-gray-600 mb-2">Books to read!</h4>
-                  <Image
-                    src={getCleanImageUrl(content.coverimage) || '/placeholder-cover.jpg'}
-                    width={500}
-                    height={667}
-                    alt={content.title}
-                    className="rounded-lg"
-                    style={{ 
-                      objectFit: 'contain',
-                      width: '100%',
-                      height: 'auto'
-                    }}
-                  />
-                  <h4
-                    onClick={() => classroom.cid !== null && handleRedirectToDetail(classroom.cid, content.cfid === 1 ? 'video' : 'book')}
-                    className="mt-4 text-2xl text-blue-600 font-semibold text-center cursor-pointer"
-                  >
-                    {content.title}
-                  </h4>
-                </div>
-              )}
-            </>
-          )}
 
           {/* View Discussion Board Section */}
           <div className="mt-10 text-center">
