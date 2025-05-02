@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { Book } from '../types/database.types';
 
 /**
- * Gets trending books from the past 30 days (newer content)
+ * Gets trending books from the past 7 days (newer content)
  * Sorted by view count, filtered by user age and blocked genres
  */
 export const getTrendingBooks = async (): Promise<Book[]> => {
@@ -32,11 +32,11 @@ export const getTrendingBooks = async (): Promise<Book[]> => {
     const userAge = userAccount.age || 0;
     console.log(`User ID: ${uaid}, Age: ${userAge}`);
     
-    // Calculate date 5 days ago for trending (recent) content
-    const fiveDaysAgo = new Date();
-    fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
-    const fiveDaysAgoStr = fiveDaysAgo.toISOString();
-    console.log(`Filtering for books approved after: ${fiveDaysAgoStr}`);
+    // Calculate date 7 days ago for trending (recent) content
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const sevenDaysAgoStr = sevenDaysAgo.toISOString();
+    console.log(`Filtering for books approved after: ${sevenDaysAgoStr}`);
     
     // Get trending books - RECENT CONTENT (approved in the last 30 days)
     const { data: trendingBooks, error: trendingError } = await supabase
@@ -44,7 +44,7 @@ export const getTrendingBooks = async (): Promise<Book[]> => {
       .select('*')
       .eq('cfid', 2) // Books only
       .eq('status', 'approved')
-      .gte('decisiondate', fiveDaysAgoStr) // Only recent books (last 30 days) - using decisiondate
+      .gte('decisiondate', sevenDaysAgoStr) // Only recent books (last 30 days) - using decisiondate
       .lte('minimumage', userAge) // Age-appropriate
       .order('viewCount', { ascending: false }) // Sort by view count
       .limit(20); // Get more for filtering
@@ -56,7 +56,7 @@ export const getTrendingBooks = async (): Promise<Book[]> => {
     
     // FALLBACK: If not enough recent books, use the most recently created books
     if (!trendingBooks || trendingBooks.length < 5) {
-      console.log('Not enough trending books found in the last 30 days, using fallback');
+      console.log('Not enough trending books found in the last 7 days, using fallback');
       
       const { data: recentBooks, error: recentError } = await supabase
         .from('temp_content')
@@ -83,7 +83,7 @@ export const getTrendingBooks = async (): Promise<Book[]> => {
       return await filterBlockedGenres(recentBooks, uaid);
     }
     
-    console.log(`Found ${trendingBooks.length} trending books from the last 30 days`);
+    console.log(`Found ${trendingBooks.length} trending books from the last 7 days`);
     
     // Filter blocked genres using the trending books
     return await filterBlockedGenres(trendingBooks, uaid);
