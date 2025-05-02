@@ -14,7 +14,6 @@ interface DeletionResult {
 }
 
 // Delete a child account and all related data
-
 export const deleteChildAccount = async (
   childId: string,
   childInfo: Child,
@@ -65,7 +64,18 @@ export const deleteChildAccount = async (
       }
     }
 
-    // First delete any bookmarks associated with this user account
+    // Delete from screen_usage table first
+    const { error: screenUsageError } = await supabase
+      .from('screen_usage')
+      .delete()
+      .eq('child_id', childId);
+
+    if (screenUsageError) {
+      console.error('Error deleting from screen_usage:', screenUsageError);
+      throw screenUsageError;
+    }
+
+    // Delete any bookmarks associated with this user account
     const { error: bookmarkError } = await supabase
       .from('temp_bookmark')
       .delete()
