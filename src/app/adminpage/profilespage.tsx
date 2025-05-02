@@ -23,6 +23,16 @@ export default function ProfilesPage() {
   const [userAccounts, setUserAccounts] = useState<UserAccount[]>([]);
   const [customProfiles, setCustomProfiles] = useState<{ name: string }[]>([]);
 
+  // Add useEffect to clear error after 3 seconds
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => {
+        setError(null);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
+
   useEffect(() => {
     fetchData();
     fetchPublisherPermissions();
@@ -122,6 +132,21 @@ export default function ProfilesPage() {
     try {
       if (!newProfileName.trim()) return;
 
+      // Check for duplicate profile name
+      const { data: existingProfiles, error: checkError } = await supabase
+        .from('userprofile')
+        .select('name')
+        .ilike('name', newProfileName.trim());
+
+      if (checkError) throw checkError;
+
+      if (existingProfiles && existingProfiles.length > 0) {
+        setShowNewProfileModal(false);
+        setNewProfileName('');
+        setError('A profile with this name already exists');
+        return;
+      }
+
       // Get the next upid
       const { data: maxUpidData, error: maxError } = await supabase
         .from('userprofile')
@@ -146,9 +171,12 @@ export default function ProfilesPage() {
       await fetchCustomProfiles();
       setShowNewProfileModal(false);
       setNewProfileName('');
+      setError(null); // Clear any previous errors
     } catch (err) {
       console.error('Error creating custom profile:', err);
       setError(err instanceof Error ? err.message : 'An error occurred while creating custom profile');
+      setShowNewProfileModal(false);
+      setNewProfileName('');
     }
   };
 
