@@ -76,7 +76,7 @@ export default function CreateChildAccount() {
         // Add a small delay before redirect to ensure localStorage is updated
         setTimeout(() => {
           // Redirect to the parent reauth page with reauth=true parameter
-          router.push('/parent/reauth?reauth=true');
+          router.push('/parent/reauth?reauth=true&action=createChild');
         }, 100);
       } catch (storageError) {
         console.error('LocalStorage error:', storageError);

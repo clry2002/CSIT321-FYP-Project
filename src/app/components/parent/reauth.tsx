@@ -9,6 +9,10 @@ export default function ParentReauth() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isReauth = searchParams?.get('reauth') === 'true';
+  const action = searchParams?.get('action');
+  const childId = searchParams?.get('childId');
+
+  
   
   const [parentEmail, setParentEmail] = useState('');
   const [parentPassword, setParentPassword] = useState('');
@@ -16,17 +20,27 @@ export default function ParentReauth() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [parentSession, setParentSession] = useState<Session | null>(null);
-  
-  // New state to store the pending child account information
-  const [pendingChildData, setPendingChildData] = useState<{
-    parentId: string;
-    username: string;
+  const [isSessionLoaded, setIsSessionLoaded] = useState(false);
+  // State for different reauth actions
+  interface ChildData {
     email: string;
     password: string;
+    username: string;
     fullName: string;
     age: number;
-    parentEmail: string;
-  } | null>(null);
+    parentId: string;
+    parentEmail?: string;
+  }
+
+  interface PasswordUpdateData {
+    childUserId: string;
+    newPassword: string;
+  }
+
+  // State for different reauth actions
+  const [pendingChildData, setPendingChildData] = useState<ChildData | null>(null);
+  
+  const [pendingPasswordUpdate, setPendingPasswordUpdate] = useState<PasswordUpdateData | null>(null);
 
   // Check if localStorage is available
   const isLocalStorageAvailable = () => {
@@ -43,17 +57,51 @@ export default function ParentReauth() {
   useEffect(() => {
     // Store parent session for later use
     const getParentSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        setParentSession(session);
-        console.log('Stored parent session for later restoration');
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Error getting session:', error);
+          setError('Authentication error. Please log in again.');
+          router.push('/landing');
+          return;
+        }
+        
+        if (session) {
+          setParentSession(session);
+          console.log('Stored parent session for later restoration');
+          
+          // Get parent auth email from Supabase Auth
+          if (session.user?.email) {
+            console.log('Setting parent email from session:', session.user.email);
+            setParentEmail(session.user.email);
+          } else {
+            console.error('No email found in session user');
+          }
+        } else {
+          console.error('No active session found');
+          setError('No active session. Please log in again.');
+          router.push('/landing');
+          return;
+        }
+        
+        setIsSessionLoaded(true);
+      } catch (err) {
+        console.error('Error in getParentSession:', err);
+        setError('Failed to get session. Please try again.');
       }
     };
     
     getParentSession();
+  }, [router]);
+
+  useEffect(() => {
+    // Only run this after session is loaded
+    if (!isSessionLoaded) return;
     
     // Debug: Log the current state
-    console.log('ParentReauth mounted, isReauth:', isReauth);
+    console.log('ParentReauth effect running, isReauth:', isReauth, 'action:', action);
+    console.log('Parent email state:', parentEmail);
     
     // Make sure we're in a reauth process
     if (!isReauth) {
@@ -69,56 +117,74 @@ export default function ParentReauth() {
       return;
     }
     
-    // Fetch the pending child account data from localStorage
-    try {
-      const storedChildData = localStorage.getItem('pendingChildData');
-      console.log('Retrieved from localStorage:', storedChildData);
-      
-      if (!storedChildData) {
-        console.error('No pendingChildData in localStorage');
-        router.replace('/parentpage?error=No pending child data found');
-        return;
+    // Handle different reauth actions
+    if (action === 'createChild') {
+      try {
+        const storedChildData = localStorage.getItem('pendingChildData');
+        console.log('Retrieved from localStorage:', storedChildData);
+        
+        if (!storedChildData) {
+          console.error('No pendingChildData in localStorage');
+          router.replace('/parentpage?error=No pending child data found');
+          return;
+        }
+
+        const childData = JSON.parse(storedChildData);
+        console.log('Parsed child data:', childData);
+        
+        setPendingChildData(childData);
+        // If parent email is not set from session, try from localStorage
+        if (!parentEmail && childData.parentEmail) {
+          console.log('Setting parent email from child data:', childData.parentEmail);
+          setParentEmail(childData.parentEmail);
+        }
+      } catch (err) {
+        console.error('Error accessing or parsing child data:', err);
+        router.replace('/parentpage?error=Invalid child data');
       }
+    } 
+    else if (action === 'updateChildPassword') {
+      try {
+        const storedPasswordData = localStorage.getItem('childPasswordUpdate');
+        console.log('Retrieved password update data:', storedPasswordData);
+        
+        if (!storedPasswordData) {
+          console.error('No password update data in localStorage');
+          router.replace('/parentpage?error=No password update data found');
+          return;
+        }
 
-      const childData = JSON.parse(storedChildData);
-      console.log('Parsed child data:', childData);
-      
-      setPendingChildData(childData);
-      setParentEmail(childData.parentEmail || '');
-    } catch (err) {
-      console.error('Error accessing or parsing data:', err);
-      router.replace('/parentpage?error=Invalid child data');
+        const passwordData = JSON.parse(storedPasswordData);
+        console.log('Parsed password update data:', passwordData);
+        
+        setPendingPasswordUpdate(passwordData);
+        
+        // If parent email is not set from session, try from localStorage
+        if (!parentEmail && passwordData.parentEmail) {
+          console.log('Setting parent email from password data:', passwordData.parentEmail);
+          setParentEmail(passwordData.parentEmail);
+        }
+      } catch (err) {
+        console.error('Error accessing or parsing password data:', err);
+        router.replace('/parentpage?error=Invalid password update data');
+      }
     }
-  }, [router, isReauth]);
+    else {
+      console.error('Unknown reauth action:', action);
+      router.replace('/parentpage?error=Invalid reauth action');
+    }
+  }, [isSessionLoaded, router, isReauth, action, childId, parentEmail]);
 
-  const handleParentReauth = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setLoading(true);
-
+  const handleCreateChildAccount = async () => {
     if (!pendingChildData) {
       setError('No pending child data found');
-      setLoading(false);
-      return;
+      return { success: false };
     }
 
     try {
-      console.log('Starting parent reauthentication process');
+      console.log('Creating child account');
       
-      // 1. First, reauthenticate the parent
-      const { error: reauthError } = await supabase.auth.signInWithPassword({
-        email: parentEmail,
-        password: parentPassword,
-      });
-
-      if (reauthError) {
-        console.error('Reauthentication error:', reauthError);
-        throw new Error('Incorrect password. Please try again.');
-      }
-
-      console.log('Parent successfully reauthenticated');
-
-      // 2. Now create the child account in Supabase Auth
+      // 1. Create the child account in Supabase Auth
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({ 
         email: pendingChildData.email, 
         password: pendingChildData.password 
@@ -132,7 +198,7 @@ export default function ParentReauth() {
       const childUser = signUpData.user;
       console.log('Child user created:', childUser.id);
 
-      // 3. Create the child profile in the user_account table
+      // 2. Create the child profile in the user_account table
       const { data: userAccountData, error: userAccountError } = await supabase
         .from('user_account')
         .insert({
@@ -152,7 +218,7 @@ export default function ParentReauth() {
 
       console.log('Child user account created:', userAccountData.id);
 
-      // 4. Create parent-child relationship in the database
+      // 3. Create parent-child relationship in the database
       await supabase.from('isparentof').insert({
         parent_id: pendingChildData.parentId,
         child_id: userAccountData.id,
@@ -161,10 +227,102 @@ export default function ParentReauth() {
 
       console.log('Parent-child relationship established');
 
-      // 5. Clear the pending data
+      // 4. Clear the pending data
       localStorage.removeItem('pendingChildData');
       console.log('pendingChildData cleared from localStorage');
+      
+      return { success: true };
+    } catch (err) {
+      console.error('Error in creating child account:', err);
+      throw err;
+    }
+  };
 
+  const handleUpdateChildPassword = async () => {
+    if (!pendingPasswordUpdate) {
+      setError('No password update data found');
+      return { success: false };
+    }
+
+    try {
+      console.log('Updating child password');
+      
+      // Use direct fetch call with admin API headers
+      const response = await fetch('/api/update-child-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          childUserId: pendingPasswordUpdate.childUserId,
+          newPassword: pendingPasswordUpdate.newPassword,
+          authenticated: true, // Flag to indicate this is from reauth flow
+        }),
+      });
+      
+      // Log response for debugging
+      console.log('Password update response status:', response.status);
+      
+      // Check for non-OK response
+      if (!response.ok) {
+        // Try to parse JSON response
+        let errorMessage = 'Error updating password';
+        try {
+          const result = await response.json();
+          errorMessage = result.error || errorMessage;
+        } catch {
+          // If can't parse JSON, use text response
+          errorMessage = await response.text();
+        }
+        throw new Error(errorMessage);
+      }
+      
+      console.log('Password updated successfully');
+      
+      // Clear the pending data
+      localStorage.removeItem('childPasswordUpdate');
+      
+      return { success: true };
+    } catch (err) {
+      console.error('Error in updating child password:', err);
+      throw err;
+    }
+  };
+
+  const handleParentReauth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+
+    try {
+      console.log('Starting parent reauthentication process');
+      console.log('Using parent email:', parentEmail);
+      
+      if (!parentEmail) {
+        throw new Error('Email is missing. Please refresh the page and try again.');
+      }
+      
+      // 1. First, reauthenticate the parent
+      const { error: reauthError } = await supabase.auth.signInWithPassword({
+        email: parentEmail,
+        password: parentPassword,
+      });
+
+      if (reauthError) {
+        console.error('Reauthentication error:', reauthError);
+        throw new Error('Incorrect password. Please try again.');
+      }
+
+      console.log('Parent successfully reauthenticated');
+
+      // 2. Handle different reauth actions
+      if (action === 'createChild') {
+        await handleCreateChildAccount();
+      } 
+      else if (action === 'updateChildPassword') {
+        await handleUpdateChildPassword();
+      }
+      
       // Make sure parent is signed in with their credentials
       await supabase.auth.signInWithPassword({
         email: parentEmail,
@@ -173,10 +331,17 @@ export default function ParentReauth() {
       
       console.log('Parent signed back in');
 
-      // 6. Redirect to parent dashboard with success message
+      // 3. Redirect to parent dashboard with success message
       setTimeout(() => {
+        let successMessage = '';
+        if (action === 'createChild') {
+          successMessage = 'Child account successfully created!';
+        } else if (action === 'updateChildPassword') {
+          successMessage = 'Child password successfully updated!';
+        }
+        
         // Use a slight delay to ensure auth state is updated
-        router.replace('/parentpage?success=Child account successfully created!');
+        router.replace(`/parentpage?success=${successMessage}`);
       }, 300);
     } catch (err) {
       console.error('Error in parent reauth process:', err);
@@ -204,15 +369,20 @@ export default function ParentReauth() {
       } catch (authErr) {
         console.error('Failed to restore parent session:', authErr);
       }
-      
+    } finally {
       setLoading(false);
     }
   };
 
   const handleCancel = async () => {
-    // Simply remove the pending data and redirect back to parent dashboard
-    console.log('Cancelling child account creation process');
-    localStorage.removeItem('pendingChildData');
+    // Remove the pending data based on action
+    console.log('Cancelling process');
+    
+    if (action === 'createChild') {
+      localStorage.removeItem('pendingChildData');
+    } else if (action === 'updateChildPassword') {
+      localStorage.removeItem('childPasswordUpdate');
+    }
     
     // Ensure parent is still signed in before navigating
     try {
@@ -235,14 +405,51 @@ export default function ParentReauth() {
     setShowPassword(!showPassword);
   };
 
+  // Determine the title and description based on the action
+  const getPageTitle = () => {
+    if (action === 'createChild') {
+      return 'Confirm Child Account Creation';
+    } else if (action === 'updateChildPassword') {
+      return 'Confirm Password Update';
+    }
+    return 'Confirm Parent Account';
+  };
+
+  const getPageDescription = () => {
+    if (action === 'createChild') {
+      return 'Please re-enter your password to complete the child account creation.';
+    } else if (action === 'updateChildPassword') {
+      return 'Please re-enter your password to update your child\'s password.';
+    }
+    return 'Please re-enter your password to continue.';
+  };
+
+  // For debugging - show form state
+  const debugInfo = () => {
+    if (process.env.NODE_ENV !== 'production') {
+      return (
+        <div className="text-xs text-gray-500 mt-4 p-2 bg-gray-100 rounded">
+          <p>Debug - Parent Email: {parentEmail || 'not set'}</p>
+          <p>Action: {action || 'not set'}</p>
+          <p>Session Loaded: {isSessionLoaded ? 'Yes' : 'No'}</p>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  if (!isSessionLoaded) {
+    return <div className="flex items-center justify-center h-screen">Loading session data...</div>;
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-200 py-10 px-6 shadow-xl overflow-hidden flex items-center justify-center">
       <div className="bg-white rounded-xl shadow-md p-8 max-w-md w-full mx-4">
         <h1 className="text-2xl font-bold text-gray-800 mb-6 text-center">
-          Confirm Parent Account
+          {getPageTitle()}
         </h1>
         <p className="text-gray-600 mb-6 text-center">
-          Please re-enter your password to complete the child account creation.
+          {getPageDescription()}
         </p>
 
         <form onSubmit={handleParentReauth} className="space-y-6">
@@ -260,9 +467,10 @@ export default function ParentReauth() {
               id="parentEmail"
               type="email"
               value={parentEmail}
-              disabled
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
-              aria-readonly="true"
+              onChange={(e) => setParentEmail(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-700"
+              placeholder="Enter your email"
+              required
             />
           </div>
 
@@ -316,6 +524,8 @@ export default function ParentReauth() {
             </button>
           </div>
         </form>
+        
+        {debugInfo()}
       </div>
     </div>
   );

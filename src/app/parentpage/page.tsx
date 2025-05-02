@@ -319,6 +319,13 @@ const ParentDataFetcher = () => {
                     >
                       Parental Controls
                     </button>
+
+                    <button
+                      className="bg-green-500 text-white px-3 py-1 rounded-md text-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 transition-colors"
+                      onClick={() => router.push(`/parent/updatechild?childId=${child.id}`)}
+                    >
+                      Edit
+                    </button>
                     {canDeleteChild && (
                       <button
                         className="bg-red-500 text-white px-3 py-1 rounded-md text-sm hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 transition-colors"
