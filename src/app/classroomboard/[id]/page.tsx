@@ -412,7 +412,7 @@ export default function ClassroomBoardPage() {
         {announcements.length > 0 && (
           <div className="bg-white shadow-lg rounded-xl p-8 max-w-xl mx-auto">
             <div className="flex justify-between items-center mb-6">
-              <h3 className="text-2xl font-bold text-blue-600">Assignments</h3>
+              <h3 className="text-2xl font-bold text-blue-600">Content Assignments</h3>
               
               {/* Tab buttons for switching between book and video assignments */}
               <div className="flex bg-gray-100 rounded-md overflow-hidden">
