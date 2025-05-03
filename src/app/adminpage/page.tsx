@@ -164,13 +164,14 @@ export default function AdminPage() {
 
   const handleCreateAuth = () => {
     handlers.handleCreateAuth(newUser, setModalMessage, setAuthUserId, setStep);
+    // Don't refresh the page or redirect after auth creation
   };
 
   const handleCreateAccount = () => {
     handlers.handleCreateAccount(newUser, authUserId, setModalMessage, () => {
       fetchData();
-        setShowNewUserModal(false);
-        router.refresh();
+      setShowNewUserModal(false);
+      router.refresh();
     });
   };
 
