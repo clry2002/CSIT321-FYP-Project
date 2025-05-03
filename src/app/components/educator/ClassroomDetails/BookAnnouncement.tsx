@@ -272,7 +272,7 @@ const BookAnnouncementBoard: React.FC<BookAnnouncementBoardProps> = ({
                     </div>
                   )}
                   <div className="flex-grow">
-                    <Link href={`/teacher/bookdetail/${selectedBook.cid}`}>
+                    <Link href={`/educator/bookdetail/${selectedBook.cid}`}>
                       <p className="font-medium text-blue-600 hover:text-blue-800 hover:underline cursor-pointer">
                         {selectedBook.title}
                       </p>
@@ -368,7 +368,7 @@ const BookAnnouncementBoard: React.FC<BookAnnouncementBoardProps> = ({
                   
                   <div className="mt-4 flex justify-end space-x-2">
                     <Link 
-                      href={`/teacher/bookdetail/${announcement.cid}`}
+                      href={`/educator/bookdetail/${announcement.cid}`}
                       className="px-4 py-2 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 transition-colors"
                     >
                       View Book

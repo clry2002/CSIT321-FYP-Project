@@ -106,7 +106,7 @@ export default function TeacherBookDetailPage() {
 
   const handleBackToSearch = () => {
     if (query) {
-      router.push(`/teacher/searchbooks?q=${encodeURIComponent(query)}`);
+      router.push(`/educator/searchbooks?q=${encodeURIComponent(query)}`);
     } else {
       router.back();
     }
@@ -254,7 +254,7 @@ export default function TeacherBookDetailPage() {
             setShowAssignModal(false);
             // Remove the assign query parameter if it exists
             if (showAssign) {
-              router.replace(`/teacher/bookdetail/${params.id}`);
+              router.replace(`/educator/bookdetail/${params.id}`);
             }
           }}
         />

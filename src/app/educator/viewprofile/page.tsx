@@ -98,7 +98,7 @@ export default function TeacherViewProfile() {
             <p className="mt-1 text-md text-gray-500">View and edit your profile information.</p>
           </div>
           <button
-            onClick={() => router.push('/teacher/settings')}
+            onClick={() => router.push('/educator/settings')}
             className="inline-flex items-center px-4 py-2 bg-gray-800 text-white rounded-md font-semibold text-sm hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-800 focus:ring-opacity-50 transition-colors"
           >
             Back to Settings
