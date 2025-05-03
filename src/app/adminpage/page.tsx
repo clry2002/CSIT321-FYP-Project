@@ -673,23 +673,120 @@ export default function AdminPage() {
       // First, get all children of this parent
       const children = getChildrenForParent(selectedParentForModify.username);
       
-      // Delete all children accounts
+      // Delete all children accounts first
       for (const child of children) {
-        const { error: childError } = await supabase
+        // Get the child's ID first
+        const { data: childData, error: childError } = await supabase
           .from('user_account')
-          .delete()
-          .eq('username', child.username);
-        
+          .select('id, user_id')
+          .eq('username', child.username)
+          .single();
+
         if (childError) throw childError;
+
+        if (childData?.id) {
+          // 1. Delete from screen_usage if exists
+          const { error: screenUsageError } = await supabase
+            .from('screen_usage')
+            .delete()
+            .eq('child_id', childData.id);
+
+          if (screenUsageError) {
+            console.warn('Warning: Could not delete screen usage. This might be ok if none existed:', screenUsageError);
+          }
+
+          // 2. Delete from userInteractions2 if exists
+          const { error: interactionsError } = await supabase
+            .from('userInteractions2')
+            .delete()
+            .eq('child_id', childData.id);
+
+          if (interactionsError) {
+            console.warn('Warning: Could not delete user interactions. This might be ok if none existed:', interactionsError);
+          }
+
+          // 3. Delete from temp_classroomstudents if exists
+          const { error: classroomError } = await supabase
+            .from('temp_classroomstudents')
+            .delete()
+            .eq('uaid_child', childData.id);
+
+          if (classroomError) {
+            console.warn('Warning: Could not delete classroom relationships. This might be ok if none existed:', classroomError);
+          }
+
+          // 4. Delete from isparentof
+          const { error: relationshipError } = await supabase
+            .from('isparentof')
+            .delete()
+            .eq('child_id', childData.id);
+
+          if (relationshipError) throw relationshipError;
+
+          // 5. Delete from child_details
+          const { error: detailsError } = await supabase
+            .from('child_details')
+            .delete()
+            .eq('child_id', childData.id);
+
+          if (detailsError) {
+            console.warn('Warning: Could not delete child details. This might be ok if none existed:', detailsError);
+          }
+
+          // 6. Delete the auth user if it exists
+          if (childData.user_id) {
+            try {
+              await api.deleteAuthUser(childData.user_id);
+            } catch (authError) {
+              console.warn('Warning: Could not delete auth user. This might be ok if already deleted:', authError);
+            }
+          }
+
+          // 7. Finally delete from user_account
+          const { error: deleteError } = await supabase
+            .from('user_account')
+            .delete()
+            .eq('id', childData.id);
+
+          if (deleteError) throw deleteError;
+        }
       }
 
-      // Delete the parent account
-      const { error: parentError } = await supabase
+      // Now delete the parent account
+      const { data: parentData, error: parentDataError } = await supabase
         .from('user_account')
-        .delete()
-        .eq('username', selectedParentForModify.username);
+        .select('id, user_id')
+        .eq('username', selectedParentForModify.username)
+        .single();
 
-      if (parentError) throw parentError;
+      if (parentDataError) throw parentDataError;
+
+      if (parentData) {
+        // Delete the parent's auth user if it exists
+        if (parentData.user_id) {
+          try {
+            await api.deleteAuthUser(parentData.user_id);
+          } catch (authError) {
+            console.warn('Warning: Could not delete parent auth user. This might be ok if already deleted:', authError);
+          }
+        }
+
+        // Delete from isparentof first
+        const { error: relationshipError } = await supabase
+          .from('isparentof')
+          .delete()
+          .eq('parent_id', parentData.id);
+
+        if (relationshipError) throw relationshipError;
+
+        // Then delete from user_account
+        const { error: parentError } = await supabase
+          .from('user_account')
+          .delete()
+          .eq('id', parentData.id);
+
+        if (parentError) throw parentError;
+      }
 
       // Refresh the data
       await fetchData();
@@ -1592,16 +1689,18 @@ export default function AdminPage() {
                       {userAccounts
                         .filter(user => selectedRows.includes(user.username))
                         .map((user, index) => (
-                          <li key={index}>
+                          <li key={index} className="mb-2">
                             {user.upid === 2 ? (
-                              <>
-                                Parent: {user.fullname} ({user.username})
-                                {getChildrenForParent(user.username).map((child, childIndex) => (
-                                  <li key={childIndex} className="ml-8">
-                                    Child: {child.fullname} ({child.username})
-                                  </li>
-                                ))}
-                              </>
+                              <div>
+                                <div>Parent: {user.fullname} ({user.username})</div>
+                                <ul className="ml-8 list-disc list-inside">
+                                  {getChildrenForParent(user.username).map((child, childIndex) => (
+                                    <li key={childIndex}>
+                                      Child: {child.fullname} ({child.username})
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
                             ) : (
                               `${user.fullname} (${user.username})`
                             )}
@@ -1694,7 +1793,7 @@ export default function AdminPage() {
                 Cancel
               </button>
               <button
-                onClick={handleDeleteParent}
+                onClick={() => handleDeleteParent}
                 className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded"
               >
                 Delete All Accounts
@@ -1713,10 +1812,20 @@ export default function AdminPage() {
                 Modify Children for {selectedParentForModify.name}
               </h3>
               <button
-                onClick={() => setShowDeleteParentModal(true)}
-                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg"
+                onClick={() => {
+                  const parentUser = userAccounts.find(u => u.username === selectedParentForModify.username);
+                  if (parentUser) {
+                    setSelectedRows([parentUser.username]);
+                    setShowDeleteModal(true);
+                    setShowModifyModal(false);
+                  }
+                }}
+                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2"
               >
-                Delete Parent
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+                <span>Delete Parent</span>
               </button>
             </div>
             <div className="overflow-y-auto max-h-[calc(80vh-120px)] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-gray-800 [&::-webkit-scrollbar-thumb]:bg-gray-600 [&::-webkit-scrollbar-thumb]:rounded pr-2">

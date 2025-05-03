@@ -50,6 +50,12 @@ export default function AdminLoginPage() {
         throw new Error('Access denied. Admin privileges required.');
       }
 
+      // Set session persistence to true
+      await supabase.auth.setSession({
+        access_token: authData.session?.access_token || '',
+        refresh_token: authData.session?.refresh_token || ''
+      });
+
       // If everything is successful, redirect to admin page
       router.push('/adminpage');
     } catch (err) {
