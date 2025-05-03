@@ -3,7 +3,7 @@ import axios from 'axios';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 
-const API_URL = "https://csit321-fyp-project.onrender.com";
+// const API_URL = "https://csit321-fyp-project.onrender.com";
 
 // Define the Content interface with cfid and cid
 export interface Content {
@@ -12,17 +12,17 @@ export interface Content {
   contenturl: string;
   coverimage: string;
   cfid: number; // 1 = video, 2 = book
-  cid: number; // Content unique ID
+  cid: number;
 }
 
 // Define the Message interface
 export interface Message {
-  content: string | Content[]; // Text or array of content
+  content: string | Content[];
   role: 'user' | 'assistant';
   audio_url?: string; 
 }
 
-// Define response types for better type safety
+// Define response types
 interface BookResponse {
   title: string;
   description: string;
@@ -78,11 +78,10 @@ export const useChatbot = () => {
 
       console.log("Authenticated user ID:", user.id);
 
-      // Fetch the 'user_account' data, ensuring we get 'id' as 'uaid_child'
       const { data, error } = await supabase
         .from('user_account')
-        .select('id, fullname') // Select 'id' from user_account
-        .eq('user_id', user.id) // Match the user_id with the authenticated user's ID
+        .select('id, fullname')
+        .eq('user_id', user.id)
         .single();
 
       if (error) {
@@ -92,14 +91,14 @@ export const useChatbot = () => {
 
       setUserFullName(data?.fullname || null);
       
-      return data?.id || null;  // Return uaid_child
+      return data?.id || null;
     } catch (error) {
       console.error('Error in fetchChildData:', error);
       return null;
     } finally {
       setIsLoading(false);
     }
-  }, [router]); // Include router in the dependency array
+  }, [router]);
 
   // Fetch the user data and set the user ID (uaid_child)
   useEffect(() => {
@@ -109,7 +108,7 @@ export const useChatbot = () => {
     };
 
     fetchUser();
-  }, [fetchChildData]); // Add fetchChildData to the dependency array
+  }, [fetchChildData]);
 
   const sendMessage = useCallback(async (message: string) => {
     if (!uaid_child) {
@@ -122,8 +121,8 @@ export const useChatbot = () => {
       setMessages((prev) => [...prev, { role: 'user', content: message }]);
 
       const response = await axios.post(
-        `${API_URL}/api/chat`,
-        // 'http://127.0.0.1:5000/api/chat',
+        //`${API_URL}/api/chat`,
+         'http://127.0.0.1:5000/api/chat',
         JSON.stringify({
           question: message,
           uaid_child: uaid_child,
@@ -194,6 +193,6 @@ export const useChatbot = () => {
     isLoading,
     sendMessage,
     chatContainerRef,
-    userFullName,
+    userFullName, 
   };
 };

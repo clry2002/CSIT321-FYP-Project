@@ -7,6 +7,16 @@ import AudioButton from './child/chatbot/audioButton';
 import ReadingCalendar from './ReadingCalendar';
 import './styles.css';
 import { supabase } from '@/lib/supabase';
+import { 
+  detectUserUncertainty, 
+  detectBotSuggestion, 
+  isUncertaintyQuestion,
+  detectNewGenresRequest
+} from '../utils/uncertaintyDetector';
+import { 
+  getRandomGenres
+} from '../utils/genreRecommender';
+import UncertaintyTracker from '../utils/uncertaintyTracker';
 
 interface ReadingSchedule {
   id?: number;
@@ -18,7 +28,7 @@ interface ReadingSchedule {
 }
 
 const ChatBot: React.FC = () => {
-  const { messages, isLoading, sendMessage } = useChatbot();
+  const { messages, isLoading, sendMessage, userFullName } = useChatbot();
   const { speakingItemId, isPaused, toggleSpeech, stopAllSpeech } = useSpeech();
   const [input, setInput] = useState('');
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -28,10 +38,86 @@ const ChatBot: React.FC = () => {
   const iframeRefs = useRef<{ [key: number]: HTMLIFrameElement | null }>({});
   const [pendingSchedules, setPendingSchedules] = useState<ReadingSchedule[]>([]);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [favoriteGenres, setFavoriteGenres] = useState<string[]>([]);
+  const [showGenreSuggestions, setShowGenreSuggestions] = useState(false);
+  const [randomGenres, setRandomGenres] = useState<string[]>([]);
+  const [showRandomGenres, setShowRandomGenres] = useState(false);
 
+  // Fetch favorite genres when component mounts
+  useEffect(() => {
+    const fetchFavoriteGenres = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        // First get the child_id (which is the user_account.id)
+        const { data: userData, error: userError } = await supabase
+          .from('user_account')
+          .select('id')
+          .eq('user_id', user.id)
+          .single();
+        
+        if (userError || !userData) {
+          console.error('Error fetching user account details:', userError);
+          return;
+        }
+
+        // Then get the favorite genres using the child_id
+        const { data, error } = await supabase
+          .from('child_details')
+          .select('favourite_genres')
+          .eq('child_id', userData.id)
+          .single();
+
+        if (error) {
+          console.error('Error fetching favorite genres:', error);
+          return;
+        }
+
+        // Handle the text[] array type from Supabase
+        if (data && data.favourite_genres) {
+          let genres: string[] = [];
+          
+          // Check if favourite_genres is already an array
+          if (Array.isArray(data.favourite_genres)) {
+            genres = data.favourite_genres;
+          } else if (typeof data.favourite_genres === 'string') {
+            // If it's a string, try to parse it
+            try {
+              // Try parsing as JSON first
+              genres = JSON.parse(data.favourite_genres);
+            } catch {
+              // If not valid JSON and it's a string, use it as a single genre
+              genres = [data.favourite_genres];
+            }
+          }
+          
+          setFavoriteGenres(genres);
+        }
+      } catch (error) {
+        console.error('Error in fetchFavoriteGenres:', error);
+      }
+    };
+
+    fetchFavoriteGenres();
+  }, []);
+
+  // Scroll to bottom when messages update
   useEffect(() => {
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
+  }, [messages]);
+  
+  // Effect to monitor for bot responses that might indicate uncertainty
+  useEffect(() => {
+    // Only check the most recent bot message
+    const lastMessage = messages[messages.length - 1];
+    
+    if (lastMessage && lastMessage.role === 'assistant' && typeof lastMessage.content === 'string') {
+      if (detectBotSuggestion(lastMessage.content)) {
+        setShowGenreSuggestions(true);
+      }
     }
   }, [messages]);
 
@@ -57,18 +143,102 @@ const ChatBot: React.FC = () => {
     };
 
     fetchPendingSchedules();
-  }, [isCalendarOpen]); // Add isCalendarOpen as dependency
+  }, [isCalendarOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
     const userMessage = input.trim();
     setInput('');
+    
+    // Check if this is a request for different genres
+    const isRequestingNewGenres = detectNewGenresRequest(userMessage);
+    
+    if (isRequestingNewGenres) {
+      console.log("User is requesting different genres");
+      try {
+        // Get random genres, explicitly excluding favorite genres
+        const differentGenres = await getRandomGenres(5, favoriteGenres);
+        setRandomGenres(differentGenres);
+        setShowRandomGenres(true);
+        setShowGenreSuggestions(false); // Hide favorite genres
+      } catch (error) {
+        console.error("Error getting different genres:", error);
+      }
+    } 
+    // Check if the message indicates uncertainty using our utility function
+    else if (detectUserUncertainty(userMessage)) {
+      // Increment uncertainty counter when uncertainty is detected
+      UncertaintyTracker.increment();
+      console.log("Uncertainty count:", UncertaintyTracker.getCount());
+      
+      // Show favorite genres first
+      setShowGenreSuggestions(true);
+      
+      // If the child has expressed uncertainty multiple times, suggest random genres
+      if (UncertaintyTracker.shouldShowRandomSuggestions()) {
+        try {
+          const randomRecommendations = await getRandomGenres(3, favoriteGenres);
+          setRandomGenres(randomRecommendations);
+          setShowRandomGenres(true);
+        } catch (error) {
+          console.error("Error getting random genres:", error);
+        }
+      } else {
+        setShowRandomGenres(false);
+      }
+    } else {
+      // Reset uncertainty counter for non-uncertainty messages
+      UncertaintyTracker.reset();
+      setShowGenreSuggestions(false);
+      setShowRandomGenres(false);
+    }
+    
     await sendMessage(userMessage);
   };
 
   const handleQuestionClick = async (question: string) => {
+    // Check if this is an uncertainty question using our utility function
+    const isUncertain = isUncertaintyQuestion(question);
+    
+    if (isUncertain) {
+      // Increment uncertainty counter
+      UncertaintyTracker.increment();
+      console.log("Uncertainty count:", UncertaintyTracker.getCount());
+      
+      // Show favorite genres first
+      setShowGenreSuggestions(true);
+      
+      // If the child has expressed uncertainty multiple times, suggest random genres
+      if (UncertaintyTracker.shouldShowRandomSuggestions()) {
+        try {
+          const randomRecommendations = await getRandomGenres(3, favoriteGenres);
+          setRandomGenres(randomRecommendations);
+          setShowRandomGenres(true);
+        } catch (error) {
+          console.error("Error getting random genres:", error);
+        }
+      } else {
+        setShowRandomGenres(false);
+      }
+    } else {
+      // Reset uncertainty counter for non-uncertainty questions
+      UncertaintyTracker.reset();
+      setShowGenreSuggestions(false);
+      setShowRandomGenres(false);
+    }
+    
     await sendMessage(question);
+  };
+
+  const handleGenreClick = async (genre: string) => {
+    // Reset uncertainty counter when a genre is selected
+    UncertaintyTracker.reset();
+    console.log("Uncertainty reset");
+    
+    setShowGenreSuggestions(false);
+    setShowRandomGenres(false);
+    await sendMessage(`Can you recommend books and videos about ${genre}?`);
   };
 
   const handleImageClick = (imageUrl: string) => {
@@ -79,21 +249,52 @@ const ChatBot: React.FC = () => {
     setEnlargedImage(null);
   };
 
-  const renderVideoContent = (contenturl: string, index: number) => {
-    if (contenturl.includes("<iframe")) {
-      return <div dangerouslySetInnerHTML={{ __html: contenturl }} />;
-    }
+  // Parse the message content into React components
+  const processMessage = (message: string): React.ReactNode => {
+    if (!message) return null;
+    
+    // First, replace <br> tags with actual line breaks
+    const textWithLineBreaks = message.replace(/<br>/g, '\n');
+    
+    // Split the message by ** markers or newlines
+    const parts = textWithLineBreaks.split(/(\*\*.*?\*\*|\n)/g);
+    
+    // Map each part to either plain text, bold text, or a line break
+    return (
+      <>
+        {parts.map((part, index) => {
+          if (part === '\n') {
+            // This is a line break
+            return <br key={index} />;
+          } else if (part.startsWith('**') && part.endsWith('**')) {
+            // This is bold text - remove the ** markers and make it bold
+            const boldText = part.slice(2, -2);
+            return <strong key={index}>{boldText}</strong>;
+          } else {
+            // This is regular text
+            return <span key={index}>{part}</span>;
+          }
+        })}
+      </>
+    );
+  };
 
+  const renderVideoContent = (contenturl: string, index: number) => {
+    // For YouTube videos
     const youtubeRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|\S+\/\S+\/|\S+\?v=|v\/|(?:watch\?v=))(\S+))|(?:youtu\.be\/(\S+))/;
     const matchYouTube = contenturl.match(youtubeRegex);
+    
     if (matchYouTube) {
       const videoId = matchYouTube[1] || matchYouTube[2];
+      // Extract the clean video ID (remove any additional parameters)
+      const cleanVideoId = videoId?.split('&')[0] || '';
+      
       return (
         <iframe
           ref={el => {iframeRefs.current[index] = el;}}
           width="100%"
           height="315"
-          src={`https://www.youtube.com/embed/${videoId}`}
+          src={`https://www.youtube.com/embed/${cleanVideoId}`}
           title="YouTube video player"
           frameBorder="0"
           allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
@@ -101,13 +302,18 @@ const ChatBot: React.FC = () => {
         ></iframe>
       );
     }
-
-    return <a href={contenturl} target="_blank" rel="noopener noreferrer">View Video</a>;
-  };
-
-  const processMessage = (message: string) => {
-    // Replace double asterisks with <b> tags
-    return message.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+    
+    // For all other video links
+    return (
+      <a 
+        href={contenturl} 
+        target="_blank" 
+        rel="noopener noreferrer"
+        className="inline-block bg-blue-500 text-white px-3 py-1 rounded"
+      >
+        View Video
+      </a>
+    );
   };
   
   const stopVideoPlayer = () => {
@@ -144,10 +350,12 @@ const ChatBot: React.FC = () => {
     <div className="chatbot-wrapper">
       {/* Show mascot to the left of the popup when open */}
       {isChatOpen && (
-        <img 
+        <Image 
           src="/mascot.png" 
           alt="Mascot" 
           className="chatbot-mascot-image"
+          width={160}
+          height={160}
         />
       )}
       {/* Blur background when chatbot popup is open */}
@@ -157,16 +365,16 @@ const ChatBot: React.FC = () => {
       <div className="flex flex-col items-end space-y-2">
         <div className="relative">
           <button onClick={handleCalendarToggle} className="calendar-button">
-            <img src="/calendar.png" alt="Calendar" className="w-10 h-10 object-contain" />
+            <Image src="/calendar.png" alt="Calendar" width={40} height={40} className="object-contain" />
           </button>
           {pendingSchedules.length > 0 && !isChatOpen && (
-            <div className="notification-badge">
+            <span className="notification-badge">
               {pendingSchedules.length}
-            </div>
+            </span>
           )}
         </div>
         <button onClick={() => setIsChatOpen(!isChatOpen)} className="chatbot-button">
-          <img src="/mascot.png" alt="Chatbot" className="w-16 h-16 object-contain" />
+          <Image src="/mascot.png" alt="Chatbot" width={64} height={64} className="object-contain" />
         </button>
       </div>
 
@@ -219,10 +427,40 @@ const ChatBot: React.FC = () => {
         </div>
 
         <div ref={chatContainerRef} className="chat-container">
+          {/* Welcome message with the child's name */}
+          {messages.length === 1 && userFullName && (
+            <div className="welcome-message">
+              <p>Hello {userFullName}! I&apos;m here to help you discover amazing books and videos.</p>
+            </div>
+          )}
+
+          {/* Favorite Genres Section - Moved from top to appear with messages */}
+          {/* Now incorporated into the message flow */}
+
           <div className="predefined-questions">
             <h3>Try asking:</h3>
-            {["Can you recommend the latest books?", "Can you recommend the latest videos?"].map((question, index) => (
-              <button key={index} onClick={() => handleQuestionClick(question)} className="question-button">
+            {["Can you recommend the latest books?", "Can you recommend the latest videos?", "I'm not sure what to look for", "Recommend other genres"].map((question, index) => (
+              <button 
+                key={index} 
+                onClick={() => {
+                  if (question === "Recommend other genres") {
+                    // Handle the request for different genres
+                    const getAndShowDifferentGenres = async () => {
+                      try {
+                        const differentGenres = await getRandomGenres(5, favoriteGenres);
+                        setRandomGenres(differentGenres);
+                        setShowRandomGenres(true);
+                        setShowGenreSuggestions(false); // Hide favorite genres
+                      } catch (error) {
+                        console.error("Error getting different genres:", error);
+                      }
+                    };
+                    getAndShowDifferentGenres();
+                  }
+                  handleQuestionClick(question);
+                }} 
+                className="question-button"
+              >
                 {question}
               </button>
             ))}
@@ -246,9 +484,9 @@ const ChatBot: React.FC = () => {
                             <Image
                               src={item.coverimage}
                               alt={`Cover of ${item.title}`}
-                              width="100"
+                              width={100}
                               height={150}
-                              style={{ borderRadius: '8px', marginTop: '5px', cursor: 'pointer' }}
+                              className="book-cover-image"
                               onClick={() => handleImageClick(item.coverimage)}
                             />
                           )}
@@ -262,7 +500,7 @@ const ChatBot: React.FC = () => {
                             onToggle={toggleSpeech}
                           />
                           
-                          <div style={{ marginTop: '8px' }}>
+                          <div className="content-actions">
                             {item.cfid === 1 ? (
                               renderVideoContent(item.contenturl, msgIndex * 100 + idx)
                             ) : (
@@ -303,7 +541,53 @@ const ChatBot: React.FC = () => {
                     })}
                   </ul>
                 ) : (
-                  <div dangerouslySetInnerHTML={{ __html: typeof message.content === "string" ? processMessage(message.content) : "" }} />
+                  <div>
+                    {typeof message.content === "string" ? processMessage(message.content) : ""}
+
+                    {/* Show favorite genres right after the bot message that triggered uncertainty */}
+                    {showGenreSuggestions && 
+                     message.role === 'assistant' && 
+                     msgIndex === messages.length - 1 && 
+                     favoriteGenres.length > 0 && (
+                      <div className="favorite-genres-section in-message">
+                        <h3>Here are some topics you might like:</h3>
+                        <div className="favorite-genres-buttons">
+                          {favoriteGenres.map((genre, index) => (
+                            <button 
+                              key={`fav-${index}`} 
+                              onClick={() => handleGenreClick(genre)} 
+                              className="genre-button"
+                            >
+                              {genre}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Show random genre suggestions if child continues to express uncertainty or explicitly asks for them */}
+                    {showRandomGenres && 
+                     message.role === 'assistant' && 
+                     msgIndex === messages.length - 1 && 
+                     randomGenres.length > 0 && (
+                      <div className="random-genres-section in-message">
+                        <h3>{detectNewGenresRequest(message.content as string) ? 
+                          "Here are some different genres you might like:" : 
+                          "Or maybe try something new?"}</h3>
+                        <div className="random-genres-buttons">
+                          {randomGenres.map((genre, index) => (
+                            <button 
+                              key={`random-${index}`} 
+                              onClick={() => handleGenreClick(genre)} 
+                              className="genre-button random"
+                            >
+                              {genre}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             </div>

@@ -801,3 +801,111 @@ body .calendar-popup.visible ~ .notification-badge,
   font-size: 1rem;
   font-family: 'Fredoka One', cursive !important;
 }
+
+
+
+
+
+/* Add these styles to your styles.css file */
+
+/* Favorite Genres Section */
+.favorite-genres-section {
+  margin-bottom: 16px;
+  background-color: #f8f9fa;
+  border-radius: 10px;
+  padding: 12px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  animation: fadeIn 0.5s ease-in-out;
+  border-left: 4px solid #6a64f1;
+}
+
+/* Specific styling for genre suggestions inside messages */
+.favorite-genres-section.in-message {
+  margin-top: 12px;
+  background-color: #f0f7ff;
+  border-left-color: #3b82f6;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.favorite-genres-section h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #333;
+}
+
+.favorite-genres-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.genre-button {
+  background-color: #6a64f1;
+  color: white;
+  border: none;
+  border-radius: 20px;
+  padding: 6px 12px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 4px rgba(106, 100, 241, 0.3);
+}
+
+.genre-button:hover {
+  background-color: #5a54e1;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(106, 100, 241, 0.4);
+}
+
+.genre-button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(106, 100, 241, 0.3);
+}
+
+.no-genres-message {
+  font-size: 0.9rem;
+  color: #666;
+  font-style: italic;
+}
+
+/* Content Actions */
+.content-actions {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Book Cover Image */
+.book-cover-image {
+  border-radius: 8px;
+  margin-top: 5px;
+  cursor: pointer;
+  transition: transform 0.2s ease-in-out;
+}
+
+.book-cover-image:hover {
+  transform: scale(1.05);
+}
+
+/* Welcome Message */
+.welcome-message {
+  background-color: #e8f5ff;
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  border-left: 4px solid #6a64f1;
+}
+
+.welcome-message p {
+  margin: 0;
+  font-size: 1rem;
+  color: #333;
+}
