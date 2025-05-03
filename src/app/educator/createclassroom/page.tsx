@@ -271,9 +271,9 @@ export default function CreateClassroom() {
       // Use query parameters to:
       // 1. Set the active tab to discussions
       // 2. Trigger the welcome popup
-      router.push(`/teacher/classroom-details/${newClassroomId}?tab=discussions&showDiscussionPopup=true`);
+      router.push(`/educator/classroom-details/${newClassroomId}?tab=discussions&showDiscussionPopup=true`);
     } else {
-      router.push('/teacherpage');
+      router.push('/educatorpage');
     }
   };
 

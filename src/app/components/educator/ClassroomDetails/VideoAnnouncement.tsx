@@ -283,7 +283,7 @@ const VideoAnnouncementBoard: React.FC<VideoAnnouncementBoardProps> = ({
                     )}
                   </div>
                   <div className="flex-grow">
-                    <Link href={`/teacher/videodetail/${selectedVideo.cid}`}>
+                    <Link href={`/educator/videodetail/${selectedVideo.cid}`}>
                       <p className="font-medium text-blue-600 hover:text-blue-800 hover:underline cursor-pointer">
                         {selectedVideo.title}
                       </p>
@@ -375,7 +375,7 @@ const VideoAnnouncementBoard: React.FC<VideoAnnouncementBoardProps> = ({
                   
                   <div className="mt-4 flex justify-end space-x-2">
                     <Link 
-                      href={`/teacher/videodetail/${announcement.cid || announcement.cid}`}
+                      href={`/educator/videodetail/${announcement.cid || announcement.cid}`}
                       className="px-4 py-2 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 transition-colors"
                     >
                       View Video

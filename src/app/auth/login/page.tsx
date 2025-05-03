@@ -197,7 +197,7 @@ export default function LoginPage() {
             setLoading(false);
           }
         } else if (userData?.userprofile?.upid === 5) {
-          router.push('/teacherpage');
+          router.push('/educatorpage');
         } else {
           throw new Error('Invalid user type');
         }

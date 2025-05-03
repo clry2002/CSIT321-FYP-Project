@@ -52,8 +52,8 @@ function AuthGuardInner({ children }: { children: ReactNode }) {
     // Admin
     '/admin': [4],
     
-    // Teacher
-    '/teacher': [5],
+    // Educator
+    '/educator': [5],
   };
 
   // List of paths that don't require authentication

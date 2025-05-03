@@ -137,7 +137,7 @@ export default function ViewClassrooms() {
                     {classrooms.map((classroom) => (
                         <Link
                             key={classroom.crid}
-                            href={`/teacher/classroom-details/${classroom.crid}`}
+                            href={`/educator/classroom-details/${classroom.crid}`}
                             className="block rounded-xl shadow-md border border-gray-200 hover:shadow-lg transition duration-300 overflow-hidden"
                         >
                             <div className="flex flex-col h-full">
@@ -177,7 +177,7 @@ export default function ViewClassrooms() {
                         <p className="text-gray-700 mb-4">No classrooms created yet. Ready to inspire?</p>
                         <button
                             type="button"
-                            onClick={() => router.push('/teacher/create-classroom-new')}
+                            onClick={() => router.push('/educator/createclassroom')}
                             className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-xl shadow-md transition duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
                         >
                             <AcademicCapIcon className="h-5 w-5 inline-block mr-2 -mt-0.5" />
@@ -196,7 +196,7 @@ export default function ViewClassrooms() {
                 {classrooms.length > 0 && !loading && canCreateClassroom && (
                     <button
                         type="button"
-                        onClick={() => router.push('/teacher/create-classroom-new')}
+                        onClick={() => router.push('/educator/createclassroom')}
                         className="fixed bottom-8 right-8 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-full shadow-lg transition duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center space-x-2"
                     >
                         <AcademicCapIcon className="h-5 w-5" />

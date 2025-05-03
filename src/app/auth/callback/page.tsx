@@ -69,7 +69,7 @@ export default function AuthCallbackPage() {
         } else if (userData?.userprofile?.upid === 3) {
           router.push('/childpage');
         } else if (userData?.userprofile?.upid === 5) {
-          router.push('/teacherpage');
+          router.push('/educatorpage');
         } else {
           throw new Error('Invalid user type');
         }

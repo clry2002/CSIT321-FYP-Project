@@ -101,7 +101,7 @@ export default function ClassroomDetails() {
 
   // Function to navigate back to home page
   const handleBackClick = () => {
-    router.push('/teacherpage');
+    router.push('/educatorpage');
   };
 
   // Function to handle tab change

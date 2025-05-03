@@ -13,7 +13,7 @@ export default function EducatorSettings() {
         <div className="max-w-4xl mx-auto">
           <div className="bg-white rounded-xl shadow-md p-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Link href="/teacher/viewprofile">
+              <Link href="/educator/viewprofile">
                 <div className="p-6 border rounded-lg shadow hover:border-indigo-300 hover:bg-indigo-50 transition cursor-pointer">
                   <div className="flex items-center space-x-3">
                     <User className="w-6 h-6 text-indigo-600" />
@@ -23,7 +23,7 @@ export default function EducatorSettings() {
                 </div>
               </Link>
               
-              <Link href="/teacher/accountsettings">
+              <Link href="/educator/accountsettings">
                 <div className="p-6 border rounded-lg shadow hover:border-indigo-300 hover:bg-indigo-50 transition cursor-pointer">
                   <div className="flex items-center space-x-3">
                     <Settings className="w-6 h-6 text-indigo-600" />

@@ -209,7 +209,7 @@ export default function SetupPage() {
         router.push('/parentpage');
       } else if (upid === 5) { // Educator
         // Educator role is already set via upid in user_account table
-        router.push('/teacherpage');
+        router.push('/educatorpage');
       }
 
       await refreshProfile();

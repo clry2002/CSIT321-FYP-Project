@@ -151,7 +151,7 @@ const BookCard: React.FC<BookCardProps> = ({
     
     // Navigate to different routes based on user type
     if (isEducator) {
-      router.push(`/teacher/bookdetail/${contentId}`);
+      router.push(`/educator/bookdetail/${contentId}`);
     } else {
       router.push(`/bookdetail/${contentId}`);
     }
