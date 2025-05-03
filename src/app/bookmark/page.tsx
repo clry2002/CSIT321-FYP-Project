@@ -5,7 +5,6 @@ import Navbar from '../components/Navbar';
 import { supabase } from '@/lib/supabase';
 import Image from 'next/image';
 import type { Book as BaseBook, Video as BaseVideo } from '@/types/database.types';
-// import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { handleBookmarkAction, syncExistingBookmarks } from '@/services/userInteractionsService';
 
@@ -32,7 +31,6 @@ interface Video extends BaseVideo {
 }
 
 export default function BookmarksPage() {
-  // const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [bookmarkedBooks, setBookmarkedBooks] = useState<Book[]>([]);
   const [bookmarkedVideos, setBookmarkedVideos] = useState<Video[]>([]);
@@ -46,6 +44,8 @@ export default function BookmarksPage() {
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [scheduledDate, setScheduledDate] = useState<string>('');
   const [pagesToRead, setPagesToRead] = useState<number>(0);
+  // Add a new state to track if data fetching is complete
+  const [dataFetched, setDataFetched] = useState(false);
 
   const filteredBooks = bookmarkedBooks.filter((book) =>
     book.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -111,6 +111,9 @@ export default function BookmarksPage() {
           if (!childUaid) return;
     
           console.log('Fetching bookmarks for child uaid:', childUaid);
+          // Set loading to true when starting to fetch bookmarks
+          setLoading(true);
+          setDataFetched(false);
     
           try {
             console.log('Starting to sync existing bookmark scores');
@@ -125,6 +128,8 @@ export default function BookmarksPage() {
     
             if (blockedGenresError) {
               console.error('Error fetching blocked genres:', blockedGenresError);
+              setLoading(false);
+              setDataFetched(true);
               return;
             }
     
@@ -146,6 +151,8 @@ export default function BookmarksPage() {
     
             if (bookmarksError) {
               console.error('Error fetching bookmarks:', bookmarksError);
+              setLoading(false);
+              setDataFetched(true);
               return;
             }
     
@@ -157,6 +164,8 @@ export default function BookmarksPage() {
               setBookmarkedVideos([]);
               setBookGenres({});
               setVideoGenres({});
+              setLoading(false);
+              setDataFetched(true);
               return;
             }
     
@@ -279,6 +288,9 @@ export default function BookmarksPage() {
     
           } catch (err) {
             console.error('Unexpected error fetching bookmarks:', err);
+          } finally {
+            setLoading(false);
+            setDataFetched(true);
           }
         };
     
@@ -407,7 +419,24 @@ export default function BookmarksPage() {
     }
   };
 
-  if (loading) return <div>Loading...</div>;
+  // Improved loading component
+  if (loading && !dataFetched) {
+    return (
+      <div className="flex flex-col min-h-screen relative">
+        <div 
+          className="absolute inset-0 bg-repeat bg-center"
+          style={{ backgroundImage: 'url(/stars.png)' }}
+        />
+        <Navbar />
+        <div className="flex-1 pt-32 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 mx-auto"></div>
+            <p className="mt-4 text-gray-300">Exploring the galaxy for your bookmarked treasures...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col min-h-screen relative">
@@ -616,8 +645,8 @@ export default function BookmarksPage() {
           </div>
         )}
   
-        {/* If no books or videos are found */}
-        {filteredBooks.length === 0 && filteredVideos.length === 0 && (
+        {/* Only show the "no content" message when data has been fetched and there are no results */}
+        {dataFetched && filteredBooks.length === 0 && filteredVideos.length === 0 && (
           <div className="text-gray-400 py-6 text-center">No bookmarked content found in this galaxy.</div>
         )}
       </div>

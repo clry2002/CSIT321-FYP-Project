@@ -6,9 +6,6 @@ import Navbar from '../components/Navbar';
 import ChatBot from '../components/ChatBot';
 import { useRouter } from 'next/navigation';
 
-// Import your CSS module if you choose that approach
-// import styles from './classroom.module.css';
-
 type Classroom = {
   crid: number;
   name: string;
@@ -30,9 +27,11 @@ export default function ClassroomPage() {
   const [userAccountId, setUserAccountId] = useState<string | null>(null);
   const [invitedClassrooms, setInvitedClassrooms] = useState<Classroom[]>([]);
   const [activeClassrooms, setActiveClassrooms] = useState<Classroom[]>([]);
-  const [loadingInvited, setLoadingInvited] = useState(false);
+  const [loadingInvited, setLoadingInvited] = useState(true);
+  const [loadingActive, setLoadingActive] = useState(true);
   const [, setLoading] = useState(true);
   const [userState, setUserState] = useState<SupabaseUser | null>(null);
+  const [dataFetched, setDataFetched] = useState(false);
 
   const router = useRouter();
 
@@ -87,6 +86,7 @@ export default function ClassroomPage() {
 
     const fetchInvitedClassrooms = async () => {
       setLoadingInvited(true);
+      setLoadingActive(true);
       try {
         console.log('Fetching invited classrooms for user account ID:', userAccountId);
         const { data: invites, error: inviteError } = await supabase
@@ -139,6 +139,8 @@ export default function ClassroomPage() {
         setActiveClassrooms([]);
       } finally {
         setLoadingInvited(false);
+        setLoadingActive(false);
+        setDataFetched(true);
       }
     };
 
@@ -191,6 +193,14 @@ export default function ClassroomPage() {
     router.push(`/classroomboard/${crid}`);
   };
 
+  // Custom loading spinner component
+  const LoadingSpinner = () => (
+    <div className="flex justify-center items-center py-6">
+      <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-yellow-400"></div>
+      <span className="ml-3 text-gray-300">Loading...</span>
+    </div>
+  );
+
   return (
     <div
       className="flex flex-col h-screen overflow-hidden"
@@ -210,7 +220,9 @@ export default function ClassroomPage() {
           <h3 className="text-2xl font-semibold text-yellow-400 mb-4 flex items-center">
             Active Classrooms
           </h3>
-          {activeClassrooms.length > 0 ? (
+          {loadingActive ? (
+            <LoadingSpinner />
+          ) : activeClassrooms.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {activeClassrooms.map((classroom) => (
                 <div
@@ -230,7 +242,7 @@ export default function ClassroomPage() {
               ))}
             </div>
           ) : (
-            <p className="text-gray-400">You don&apos;t have any active classrooms.</p>
+            dataFetched && <p className="text-gray-400">You don&apos;t have any active classrooms.</p>
           )}
         </div>
 
@@ -239,8 +251,8 @@ export default function ClassroomPage() {
           <h3 className="text-2xl font-semibold text-cyan-400 mb-4 flex items-center">
             Classroom Invitations
           </h3>
-          {loadingInvited && invitedClassrooms.length === 0 ? (
-            <p className="text-gray-400">Loading classroom invitations...</p>
+          {loadingInvited ? (
+            <LoadingSpinner />
           ) : invitedClassrooms.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {invitedClassrooms.map((classroom) => (
@@ -269,7 +281,7 @@ export default function ClassroomPage() {
               ))}
             </div>
           ) : (
-            !loadingInvited && <p className="text-gray-400">You don&apos;t have any invites.</p>
+            dataFetched && <p className="text-gray-400">You don&apos;t have any invites.</p>
           )}
         </div>
       </div>
