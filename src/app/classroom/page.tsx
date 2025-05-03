@@ -195,7 +195,7 @@ export default function ClassroomPage() {
     <div
       className="flex flex-col h-screen overflow-hidden"
       style={{
-        backgroundImage: 'url("/spaceshuttle.gif")', // Replace with your image path in 'public'
+        backgroundImage: 'url("/stars.png")',
         backgroundSize: 'cover',
         backgroundRepeat: 'no-repeat',
         backgroundPosition: 'center',

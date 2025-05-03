@@ -310,12 +310,20 @@ export default function ChildViewProfile() {
 
   return (
     <ErrorBoundary>
-      <div className="flex h-screen bg-gradient-to-br from-blue-100 to-purple-100 overflow-hidden">
+      <div
+          className="flex flex-col h-screen overflow-hidden"
+          style={{
+            backgroundImage: 'url("/stars.png")', // Replace with your image path in 'public'
+            backgroundSize: 'cover',
+            backgroundRepeat: 'no-repeat',
+            backgroundPosition: 'center',
+          }}
+        >
         <Navbar />
         <div className="flex-1 overflow-y-auto pt-12 pb-8 px-6 sm:px-8 lg:px-16">
           <Link
             href="/childsettings"
-            className="inline-flex items-center text-sm font-semibold text-indigo-600 hover:text-indigo-800 transition-colors duration-200 mb-6 mt-12"
+            className="inline-flex items-center text-sm font-semibold text-yellow-400 hover:text-indigo-600 transition-colors duration-200 mb-6 mt-12"
           >
             <svg className="w-4 h-4 mr-1 -ml-0.5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
               <path fillRule="evenodd" d="M7.707 14.707a1 1 0 01-1.414-1.414L10.586 10l-4.293-4.293a1 1 0 011.414-1.414l5 5a1 1 0 010 1.414l-5 5z" clipRule="evenodd" />

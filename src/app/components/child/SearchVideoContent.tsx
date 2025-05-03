@@ -350,7 +350,7 @@ useEffect(() => {
 
   return (
     <>
-      <div className="text-2xl font-bold text-gray-900 mb-6">
+      <div className="text-2xl font-bold text-yellow-400 mb-6">
         {query && `Search Results for "${query}"`}
       </div>
 
@@ -430,7 +430,7 @@ useEffect(() => {
             </div>
           ) : (
             searchInitiated && (
-              <div className="text-center py-8 text-gray-500">No videos found matching your search</div>
+              <div className="text-center py-8 text-red-600">No videos found matching your search</div>
             )
           )}
         </>

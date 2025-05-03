@@ -400,7 +400,7 @@ export default function BookDetailPage() {
             )}
   
             <div className="w-full md:w-2/3 space-y-4">
-              <h1 className="text-3xl font-bold text-indigo-300">{book.title}</h1>
+              <h1 className="text-3xl font-bold text-yellow-400">{book.title}</h1>
               <div>
                 <h2 className="text-gray-400">Author</h2>
                 <p className="text-gray-100">{book.credit}</p>

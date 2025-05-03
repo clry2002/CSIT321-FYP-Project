@@ -62,6 +62,7 @@ function AuthGuardInner({ children }: { children: ReactNode }) {
     '/auth/confirm',
     '/auth/update-password',
     '/logout',
+    '/adminpage',  // Add adminpage to public paths
   ];
 
   // Define paths that should be exempt from role checking (for reauthentication flows)
