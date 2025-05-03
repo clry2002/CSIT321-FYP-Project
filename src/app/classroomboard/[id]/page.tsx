@@ -379,9 +379,8 @@ export default function ClassroomBoardPage() {
       <Navbar />
 
       <div className="flex-1 overflow-y-auto pt-20 px-6 pb-6 mt-7">
-        <h2 className="text-4xl font-bold text-center text-gray-300 mb-6">Welcome to Your Classroom!</h2>
-
         <div className="bg-white shadow-lg rounded-xl p-8 max-w-xl mx-auto mb-8">
+        <h2 className="text-4xl font-bold text-center text-blue-600 mb-6">Welcome to Your Classroom!</h2>
           <div className="flex items-center mb-6">
             <span className="text-4xl text-yellow-500 mr-4">👨‍🏫</span>
             <h3 className="text-3xl font-semibold text-blue-600">{classroom.name}</h3>

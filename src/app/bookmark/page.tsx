@@ -410,7 +410,11 @@ export default function BookmarksPage() {
   if (loading) return <div>Loading...</div>;
 
   return (
-    <div className="flex flex-col min-h-screen relative bg-gradient-to-br from-gray-900 to-indigo-900">
+    <div className="flex flex-col min-h-screen relative">
+      <div 
+        className="absolute inset-0 bg-repeat bg-center"
+        style={{ backgroundImage: 'url(/stars.png)' }}
+      />
       <Navbar />
       <div className="flex-1 overflow-y-auto pt-32 px-8 relative">
         {notification.show && (
@@ -497,7 +501,7 @@ export default function BookmarksPage() {
         {/* Bookmarked Books */}
         {filteredBooks.length > 0 && (
           <div className="space-y-6 mb-10">
-            <h2 className="text-xl font-semibold text-indigo-300 mb-4">Books</h2>
+            <h2 className="text-xl font-semibold text-yellow-400 mb-4">Books</h2>
             {filteredBooks.map((book) => (
               <div key={book.cid} className={`flex items-start bg-gray-800 rounded-lg shadow-md ${
                 book.status === 'suspended' ? 'bg-gray-700' : 'hover:shadow-lg transition-shadow duration-200'
@@ -562,7 +566,7 @@ export default function BookmarksPage() {
         {/* Bookmarked Videos */}
         {filteredVideos.length > 0 && (
           <div className="space-y-6 mt-12 mb-10">
-            <h2 className="text-xl font-semibold text-indigo-300 mb-4">Videos</h2>
+            <h2 className="text-xl font-semibold text-yellow-400 mb-4">Videos</h2>
             {filteredVideos.map((video) => (
               <div key={video.cid} className={`flex items-start space-x-6 p-6 bg-gray-800 rounded-lg shadow-md ${
                 video.status === 'suspended' ? 'bg-gray-700' : 'hover:shadow-lg transition-shadow duration-200'

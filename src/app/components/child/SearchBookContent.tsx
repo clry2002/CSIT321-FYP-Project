@@ -283,7 +283,7 @@ function SearchResults({ query }: { query: string }) {
   return (
     <>
       {query && (
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">
+        <h1 className="text-2xl font-bold text-yellow-400 mb-6">
           Search Results for &quot;{query}&quot;
         </h1>
       )}

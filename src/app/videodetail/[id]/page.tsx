@@ -275,7 +275,7 @@ export default function VideoDetailPage() {
   
             {/* Video Details */}
             <div className="w-full md:w-1/3 space-y-4">
-              <h1 className="text-3xl font-bold text-indigo-300">{video.title}</h1>
+              <h1 className="text-3xl font-bold text-yellow-400">{video.title}</h1>
               <div>
                 <h2 className="text-gray-400">Director</h2>
                 <p className="text-gray-100">{video.credit}</p>
