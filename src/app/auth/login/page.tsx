@@ -59,6 +59,7 @@ export default function LoginPage() {
   const [formVisible, setFormVisible] = useState(false);
   const [mascotClicks, setMascotClicks] = useState(0);
   const [showAdminDialog, setShowAdminDialog] = useState(false);
+  const [showSignUpLink, setShowSignUpLink] = useState(false);
   
   // State for time limit exceeded
   const [timeLimitState, setTimeLimitState] = useState<TimeLimitState | null>(null);
@@ -89,125 +90,147 @@ export default function LoginPage() {
     setTimeLimitState(null);
   };
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setLoading(true);
+ // Direct approach using error messaging
 
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+ const handleLogin = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setError(null);
+  setShowSignUpLink(false);
+  setLoading(true);
 
-      if (error) throw error;
+  try {
+    // Attempt to sign in with the provided credentials
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
-      if (data.user) {
-        const { data: userData, error: userError } = await supabase
-          .from('user_account')
-          .select(`
-            id,
-            user_id,
-            upid,
-            suspended,
-            comments,
-            fullname,
-            userprofile!inner (
-              upid
-            )
-          `)
-          .eq('user_id', data.user.id)
-          .single() as { data: UserData | null, error: ErrorData | null };
-
-        if (userError) {
-          console.error('Error fetching user type:', userError.message);
-          throw new Error('Failed to fetch user profile');
-        }
-
-        if (userData?.suspended) {
-          router.push('/suspended');
-          return;
-        }
-
-        if (userData?.userprofile?.upid === 1) {
-          router.push('/publisherpage');
-        } else if (userData?.userprofile?.upid === 2) {
-          router.push('/parentpage');
-        } else if (userData?.userprofile?.upid === 3) {
-          try {
-            // Check time limit for child accounts
-            const timeLimitCheck = await timeLimitCheckService.checkUserTimeLimit(userData.id);
-            
-            // If time limit is exceeded, show time limit exceeded page
-            if (timeLimitCheck.isExceeded && timeLimitCheck.timeLimit !== null) {
-              console.log("Time limit exceeded, preventing login");
-              setTimeLimitState({
-                isExceeded: true,
-                timeUsed: timeLimitCheck.timeUsed,
-                timeLimit: timeLimitCheck.timeLimit,
-                username: userData.fullname || "there"
-              });
-              setLoading(false);
-              return;
-            }
-            
-            // Otherwise, proceed with normal flow
-            const { data: childDetailsArray, error: childDetailsError } = await supabase
-              .from('child_details')
-              .select('favourite_genres')
-              .eq('child_id', userData.id);
-
-            console.log("Child details check:", { childDetailsArray, error: childDetailsError });
-
-            if (childDetailsError) {
-              console.error('Error checking child details:', childDetailsError);
-              setError('Error checking account details. Please try again.');
-              setLoading(false);
-              return;
-            }
-
-            if (childDetailsArray && childDetailsArray.length > 0 &&
-              childDetailsArray[0].favourite_genres &&
-              childDetailsArray[0].favourite_genres.length > 0) {
-              console.log("Syncing favorite genres on login");
-              await syncFavoriteGenres(userData.id.toString());
-              router.push('/childpage');
-            } else {
-              if (!childDetailsArray || childDetailsArray.length === 0) {
-                console.log("Creating new child_details record");
-                const { error: insertError } = await supabase
-                  .from('child_details')
-                  .insert({
-                    child_id: userData.id,
-                    favourite_genres: []
-                  });
-
-                if (insertError) {
-                  console.error("Error creating child_details:", insertError);
-                  setError('Error setting up your account. Please try again.');
-                  setLoading(false);
-                  return;
-                }
-              }
-              router.push('/first-time-setup');
-            }
-          } catch (err) {
-            console.error('Error in child flow:', err);
-            setError('An unexpected error occurred. Please try again.');
-            setLoading(false);
-          }
-        } else if (userData?.userprofile?.upid === 5) {
-          router.push('/educatorpage');
-        } else {
-          throw new Error('Invalid user type');
-        }
+    // Handle auth errors
+    if (error) {
+      console.error('Auth error:', error);
+      
+      if (error.message.includes('Invalid login credentials')) {
+        setError('No user found');
+        setShowSignUpLink(true);
+      } else {
+        // Other auth errors (rate limiting, network issues, etc)
+        setError(error.message);
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred during login');
-    } finally {
+      
       setLoading(false);
+      return;
     }
-  };
+
+    // Continue with successful login flow...
+    if (data.user) {
+      // Continue with user profile checking
+      const { data: userData, error: userError } = await supabase
+        .from('user_account')
+        .select(`
+          id,
+          user_id,
+          upid,
+          suspended,
+          comments,
+          fullname,
+          userprofile!inner (
+            upid
+          )
+        `)
+        .eq('user_id', data.user.id)
+        .single() as { data: UserData | null, error: ErrorData | null };
+
+      if (userError) {
+        console.error('Error fetching user type:', userError.message);
+        throw new Error('Failed to fetch user profile');
+      }
+
+      // Rest of your existing login flow
+      if (userData?.suspended) {
+        router.push('/suspended');
+        return;
+      }
+
+      // Your routing logic based on user type
+      if (userData?.userprofile?.upid === 1) {
+        router.push('/publisherpage');
+      } else if (userData?.userprofile?.upid === 2) {
+        router.push('/parentpage');
+      } else if (userData?.userprofile?.upid === 3) {
+        try {
+          // Check time limit for child accounts
+          const timeLimitCheck = await timeLimitCheckService.checkUserTimeLimit(userData.id);
+          
+          // If time limit is exceeded, show time limit exceeded page
+          if (timeLimitCheck.isExceeded && timeLimitCheck.timeLimit !== null) {
+            console.log("Time limit exceeded, preventing login");
+            setTimeLimitState({
+              isExceeded: true,
+              timeUsed: timeLimitCheck.timeUsed,
+              timeLimit: timeLimitCheck.timeLimit,
+              username: userData.fullname || "there"
+            });
+            setLoading(false);
+            return;
+          }
+          
+          // Child account logic...
+          const { data: childDetailsArray, error: childDetailsError } = await supabase
+            .from('child_details')
+            .select('favourite_genres')
+            .eq('child_id', userData.id);
+
+          console.log("Child details check:", { childDetailsArray, error: childDetailsError });
+
+          if (childDetailsError) {
+            console.error('Error checking child details:', childDetailsError);
+            setError('Error checking account details. Please try again.');
+            setLoading(false);
+            return;
+          }
+
+          if (childDetailsArray && childDetailsArray.length > 0 &&
+            childDetailsArray[0].favourite_genres &&
+            childDetailsArray[0].favourite_genres.length > 0) {
+            console.log("Syncing favorite genres on login");
+            await syncFavoriteGenres(userData.id.toString());
+            router.push('/childpage');
+          } else {
+            if (!childDetailsArray || childDetailsArray.length === 0) {
+              console.log("Creating new child_details record");
+              const { error: insertError } = await supabase
+                .from('child_details')
+                .insert({
+                  child_id: userData.id,
+                  favourite_genres: []
+                });
+
+              if (insertError) {
+                console.error("Error creating child_details:", insertError);
+                setError('Error setting up your account. Please try again.');
+                setLoading(false);
+                return;
+              }
+            }
+            router.push('/first-time-setup');
+          }
+        } catch (err) {
+          console.error('Error in child flow:', err);
+          setError('An unexpected error occurred. Please try again.');
+          setLoading(false);
+        }
+      } else if (userData?.userprofile?.upid === 5) {
+        router.push('/educatorpage');
+      } else {
+        throw new Error('Invalid user type');
+      }
+    }
+  } catch (err) {
+    console.error('Login error:', err);
+    setError(err instanceof Error ? err.message : 'An error occurred during login');
+    setLoading(false);
+  }
+};
 
   const handleGoogleLogin = async () => {
     try {
@@ -354,11 +377,21 @@ export default function LoginPage() {
           </div>
 
           <form className="mt-8 space-y-6" onSubmit={handleLogin}>
-            {error && (
-              <div className="bg-red-50 text-red-500 p-3 rounded-lg text-sm">
-                {error}
-              </div>
-            )}
+          {error && (
+            <div className="bg-red-50 text-red-500 p-3 rounded-lg text-sm">
+              {showSignUpLink ? (
+                <>
+                  Invalid login credentials.{" "}
+                  <Link href="/auth/signup" className="text-purple-700 hover:text-purple-800 font-medium">
+                    Sign up now
+                  </Link>
+                  {" to create an account."}
+                </>
+              ) : (
+                error
+              )}
+            </div>
+          )}
 
             <div className="space-y-4">
               <div>
@@ -413,7 +446,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-purple-700 hover:bg-purple-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-700 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 transition-transform duration-200" // Added hover effect
+              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-purple-700 hover:bg-purple-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-700 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 transition-transform duration-200"
             >
               {loading ? 'Signing in...' : 'Sign in'}
             </button>
@@ -483,7 +516,7 @@ export default function LoginPage() {
           100% { transform: rotate(0deg); }
         }
         .animate-wiggle {
-          animation: wiggle 1s infinite ease-in-out; /* Changed duration back to 1s */
+          animation: wiggle 1s infinite ease-in-out;
         }
 
         @keyframes fly-in {

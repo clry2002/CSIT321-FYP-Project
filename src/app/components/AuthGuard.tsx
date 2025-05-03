@@ -35,6 +35,7 @@ function AuthGuardInner({ children }: { children: ReactNode }) {
     '/educatorpage': [5],          // educator only
     
     // Add profile sub-routes to the permissions
+    
     // Publisher
     '/publisher': [1],
 
@@ -62,7 +63,6 @@ function AuthGuardInner({ children }: { children: ReactNode }) {
     '/auth/confirm',
     '/auth/update-password',
     '/logout',
-    '/adminpage',  // Add adminpage to public paths // to remove or stay?
   ];
 
   // Define paths that should be exempt from role checking (for reauthentication flows)
