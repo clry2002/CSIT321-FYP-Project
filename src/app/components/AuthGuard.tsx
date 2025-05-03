@@ -26,6 +26,11 @@ function AuthGuardInner({ children }: { children: ReactNode }) {
                         searchParams?.get('action') === 'signup' ||
                         searchParams?.get('authProcess') === 'true';
 
+  // Reset authChecked when pathname changes
+  useEffect(() => {
+    setAuthChecked(false);
+  }, [pathname]);
+
   // Define route permissions with upid values
   const ROUTE_PERMISSIONS: Record<string, number[]> = {
     '/adminpage': [4],             // admin only
@@ -62,7 +67,7 @@ function AuthGuardInner({ children }: { children: ReactNode }) {
     '/auth/confirm',
     '/auth/update-password',
     '/logout',
-    '/adminpage',  // Add adminpage to public paths // to remove or stay?
+    '/adminpage',  // Add back to PUBLIC_PATHS but still protected by ROUTE_PERMISSIONS
   ];
 
   // Define paths that should be exempt from role checking (for reauthentication flows)
@@ -105,21 +110,27 @@ function AuthGuardInner({ children }: { children: ReactNode }) {
       (pathname?.startsWith(path + '/'))
     );
     
+    // Skip auth check for public paths
+    if (isPublicPath) {
+      console.log('Public path detected, skipping auth check');
+      setIsLoading(false);
+      setAuthChecked(true);
+      return;
+    }
+    
     // Check if current path is exempt from role checking for reauthentication flows
     const isReauthExemptPath = REAUTH_EXEMPT_PATHS.some(path =>
       pathname === path || pathname?.startsWith(path + '/')
     );
     
     // Skip auth check for:
-    // 1. Public paths
-    // 2. Auth processes
-    // 3. Anything in the /auth directory
-    // 4. Reauthentication exempt paths
-    if (isPublicPath || 
-        isAuthProcess || 
+    // 1. Auth processes
+    // 2. Anything in the /auth directory
+    // 3. Reauthentication exempt paths
+    if (isAuthProcess || 
         pathname?.startsWith('/auth/') ||
         (isReauthExemptPath && isReauthProcess)) {
-      console.log('Skipping auth check - public path, auth directory, auth process, or reauth exempt path');
+      console.log('Skipping auth check - auth directory, auth process, or reauth exempt path');
       setIsLoading(false);
       setAuthChecked(true);
       return;
@@ -139,16 +150,20 @@ function AuthGuardInner({ children }: { children: ReactNode }) {
         // Handle auth error by redirecting to landing page
         if (authError) {
           console.error('Auth error:', authError);
-          // Redirect to landing page instead of login
-          redirectTo('/landing');
+          // Only redirect to landing if not on admin page
+          if (!pathname?.startsWith('/adminpage')) {
+            redirectTo('/landing');
+          }
           return;
         }
         
         // If no user, redirect to landing page
         if (!user) {
           console.log('No authenticated user found, redirecting to landing page');
-          // Redirect to landing page instead of login
-          redirectTo('/landing');
+          // Only redirect to landing if not on admin page
+          if (!pathname?.startsWith('/adminpage')) {
+            redirectTo('/landing');
+          }
           return;
         }
 
@@ -163,7 +178,10 @@ function AuthGuardInner({ children }: { children: ReactNode }) {
 
         if (error) {
           console.error('Error fetching user profile:', error);
-          redirectTo('/error');
+          // Only redirect to error if not on admin page
+          if (!pathname?.startsWith('/adminpage')) {
+            redirectTo('/error');
+          }
           return;
         }
 
@@ -187,8 +205,7 @@ function AuthGuardInner({ children }: { children: ReactNode }) {
           return;
         }
 
-        // Improved path matching - check for the most specific path first, then less specific
-        // Get all possible base paths for the current pathname
+        // Check role permissions for all paths
         const pathParts = pathname?.split('/').filter(part => part) || [];
         const possiblePaths: string[] = [];
         
@@ -217,6 +234,14 @@ function AuthGuardInner({ children }: { children: ReactNode }) {
           }
         }
 
+        // Only after role check passes, allow access to public paths
+        if (isPublicPath) {
+          console.log('Public path access granted after role check');
+          setIsLoading(false);
+          setAuthChecked(true);
+          return;
+        }
+
         console.log('Authentication check successful, rendering page');
         setIsLoading(false);
         setAuthChecked(true);
@@ -226,7 +251,10 @@ function AuthGuardInner({ children }: { children: ReactNode }) {
       }
     };
 
-    checkAuth();
+    // Only run checkAuth if we haven't already checked auth
+    if (!authChecked) {
+      checkAuth();
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     pathname, 
