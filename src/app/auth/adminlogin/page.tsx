@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-// import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -19,12 +19,38 @@ export default function AdminLoginPage() {
     setLoading(true);
 
     try {
-      // Check hardcoded credentials
-      if (email !== "admin@mail.com" || password !== "claireloveskpop") {
-        throw new Error('Invalid admin credentials');
+      // Sign in with Supabase
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (authError) {
+        throw new Error(authError.message);
       }
 
-      // If credentials are correct, redirect to admin page
+      if (!authData.user) {
+        throw new Error('No user found');
+      }
+
+      // Check if user has admin role (upid 4)
+      const { data: userData, error: userError } = await supabase
+        .from('user_account')
+        .select('upid')
+        .eq('user_id', authData.user.id)
+        .single();
+
+      if (userError) {
+        throw new Error('Error fetching user role');
+      }
+
+      if (userData.upid !== 4) {
+        // Sign out the user if they're not an admin
+        await supabase.auth.signOut();
+        throw new Error('Access denied. Admin privileges required.');
+      }
+
+      // If everything is successful, redirect to admin page
       router.push('/adminpage');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred during login');
