@@ -1,13 +1,57 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Navbar from '../components/Navbar';
 import { useRouter } from 'next/navigation';
 import ChatBot from "../components/ChatBot";
+import BookCard from '../components/BookCard'; 
+import VideoCard from '../components/VideoCard';
+import { useBooks } from '../../hooks/useBooks';
+import { supabase } from '@/lib/supabase';
+import { Book, Video } from "../../types/database.types";
 
 export default function SearchPage() {
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState<'books' | 'videos'>('books');
+  const [isLoading, setIsLoading] = useState(true);
+  const [filteredBooks, setFilteredBooks] = useState<Book[]>([]);
+  const [availableVideos, setAvailableVideos] = useState<Video[]>([]);
   const router = useRouter();
+  const { availableBooks } = useBooks();
+  
+  // Initialize books from the hook
+  useEffect(() => {
+    if (availableBooks) {
+      setFilteredBooks(availableBooks);
+      setIsLoading(false);
+    }
+  }, [availableBooks]);
+
+  // Fetch videos if needed
+  useEffect(() => {
+    const fetchVideos = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('temp_content')
+          .select('*')
+          .eq('cfid', '1')
+          .eq('status', 'approved');
+
+        if (error) {
+          console.error('Error fetching videos:', error);
+          return;
+        }
+
+        setAvailableVideos(data || []);
+      } catch (error) {
+        console.error('Error in fetchVideos:', error);
+      }
+    };
+
+    if (activeTab === 'videos') {
+      fetchVideos();
+    }
+  }, [activeTab]);
 
   const handleSearch = (type: 'books' | 'videos') => {
     if (!searchQuery.trim()) return;
@@ -20,19 +64,27 @@ export default function SearchPage() {
     }
   };
 
+  // Handle tab switching
+  const handleTabChange = (tab: 'books' | 'videos') => {
+    setActiveTab(tab);
+  };
+
   return (
     <div className="flex flex-col min-h-screen relative">
+      {/* Stars Background */}
       <div 
         className="absolute inset-0 bg-repeat bg-center"
         style={{ backgroundImage: 'url(/stars.png)' }}
       />
+      
       <Navbar />
+      
       {/* Main Content */}
       <div className="flex-1 overflow-y-auto pt-16 px-6 relative">
-        <div className="max-w-2xl mx-auto mt-20">
-          {/* Search Interface */}
-          <div className="text-center mb-8 bg-black/50 backdrop-blur-sm p-8 rounded-xl shadow-lg">
-            <h1 className="text-3xl font-bold text-yellow-400 mb-4">Search Content</h1>
+        {/* Search Interface */}
+        <div className="max-w-3xl mx-auto mt-8 mb-6">
+          <div className="bg-black/50 backdrop-blur-sm p-6 rounded-xl shadow-lg">
+            <h1 className="text-3xl font-bold text-yellow-400 mb-4 text-center">Search Content</h1>
             <div className="relative">
               <input
                 type="text"
@@ -58,8 +110,106 @@ export default function SearchPage() {
             </div>
           </div>
         </div>
+        
+        {/* Category Tabs */}
+        <div className="max-w-6xl mx-auto mb-4">
+          <div className="flex border-b border-indigo-700/50">
+            <button
+              onClick={() => handleTabChange('books')}
+              className={`px-8 py-2 font-medium ${
+                activeTab === 'books' 
+                  ? 'text-blue-400 border-b-2 border-blue-400' 
+                  : 'text-gray-300'
+              }`}
+            >
+              Books
+            </button>
+            <button
+              onClick={() => handleTabChange('videos')}
+              className={`px-8 py-2 font-medium ${
+                activeTab === 'videos' 
+                  ? 'text-blue-400 border-b-2 border-blue-400' 
+                  : 'text-gray-300'
+              }`}
+            >
+              Videos
+            </button>
+          </div>
+        </div>
+        
+        {/* Content Display Section */}
+        <div className="max-w-6xl mx-auto">
+          <h2 className="text-2xl font-bold text-yellow-400 mb-4">
+            {activeTab === 'books' ? 'Available Books' : 'Available Videos'}
+          </h2>
+          
+          {isLoading ? (
+            // Loading state with skeleton UI matching your image
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+              {Array.from({ length: 10 }).map((_, index) => (
+                <div key={index} className="flex flex-col">
+                  {/* Gray card area for book cover */}
+                  <div className="bg-gray-200 rounded-lg aspect-[3/4] animate-pulse"></div>
+                  {/* Skeleton lines for text */}
+                  <div className="mt-2 bg-gray-700 rounded-lg p-2">
+                    <div className="bg-gray-400 h-4 w-3/4 rounded animate-pulse mb-2"></div>
+                    <div className="bg-gray-400 h-3 w-2/3 rounded animate-pulse"></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : activeTab === 'books' && filteredBooks.length > 0 ? (
+            // Books display
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              {filteredBooks.map((book, index) => (
+                <div key={index} className="rounded-lg overflow-hidden">
+                  <BookCard
+                    cid={book.cid}
+                    title={book.title}
+                    credit={book.credit}
+                    coverimage={book.coverimage}
+                    genre={book.genre || []}
+                    minimumage={book.minimumage}
+                    createddate={book.createddate || book.createddate}
+                    viewCount={book.viewcount || 0}
+                    showGenre={true}
+                    isEducator={false}
+                  />
+                </div>
+              ))}
+            </div>
+          ) : activeTab === 'videos' && availableVideos.length > 0 ? (
+            // Videos display with VideoCard component
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              {availableVideos.map((video, index) => (
+                <div key={index} className="rounded-lg overflow-hidden">
+                  <VideoCard
+                    cid={video.cid}
+                    title={video.title}
+                    credit={video.credit}
+                    contenturl={video.contenturl}
+                    minimumage={video.minimumage || 0}
+                    isEducator={false}
+                    lazyLoad={true} 
+                    genre={[]} 
+                    description={''} 
+                    cfid={0}                  
+                  />
+                </div>
+              ))}
+            </div>
+          ) : (
+            // No content state
+            <div className="bg-indigo-600/50 rounded-lg p-6 text-center">
+              <p className="text-white">
+                No {activeTab} available at the moment. Try searching for specific titles.
+              </p>
+            </div>
+          )}
+        </div>
+        
         <ChatBot />
       </div>
     </div>
   );
-} 
+}

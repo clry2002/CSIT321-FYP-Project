@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { Video } from '@/types/database.types';
 import AssignVideoModal from './educator/ClassroomDetails/AssignVideoModal';
+import { supabase } from '@/lib/supabase';
+import { useInteractions } from '../../hooks/useInteractions'; // Add this import for bookmarking functionality
 
 interface VideoCardProps extends Video {
   isEducator?: boolean;
@@ -21,6 +23,9 @@ const VideoCard: React.FC<VideoCardProps> = ({
   const [inView, setInView] = useState(!lazyLoad);
   const cardRef = React.useRef<HTMLDivElement>(null);
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+  const [isBookmarked, setIsBookmarked] = useState<boolean>(false);
+  const [isChecking, setIsChecking] = useState<boolean>(true);
+  const interactions = useInteractions();
   
   // Extract YouTube video ID using regex for better matching
   const getYoutubeVideoId = () => {
@@ -32,6 +37,61 @@ const VideoCard: React.FC<VideoCardProps> = ({
   
   const videoId = getYoutubeVideoId();
   const isYoutubeVideo = videoId !== null;
+
+  // Convert cid to string for consistent handling
+  const contentId = typeof cid === 'number' ? cid.toString() : cid;
+
+  // Effect for checking if video is bookmarked (students only)
+  useEffect(() => {
+    if (!isEducator) {
+      const checkIfBookmarked = async () => {
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) return;
+
+          const { data: userAccount, error } = await supabase
+            .from('user_account')
+            .select('id')
+            .eq('user_id', user.id)
+            .single();
+
+          if (error || !userAccount) {
+            console.error('Error fetching user account:', error);
+            setIsChecking(false);
+            return;
+          }
+
+          const { data: bookmark } = await supabase
+            .from('temp_bookmark')
+            .select('*')
+            .eq('uaid', userAccount.id)
+            .eq('cid', contentId)
+            .maybeSingle();
+
+          setIsBookmarked(!!bookmark);
+        } catch (error) {
+          console.error('Error checking bookmark:', error);
+        } finally {
+          setIsChecking(false);
+        }
+      };
+
+      checkIfBookmarked();
+    } else {
+      setIsChecking(false);
+    }
+  }, [contentId, isEducator]);
+
+  // Handle bookmark toggle function
+  const handleBookmarkToggle = useCallback(async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const success = await interactions.toggleBookmark(contentId, !isBookmarked);
+    if (success) {
+      setIsBookmarked(!isBookmarked);
+    }
+  }, [contentId, isBookmarked, interactions]);
 
   useEffect(() => {
     if (!lazyLoad || !cardRef.current) {
@@ -56,6 +116,14 @@ const VideoCard: React.FC<VideoCardProps> = ({
     };
   }, [lazyLoad]);
 
+  // Handle video view recording for students
+  const handleClick = useCallback(async () => {
+    // Only record views for students, not educators
+    if (!isEducator && contentId) {
+      await interactions.recordBookView(contentId);
+    }
+  }, [contentId, isEducator, interactions]);
+
   // Generate YouTube thumbnail URL for placeholder
   const thumbnailUrl = videoId 
     ? `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`
@@ -72,11 +140,14 @@ const VideoCard: React.FC<VideoCardProps> = ({
     <>
       <div 
         ref={cardRef}
-        className="border rounded-lg overflow-hidden hover:shadow-md transition-shadow duration-300 relative"
+        className={`border rounded-lg overflow-hidden hover:shadow-md transition-shadow duration-300 relative ${!isEducator ? 'h-full flex flex-col bg-gray-700' : ''}`}
       >
-        <Link href={`/${isEducator ? 'educator/videodetail' : 'child/video'}/${cid}`}>
+        <Link 
+          href={`/${isEducator ? 'educator/videodetail' : 'videodetails'}/${cid}`}
+          onClick={handleClick}
+        >
           {isYoutubeVideo && (
-            <div className="aspect-video bg-gray-100 relative">
+            <div className={`${isEducator ? 'aspect-video' : 'aspect-video'} bg-gray-100 relative`}>
               {inView ? (
                 <iframe
                   src={`https://www.youtube.com/embed/${videoId}?rel=0`}
@@ -110,15 +181,51 @@ const VideoCard: React.FC<VideoCardProps> = ({
             </div>
           )}
 
-          <div className="p-2">
-            <h3 className="font-bold text-xs text-black leading-tight line-clamp-2" style={{ fontFamily: 'Quicksand, Nunito, Arial Rounded MT Bold, Arial, sans-serif' }}>{title}</h3>
+          <div className={`p-2 ${!isEducator ? 'flex-grow flex flex-col' : ''}`}>
+            <h3 
+              className={`font-bold text-xs leading-tight line-clamp-2 ${isEducator ? 'text-black' : 'text-white'}`} 
+              style={{ fontFamily: 'Quicksand, Nunito, Arial Rounded MT Bold, Arial, sans-serif' }}
+            >
+              {title}
+            </h3>
             {credit && (
-              <p className="text-black text-xs mt-1" style={{ fontFamily: 'Quicksand, Nunito, Arial Rounded MT Bold, Arial, sans-serif' }}>
+              <p 
+                className={`text-xs mt-1 ${isEducator ? 'text-black' : 'text-white'}`} 
+                style={{ fontFamily: 'Quicksand, Nunito, Arial Rounded MT Bold, Arial, sans-serif' }}
+              >
                 {credit}
               </p>
             )}
           </div>
         </Link>
+        
+        {/* Bookmark button - only visible for students */}
+        {!isEducator && (
+          <button
+            className="absolute top-2 right-2 p-1.5 bg-white rounded-full shadow-md z-10"
+            onClick={handleBookmarkToggle}
+            aria-label={isBookmarked ? "Remove bookmark" : "Add bookmark"}
+          >
+            {isChecking ? (
+              <div className="w-4 h-4 rounded-full border-2 border-gray-300 border-t-transparent animate-spin"></div>
+            ) : (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill={isBookmarked ? "currentColor" : "none"}
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className={isBookmarked ? "text-blue-500" : "text-gray-500"}
+              >
+                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+              </svg>
+            )}
+          </button>
+        )}
         
         {/* Assign button - only visible for educators */}
         {isEducator && (
