@@ -1,17 +1,16 @@
 import React from 'react';
 import Image from 'next/image';
-import AudioButton from './AudioButton';
+import AudioButton from './audioButton';
 import VideoRenderer from './VideoRenderer';
 import AgeBadge from './AgeBadge';
 
-// First, define an interface for the content item
 interface ContentItem {
     title: string;
     description: string;
     coverimage?: string;
     contenturl: string;
     cid?: number;
-    cfid: number; // 1 for video, 2 for book
+    cfid: number;
     minimumage?: number | null;
   }
   
@@ -103,7 +102,7 @@ const ContentItem: React.FC<ContentItemProps> = ({
           </>
         )}
 
-        {/* For Videos, Add Video Detail Button */}
+        {/* For Videos */}
         {item.cfid === 1 && item.cid ? (
           <a
             href={`/videodetail/${item.cid}`}

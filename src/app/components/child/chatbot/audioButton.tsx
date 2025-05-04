@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Volume2, Pause } from 'lucide-react';
 
@@ -28,6 +27,7 @@ const AudioButton: React.FC<AudioButtonProps> = ({
         (isPaused ? <Volume2 size={15} /> : <Pause size={15} />) : 
         <Volume2 size={15} />
       }
+      {/* Option to pause and resume audio */}
       <span className="description-text">
         {isSpeaking ? 
           (isPaused ? 'Resume Reading' : 'Pause Reading') : 
