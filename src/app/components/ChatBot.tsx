@@ -346,6 +346,28 @@ const ChatBot: React.FC = () => {
     }
   };
 
+  // Function to render age badge with appropriate colors
+  const renderAgeBadge = (minimumAge: number | null) => {
+    if (minimumAge === null || minimumAge === undefined) return null;
+    
+    // Determine age bracket for styling (for range 2-8)
+    let ageBracket = "2";
+    if (minimumAge >= 7) {
+      ageBracket = "7"; // Ages 7-8
+    } else if (minimumAge >= 5) {
+      ageBracket = "5"; // Ages 5-6
+    } else if (minimumAge >= 3) {
+      ageBracket = "3"; // Ages 3-4
+    } else {
+      ageBracket = "2"; // Age 2
+    }
+    return (
+      <div className="age-badge" data-age={ageBracket}>
+        Ages {minimumAge}+
+      </div>
+    );
+  };
+
   return (
     <div className="chatbot-wrapper">
       {/* Show mascot to the left of the popup when open */}
@@ -478,7 +500,14 @@ const ChatBot: React.FC = () => {
                       
                       return (
                         <li key={idx} className="book-item">
-                          <strong>{item.title}</strong> - {item.description}
+                          <div className="content-header">
+                            <strong>{item.title}</strong>
+                            {/* Display age badge if minimumage exists */}
+                            {item.minimumage !== undefined && renderAgeBadge(item.minimumage)}
+                          </div>
+                          <div className="content-description">
+                            {item.description}
+                          </div>
                           <br />
                           {item.coverimage && item.cfid !== 1 && (
                             <Image

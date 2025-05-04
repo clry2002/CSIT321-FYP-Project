@@ -13,6 +13,7 @@ export interface Content {
   coverimage: string;
   cfid: number; // 1 = video, 2 = book
   cid: number;
+  minimumage: number;
 }
 
 // Define the Message interface

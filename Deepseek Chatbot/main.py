@@ -51,6 +51,7 @@ No profanities.
 Be more caring.
 Context:{context}
 Question:{question}
+Child's Age:{age}
 """)
 
 # Clean AI output
@@ -107,6 +108,21 @@ def read_data_from_file(file_path):
         logging.error(f"Error reading file {file_path}: {e}")
         return None
 
+# Get child's age from user_account
+def get_child_age(uaid_child):
+    try:
+        # Query the user_account table to get the child's age
+        result = supabase.from_("user_account").select("age").eq("id", uaid_child).single().execute()
+        
+        if result.data and "age" in result.data:
+            return result.data["age"]
+        else:
+            logging.warning(f"Age not found for child {uaid_child}, defaulting to 10")
+            return 10  # Default age if not found
+    except Exception as e:
+        logging.error(f"Error fetching child age: {e}")
+        return 10  # Default age on error
+
 # Check if a genre is blocked for a specific child
 def is_genre_blocked(genre_name, uaid_child):
     try:
@@ -128,9 +144,12 @@ def is_genre_blocked(genre_name, uaid_child):
         logging.error(f"Error checking if genre is blocked: {e}")
         return False
 
-# Content fetch function with blocked genre handling
+# Content fetch function with blocked genre and age-appropriate handling
 def get_content_by_genre_and_format(question, uaid_child):
     try:
+        # Get child's age for age-appropriate content
+        child_age = get_child_age(uaid_child)
+        
         # Get all available genres
         genres_query = supabase.from_("temp_genre").select("genrename").execute()
         if not genres_query.data:
@@ -183,16 +202,32 @@ def get_content_by_genre_and_format(question, uaid_child):
         if not response.data:
             return {"error": "No content found for the given genre and format"}
 
-        # Separate books and videos
+        # Separate books and videos and filter by age appropriateness
         filtered_books = []
         filtered_videos = []
 
         for item in response.data:
             if "temp_content" in item and item["temp_content"]:
-                if item["temp_content"]["cfid"] == 2:
-                    filtered_books.append(item["temp_content"])
-                elif item["temp_content"]["cfid"] == 1:
-                    filtered_videos.append(item["temp_content"])
+                content = item["temp_content"]
+                
+                # Skip content that's not age-appropriate
+                if "minimumage" in content and content["minimumage"] is not None:
+                    if int(content["minimumage"]) > child_age:
+                        continue
+                
+                if content["cfid"] == 2:
+                    filtered_books.append(content)
+                elif content["cfid"] == 1:
+                    filtered_videos.append(content)
+
+        # If no age-appropriate content is found
+        if not filtered_books and not filtered_videos:
+            return {
+                "error": "No age-appropriate content found",
+                "age_restricted": True,
+                "child_age": child_age,
+                "genre": detected_genre
+            }
 
         # Randomly select a subset of items if there are too many
         if filtered_books:
@@ -203,7 +238,8 @@ def get_content_by_genre_and_format(question, uaid_child):
         return {
             "genre": detected_genre,
             "books": filtered_books,
-            "videos": filtered_videos
+            "videos": filtered_videos,
+            "child_age": child_age
         }
 
     except Exception as e:
@@ -232,6 +268,9 @@ def chat():
     if context_from_file is None:
         return jsonify({"error": "Failed to read context from file"}), 500
 
+    # Get child's age for personalized responses
+    child_age = get_child_age(uaid_child)
+
     # Get content based on the question
     content_response = get_content_by_genre_and_format(question, uaid_child)
 
@@ -239,7 +278,7 @@ def chat():
     if "error" in content_response and content_response.get("blocked"):
         # Prepare a prompt to suggest alternative content
         alternative_prompt = f"The child asked for {content_response.get('requested_genre', 'certain')} content, but this is not available. Please suggest other kid-friendly genres and explain that this content isn't available right now. Be gentle and positive."
-        template_with_context = template.format(context=context_from_file, question=alternative_prompt)
+        template_with_context = template.format(context=context_from_file, question=alternative_prompt, age=child_age)
         
         try:
             ai_answer = deepseek_chain.invoke(template_with_context)
@@ -252,11 +291,28 @@ def chat():
             logging.error(f"AI response for alternative content failed: {e}")
             return jsonify({"error": "AI response failed"}), 500
     
+    # Handle age-restricted content
+    if "error" in content_response and content_response.get("age_restricted"):
+        # Prepare a prompt to suggest age-appropriate content
+        age_prompt = f"The child (age {child_age}) asked for {content_response.get('genre', 'certain')} content, but we only have content for older kids. Please suggest age-appropriate alternatives and explain in a child-friendly way. Be gentle and positive."
+        template_with_context = template.format(context=context_from_file, question=age_prompt, age=child_age)
+        
+        try:
+            ai_answer = deepseek_chain.invoke(template_with_context)
+            cleaned = clean_response(ai_answer)
+            save_chat_to_database(context=cleaned, is_chatbot=True, uaid_child=uaid_child)
+            
+            # Return the age-appropriate suggestions
+            return jsonify({"answer": cleaned})
+        except Exception as e:
+            logging.error(f"AI response for age-appropriate content failed: {e}")
+            return jsonify({"error": "AI response failed"}), 500
+    
     # If no content found or error, use AI
     if "error" in content_response or (
         not content_response.get("books") and not content_response.get("videos")
     ):
-        template_with_context = template.format(context=context_from_file, question=question)
+        template_with_context = template.format(context=context_from_file, question=question, age=child_age)
         try:
             ai_answer = deepseek_chain.invoke(template_with_context)
             cleaned = clean_response(ai_answer)
@@ -269,8 +325,9 @@ def chat():
     # If only missing books, use AI for book recommendations
     if not content_response.get("books"):
         try:
-            ai_book_prompt = f"What are some good kid-friendly books about {content_response['genre']}?"
-            ai_books = deepseek_chain.invoke(ai_book_prompt)
+            ai_book_prompt = f"What are some good kid-friendly books about {content_response['genre']} for a {child_age}-year-old child?"
+            template_with_books = template.format(context=context_from_file, question=ai_book_prompt, age=child_age)
+            ai_books = deepseek_chain.invoke(template_with_books)
             content_response["books_ai"] = clean_response(ai_books)
         except Exception as e:
             logging.warning(f"AI fallback for books failed: {e}")
@@ -278,8 +335,9 @@ def chat():
     # If only missing videos, use AI for video recommendations
     if not content_response.get("videos"):
         try:
-            ai_video_prompt = f"What are some good videos for kids related to {content_response['genre']}?"
-            ai_videos = deepseek_chain.invoke(ai_video_prompt)
+            ai_video_prompt = f"What are some good videos for kids about {content_response['genre']} appropriate for a {child_age}-year-old child?"
+            template_with_videos = template.format(context=context_from_file, question=ai_video_prompt, age=child_age)
+            ai_videos = deepseek_chain.invoke(template_with_videos)
             content_response["videos_ai"] = clean_response(ai_videos)
         except Exception as e:
             logging.warning(f"AI fallback for videos failed: {e}")
