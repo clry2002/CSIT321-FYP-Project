@@ -12,6 +12,7 @@ export interface Book {
     status: string; 
     createddate?: string | null;
     decisiondate?: string | null;
+    viewcount?: number;
 }
 
 export interface Video {

@@ -226,6 +226,8 @@ export default function AvailableContent() {
                     key={index} 
                     {...book} 
                     isEducator={true}
+                    viewCount={book.viewcount}
+                    createddate={book.createddate}
                   />
                 ))}
               </div>
@@ -237,6 +239,7 @@ export default function AvailableContent() {
                       key={index} 
                       {...video} 
                       isEducator={true}
+                      minimumage={video.minimumage}
                     />
                   ))
                 ) : (

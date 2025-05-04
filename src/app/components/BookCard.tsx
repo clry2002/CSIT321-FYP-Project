@@ -1,4 +1,3 @@
-// components/BookCard.tsx
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useInteractions } from '../../hooks/useInteractions';
@@ -170,7 +169,7 @@ const BookCard: React.FC<BookCardProps> = ({
 
   return (
     <>
-      <div className="border rounded-lg overflow-hidden hover:shadow-md transition-shadow duration-200">
+      <div className="border rounded-lg overflow-hidden hover:shadow-md transition-shadow duration-200 h-full flex flex-col">
         {/* Main content with hover effect */}
         <div 
           className="relative group cursor-pointer" 
@@ -220,7 +219,7 @@ const BookCard: React.FC<BookCardProps> = ({
           
           {/* Action buttons - positioned based on user type */}
           {isEducator ? (
-            // Assign button for educators (now using text-based button style from VideoCard)
+            // Assign button for educators
             <button
               className="absolute top-2 right-2 bg-green-500 text-white text-xs px-2 py-1 rounded shadow hover:bg-green-600 transition-colors z-10"
               onClick={handleAssign}
@@ -257,17 +256,23 @@ const BookCard: React.FC<BookCardProps> = ({
           )}
         </div>
         
-        <div className="p-2 flex flex-col justify-between min-h-[100px] h-[100px]">
-          <h3 className="font-bold text-xs leading-tight text-white" style={{ fontFamily: 'Quicksand, Nunito, Arial Rounded MT Bold, Arial, sans-serif' }}>{truncateTitle(title)}</h3>
-          {/* Credits/Author: always 2 lines, ellipsis if too long */}
+        {/* Book info section - Content */}
+        <div className="p-2 flex-grow flex flex-col">
+          <h3 
+            className={`font-bold text-xs leading-tight ${isEducator ? 'text-black' : 'text-white'}`} 
+            style={{ fontFamily: 'Quicksand, Nunito, Arial Rounded MT Bold, Arial, sans-serif' }}
+          >
+            {truncateTitle(title)}
+          </h3>
+          
           <p
-            className="text-white text-xs mt-0.5 overflow-hidden text-ellipsis"
+            className={`text-xs mt-0.5 overflow-hidden text-ellipsis ${isEducator ? 'text-black' : 'text-white'}`}
             style={{
               fontFamily: 'Quicksand, Nunito, Arial Rounded MT Bold, Arial, sans-serif',
               display: '-webkit-box',
               WebkitLineClamp: 2,
               WebkitBoxOrient: 'vertical',
-              minHeight: '32px', // 2 lines
+              minHeight: '32px',
               maxHeight: '32px',
               lineHeight: '16px',
               whiteSpace: 'normal',
@@ -276,9 +281,10 @@ const BookCard: React.FC<BookCardProps> = ({
           >
             {displayAuthor}
           </p>
-          {/* Genre always on the last line, allow more space for tags */}
+          
+          {/* Genre tags */}
           {showGenre && genre.length > 0 && (
-            <div className="mt-1 flex flex-wrap gap-1">
+            <div className="mt-1 flex flex-wrap gap-1 mb-auto">
               {genre.slice(0, 2).map((g, i) => (
                 <span key={i} className="text-white text-[12px] bg-blue-800 px-2 py-0.5 rounded-full" style={{ fontFamily: 'Quicksand, Nunito, Arial Rounded MT Bold, Arial, sans-serif', maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', display: 'inline-block', whiteSpace: 'nowrap' }}>
                   {g.length > 20 ? g.slice(0, 19) + '...' : g}
@@ -291,9 +297,10 @@ const BookCard: React.FC<BookCardProps> = ({
               )}
             </div>
           )}
+          
           {/* Education-specific metadata (only shown to educators) */}
           {isEducator && (
-            <div className="mt-2 pt-2 border-t border-gray-100">
+            <div className="mt-auto pt-2 border-t border-gray-100">
               <div className="flex items-center text-xs text-gray-500 mt-1">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -310,7 +317,7 @@ const BookCard: React.FC<BookCardProps> = ({
                   <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                   <circle cx="12" cy="12" r="3"></circle>
                 </svg>
-                {isEducator && isLoadingViewCount ? (
+                {isLoadingViewCount ? (
                   <span className="ml-1 w-3 h-3 inline-block animate-spin border-2 border-gray-300 border-t-transparent rounded-full"></span>
                 ) : (
                   <>{actualViewCount} views</>
@@ -336,7 +343,7 @@ const BookCard: React.FC<BookCardProps> = ({
                     <line x1="8" y1="2" x2="8" y2="6"></line>
                     <line x1="3" y1="10" x2="21" y2="10"></line>
                   </svg>
-                  Added: {formatDate(createddate)}
+                  Published on: {formatDate(createddate)}
                 </div>
               )}
             </div>

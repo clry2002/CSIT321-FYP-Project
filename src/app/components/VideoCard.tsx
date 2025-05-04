@@ -6,6 +6,7 @@ import AssignVideoModal from './educator/ClassroomDetails/AssignVideoModal';
 interface VideoCardProps extends Video {
   isEducator?: boolean;
   lazyLoad?: boolean;
+  minimumage: number;
 }
 
 const VideoCard: React.FC<VideoCardProps> = ({
@@ -13,6 +14,7 @@ const VideoCard: React.FC<VideoCardProps> = ({
   title,
   credit,
   contenturl,
+  minimumage,
   isEducator = false,
   lazyLoad = true
 }) => {
@@ -72,9 +74,9 @@ const VideoCard: React.FC<VideoCardProps> = ({
         ref={cardRef}
         className="border rounded-lg overflow-hidden hover:shadow-md transition-shadow duration-300 relative"
       >
-        <Link href={`/${isEducator ? 'teacher/videodetail' : 'child/video'}/${cid}`}>
+        <Link href={`/${isEducator ? 'educator/videodetail' : 'child/video'}/${cid}`}>
           {isYoutubeVideo && (
-            <div className="aspect-video bg-gray-100">
+            <div className="aspect-video bg-gray-100 relative">
               {inView ? (
                 <iframe
                   src={`https://www.youtube.com/embed/${videoId}?rel=0`}
@@ -98,13 +100,20 @@ const VideoCard: React.FC<VideoCardProps> = ({
                   </div>
                 </div>
               )}
+              
+              {/* Age rating indicator - Added similar to BookCard */}
+              {minimumage && minimumage > 0 && (
+                <div className="absolute top-1 left-1 bg-blue-900 text-white rounded-full px-2 h-6 flex items-center justify-center">
+                  <span className="text-xs font-medium">{minimumage}+</span>
+                </div>
+              )}
             </div>
           )}
 
           <div className="p-2">
-            <h3 className="font-bold text-xs text-white leading-tight line-clamp-2" style={{ fontFamily: 'Quicksand, Nunito, Arial Rounded MT Bold, Arial, sans-serif' }}>{title}</h3>
+            <h3 className="font-bold text-xs text-black leading-tight line-clamp-2" style={{ fontFamily: 'Quicksand, Nunito, Arial Rounded MT Bold, Arial, sans-serif' }}>{title}</h3>
             {credit && (
-              <p className="text-white text-xs mt-1" style={{ fontFamily: 'Quicksand, Nunito, Arial Rounded MT Bold, Arial, sans-serif' }}>
+              <p className="text-black text-xs mt-1" style={{ fontFamily: 'Quicksand, Nunito, Arial Rounded MT Bold, Arial, sans-serif' }}>
                 {credit}
               </p>
             )}

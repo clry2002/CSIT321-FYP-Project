@@ -87,7 +87,7 @@ export const useBooks = () => {
           status: book.status || '',
           createddate: book.createddate,
           decisiondate: book.decisiondate,
-          genre: book.genre || [] // Ensure genre is always defined
+          genre: book.genre || []
         }));
 
         setAvailableBooks(formattedBooks);
