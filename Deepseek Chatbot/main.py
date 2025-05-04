@@ -17,6 +17,7 @@ import re
 import random
 import datetime
 import logging
+import json
 
 # Load environment variables
 load_dotenv()
@@ -38,6 +39,14 @@ deepseek_chain = deepseek | parser
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+# Define the status values for content
+CONTENT_STATUS = {
+    "PENDING": "pending",     # Content is awaiting approval
+    "APPROVED": "approved",   # Content has been approved for display
+    "DENIED": "denied",         # Content has been rejected
+    "SUSPENDED": "suspended"    # Content is archived (not active)
+}
 
 # Chatbot template
 template = ("""
@@ -147,15 +156,22 @@ def is_genre_blocked(genre_name, uaid_child):
 # Content fetch function with blocked genre and age-appropriate handling
 def get_content_by_genre_and_format(question, uaid_child):
     try:
+        # Set up logging for this request
+        request_id = f"req_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}_{random.randint(1000, 9999)}"
+        logging.info(f"[{request_id}] Starting content query for question: '{question}' from child: {uaid_child}")
+        
         # Get child's age for age-appropriate content
         child_age = get_child_age(uaid_child)
+        logging.info(f"[{request_id}] Child age: {child_age}")
         
         # Get all available genres
         genres_query = supabase.from_("temp_genre").select("genrename").execute()
         if not genres_query.data:
+            logging.error(f"[{request_id}] No genres found in database")
             return {"error": "No genres found in the database"}
 
         genres = [genre["genrename"].lower() for genre in genres_query.data]
+        logging.info(f"[{request_id}] Available genres: {genres}")
         
         # Define format keywords for content type detection
         format_keywords = {
@@ -166,24 +182,28 @@ def get_content_by_genre_and_format(question, uaid_child):
         # Normalize the question and detect genre
         normalized_question = re.sub(r'[^\w\s]', '', question).strip().lower()
         detected_genre = next((genre for genre in genres if genre in normalized_question), None)
-        
-        # Detect content format (book/video)
         detected_format = next((word for word in question.split() if word.lower() in format_keywords), None)
         cfid = format_keywords.get(detected_format.lower(), None) if detected_format else None
 
+        logging.info(f"[{request_id}] Detected genre: {detected_genre}, format: {detected_format}, cfid: {cfid}")
+
         if not detected_genre:
+            logging.warning(f"[{request_id}] Unable to detect genre from question")
             return {"error": "Unable to detect genre from the question"}
         
         # Check if the detected genre is blocked for this child
-        if is_genre_blocked(detected_genre, uaid_child):
-            logging.info(f"Blocked genre '{detected_genre}' requested by child {uaid_child}")
+        is_blocked = is_genre_blocked(detected_genre, uaid_child)
+        logging.info(f"[{request_id}] Genre '{detected_genre}' blocked for child {uaid_child}: {is_blocked}")
+        
+        if is_blocked:
+            logging.info(f"[{request_id}] Blocked genre '{detected_genre}' requested by child {uaid_child}")
             return {
                 "error": "This genre is not available",
                 "blocked": True,
                 "requested_genre": detected_genre
             }
 
-        # Build query to get content for the detected genre
+        # Build query to get content for the detected genre with status filter for approved content
         query = (
             supabase
             .from_("temp_contentgenres")
@@ -192,14 +212,39 @@ def get_content_by_genre_and_format(question, uaid_child):
                 "temp_content(cid, title, description, minimumage, contenturl, status, coverimage, cfid)"
             )
             .ilike("temp_genre.genrename", f"%{detected_genre}%")
+            # Filter by approved status
+            .eq("temp_content.status", CONTENT_STATUS["APPROVED"])
         )
+
+        # Log the query being executed
+        logging.info(f"[{request_id}] Executing query with status filter: status={CONTENT_STATUS['APPROVED']}")
 
         # Filter by content format if specified
         if cfid:
             query = query.eq("temp_content.cfid", cfid)
+            logging.info(f"[{request_id}] Added format filter: cfid={cfid}")
 
+        # Execute the query and log results
         response = query.execute()
+        logging.info(f"[{request_id}] Query returned {len(response.data) if response.data else 0} results")
+        
+        # Log a sample of returned content IDs and statuses
+        if response.data and len(response.data) > 0:
+            sample_content = []
+            for item in response.data[:min(3, len(response.data))]:
+                if "temp_content" in item and item["temp_content"]:
+                    content = item["temp_content"]
+                    sample_content.append({
+                        "cid": content.get("cid"),
+                        "title": content.get("title"),
+                        "status": content.get("status"),
+                        "cfid": content.get("cfid"),
+                        "minimumage": content.get("minimumage")
+                    })
+            logging.info(f"[{request_id}] Sample content: {json.dumps(sample_content)}")
+        
         if not response.data:
+            logging.warning(f"[{request_id}] No content found for genre '{detected_genre}' with status 'approved'")
             return {"error": "No content found for the given genre and format"}
 
         # Separate books and videos and filter by age appropriateness
@@ -210,18 +255,31 @@ def get_content_by_genre_and_format(question, uaid_child):
             if "temp_content" in item and item["temp_content"]:
                 content = item["temp_content"]
                 
+                # Log content item being processed
+                logging.debug(f"[{request_id}] Processing content: cid={content.get('cid')}, " 
+                             f"title='{content.get('title')}', status='{content.get('status')}', "
+                             f"minimumage={content.get('minimumage')}, cfid={content.get('cfid')}")
+                
                 # Skip content that's not age-appropriate
                 if "minimumage" in content and content["minimumage"] is not None:
                     if int(content["minimumage"]) > child_age:
+                        logging.debug(f"[{request_id}] Skipping content cid={content.get('cid')} due to age restriction "
+                                     f"(minimumage={content.get('minimumage')} > child_age={child_age})")
                         continue
                 
                 if content["cfid"] == 2:
                     filtered_books.append(content)
+                    logging.debug(f"[{request_id}] Added book: cid={content.get('cid')}, title='{content.get('title')}'")
                 elif content["cfid"] == 1:
                     filtered_videos.append(content)
+                    logging.debug(f"[{request_id}] Added video: cid={content.get('cid')}, title='{content.get('title')}'")
+
+        # Log age-appropriate content counts
+        logging.info(f"[{request_id}] After age filtering: {len(filtered_books)} books, {len(filtered_videos)} videos")
 
         # If no age-appropriate content is found
         if not filtered_books and not filtered_videos:
+            logging.warning(f"[{request_id}] No age-appropriate content found for genre '{detected_genre}' and child age {child_age}")
             return {
                 "error": "No age-appropriate content found",
                 "age_restricted": True,
@@ -232,8 +290,18 @@ def get_content_by_genre_and_format(question, uaid_child):
         # Randomly select a subset of items if there are too many
         if filtered_books:
             filtered_books = random.sample(filtered_books, min(5, len(filtered_books)))
+            logging.info(f"[{request_id}] Selected {len(filtered_books)} books randomly")
         if filtered_videos:
             filtered_videos = random.sample(filtered_videos, min(5, len(filtered_videos)))
+            logging.info(f"[{request_id}] Selected {len(filtered_videos)} videos randomly")
+
+        logging.info(f"[{request_id}] Returning content: {len(filtered_books)} books, {len(filtered_videos)} videos")
+        
+        # Log the final CIDs being returned
+        book_cids = [book.get("cid") for book in filtered_books]
+        video_cids = [video.get("cid") for video in filtered_videos]
+        logging.info(f"[{request_id}] Returning book CIDs: {book_cids}")
+        logging.info(f"[{request_id}] Returning video CIDs: {video_cids}")
 
         return {
             "genre": detected_genre,
@@ -243,7 +311,7 @@ def get_content_by_genre_and_format(question, uaid_child):
         }
 
     except Exception as e:
-        logging.error(f"Database query failed: {e}")
+        logging.error(f"Database query failed: {e}", exc_info=True)
         return {"error": "Database query failed"}
 
 # Main chatbot route
@@ -252,8 +320,6 @@ def chat():
     data = request.json
     raw_question = data.get("question", "")
     uaid_child = data.get("uaid_child")
-    
-    # Basic question cleaning
     question = raw_question.strip()
     normalized_question = re.sub(r'[^\w\s]', '', raw_question).strip().lower()
 
@@ -271,7 +337,7 @@ def chat():
     # Get child's age for personalized responses
     child_age = get_child_age(uaid_child)
 
-    # Get content based on the question
+    # Get content based on the question (only approved content)
     content_response = get_content_by_genre_and_format(question, uaid_child)
 
     # Handle blocked genres with alternative suggestions
@@ -308,7 +374,7 @@ def chat():
             logging.error(f"AI response for age-appropriate content failed: {e}")
             return jsonify({"error": "AI response failed"}), 500
     
-    # If no content found or error, use AI
+    # If no content at all, use AI
     if "error" in content_response or (
         not content_response.get("books") and not content_response.get("videos")
     ):
@@ -347,19 +413,6 @@ def chat():
 
     return jsonify(content_response)
 
-# Special route for checking if a genre is blocked (can be used by frontend)
-@app.route('/api/check-blocked-genre', methods=['POST'])
-def check_blocked_genre():
-    data = request.json
-    genre_name = data.get("genre", "")
-    uaid_child = data.get("uaid_child")
-    
-    if not genre_name or not uaid_child:
-        return jsonify({"error": "Missing genre or child ID"}), 400
-    
-    blocked = is_genre_blocked(genre_name, uaid_child)
-    return jsonify({"blocked": blocked})
-
 # Standard response endpoints for common questions
 @app.route('/api/standard-responses', methods=['GET'])
 def get_standard_responses():
@@ -380,7 +433,7 @@ def get_standard_responses():
 
 # Run the Flask app
 if __name__ == '__main__':
+    # Start the Flask app
     app.run(debug=True)
-    # For production deployment
     # port = int(os.environ.get("PORT", 5000))
     # app.run(host="0.0.0.0", port=port, debug=False)
