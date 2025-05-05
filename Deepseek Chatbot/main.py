@@ -19,6 +19,9 @@ import datetime
 import logging
 import json
 
+# Import the kid_friendly module
+from kid_friendly_responses import make_kid_friendly, clean_response, analyze_text_complexity
+
 # Load environment variables
 load_dotenv()
 
@@ -48,30 +51,29 @@ CONTENT_STATUS = {
     "SUSPENDED": "suspended"    # Content is archived (not active)
 }
 
-# Chatbot template
+# Enhanced chatbot template with kid-friendly instructions
 template = ("""
 You are an AI-powered chatbot designed to provide 
 recommendations for books and videos for children/kids
 based on the context provided to you only.
 Don't in any way make things up.
-Sound kid-friendly.
-Speak as if you are talking directly to a child.
-No profanities.
-Be more caring.
+
+# IMPORTANT READABILITY GUIDELINES:
+- Sound kid-friendly and enthusiastic!
+- Use simple words with 1-2 syllables whenever possible
+- Keep sentences short (under 12 words)
+- Use active voice, not passive voice
+- Explain any complex terms immediately
+- Use concrete examples rather than abstract concepts
+- Be enthusiastic and playful! Use exclamation points!
+- Include occasional fun expressions like "Wow!" or "Awesome!"
+- For ages 5-8: Use very simple language (Grade 1-2 level)
+- For ages 9-12: Use moderately simple language (Grade 3-4 level)
+
 Context:{context}
 Question:{question}
 Child's Age:{age}
 """)
-
-# Clean AI output
-def clean_response(response):
-    cleaned_response = re.sub(r"<think>.*?</think>", "", response, flags=re.DOTALL)
-    cleaned_response = re.sub(r"<think>|</think>", "", cleaned_response)
-    cleaned_response = re.sub(r"\\(.?)\\*", r"<b>\1</b>", cleaned_response)
-    cleaned_response = re.sub(r"###\s?(.*)", r"<h3>\1</h3>", cleaned_response)
-    cleaned_response = re.sub("\n+", "<br>", cleaned_response)
-    cleaned_response = re.sub(r"^\s*<br>", "", cleaned_response)
-    return cleaned_response.strip()
 
 def save_chat_to_database(context, is_chatbot, uaid_child):
     try:
@@ -348,11 +350,12 @@ def chat():
         
         try:
             ai_answer = deepseek_chain.invoke(template_with_context)
-            cleaned = clean_response(ai_answer)
-            save_chat_to_database(context=cleaned, is_chatbot=True, uaid_child=uaid_child)
+            # Use the new kid-friendly function instead of basic cleaning
+            kid_friendly_answer = make_kid_friendly(ai_answer, child_age, deepseek_chain)
+            save_chat_to_database(context=kid_friendly_answer, is_chatbot=True, uaid_child=uaid_child)
             
             # Return the alternate content suggestion
-            return jsonify({"answer": cleaned})
+            return jsonify({"answer": kid_friendly_answer})
         except Exception as e:
             logging.error(f"AI response for alternative content failed: {e}")
             return jsonify({"error": "AI response failed"}), 500
@@ -365,11 +368,12 @@ def chat():
         
         try:
             ai_answer = deepseek_chain.invoke(template_with_context)
-            cleaned = clean_response(ai_answer)
-            save_chat_to_database(context=cleaned, is_chatbot=True, uaid_child=uaid_child)
+            # Use the new kid-friendly function
+            kid_friendly_answer = make_kid_friendly(ai_answer, child_age, deepseek_chain)
+            save_chat_to_database(context=kid_friendly_answer, is_chatbot=True, uaid_child=uaid_child)
             
             # Return the age-appropriate suggestions
-            return jsonify({"answer": cleaned})
+            return jsonify({"answer": kid_friendly_answer})
         except Exception as e:
             logging.error(f"AI response for age-appropriate content failed: {e}")
             return jsonify({"error": "AI response failed"}), 500
@@ -381,9 +385,10 @@ def chat():
         template_with_context = template.format(context=context_from_file, question=question, age=child_age)
         try:
             ai_answer = deepseek_chain.invoke(template_with_context)
-            cleaned = clean_response(ai_answer)
-            save_chat_to_database(context=cleaned, is_chatbot=True, uaid_child=uaid_child)
-            return jsonify({"answer": cleaned})
+            # Use the new kid-friendly function
+            kid_friendly_answer = make_kid_friendly(ai_answer, child_age, deepseek_chain)
+            save_chat_to_database(context=kid_friendly_answer, is_chatbot=True, uaid_child=uaid_child)
+            return jsonify({"answer": kid_friendly_answer})
         except Exception as e:
             logging.error(f"AI response failed: {e}")
             return jsonify({"error": "AI response failed"}), 500
@@ -394,7 +399,8 @@ def chat():
             ai_book_prompt = f"What are some good kid-friendly books about {content_response['genre']} for a {child_age}-year-old child?"
             template_with_books = template.format(context=context_from_file, question=ai_book_prompt, age=child_age)
             ai_books = deepseek_chain.invoke(template_with_books)
-            content_response["books_ai"] = clean_response(ai_books)
+            # Use the new kid-friendly function
+            content_response["books_ai"] = make_kid_friendly(ai_books, child_age, deepseek_chain)
         except Exception as e:
             logging.warning(f"AI fallback for books failed: {e}")
 
@@ -404,7 +410,8 @@ def chat():
             ai_video_prompt = f"What are some good videos for kids about {content_response['genre']} appropriate for a {child_age}-year-old child?"
             template_with_videos = template.format(context=context_from_file, question=ai_video_prompt, age=child_age)
             ai_videos = deepseek_chain.invoke(template_with_videos)
-            content_response["videos_ai"] = clean_response(ai_videos)
+            # Use the new kid-friendly function
+            content_response["videos_ai"] = make_kid_friendly(ai_videos, child_age, deepseek_chain)
         except Exception as e:
             logging.warning(f"AI fallback for videos failed: {e}")
 
@@ -434,6 +441,6 @@ def get_standard_responses():
 # Run the Flask app
 if __name__ == '__main__':
     # Start the Flask app
-    app.run(debug=True)
-    # port = int(os.environ.get("PORT", 5000))
-    # app.run(host="0.0.0.0", port=port, debug=False)
+    # app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=False)

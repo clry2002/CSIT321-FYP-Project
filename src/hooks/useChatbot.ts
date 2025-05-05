@@ -3,7 +3,7 @@ import axios from 'axios';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 
-// const API_URL = "https://csit321-fyp-project.onrender.com";
+const API_URL = "https://csit321-fyp-project.onrender.com";
 
 // Define the Content interface with cfid and cid
 export interface Content {
@@ -122,8 +122,8 @@ export const useChatbot = () => {
       setMessages((prev) => [...prev, { role: 'user', content: message }]);
 
       const response = await axios.post(
-        //`${API_URL}/api/chat`,
-         'http://127.0.0.1:5000/api/chat',
+        `${API_URL}/api/chat`,
+        // 'http://127.0.0.1:5000/api/chat',
         JSON.stringify({
           question: message,
           uaid_child: uaid_child,
