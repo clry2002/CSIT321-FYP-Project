@@ -221,9 +221,12 @@ const ChatBot: React.FC = () => {
                   </ul>
                 ) : (
                   <div>
-                    {/* Render text message */}
+                    {/* Render text message with clickable genres */}
                     {typeof message.content === "string" && (
-                      <MessageRenderer message={message.content} />
+                      <MessageRenderer 
+                        message={message.content} 
+                        onGenreClick={message.role === 'assistant' ? handleGenreClick : undefined} 
+                      />
                     )}
 
                     {/* Only show genre suggestions after the latest bot message */}

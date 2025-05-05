@@ -964,3 +964,112 @@ body .calendar-popup.visible ~ .notification-badge,
 .book-item:hover {
   background-color: rgba(255, 255, 255, 0.1);
 }
+
+
+/* Chatbot - Style for clickable genre links in chat messages */
+.genre-link-button {
+  display: inline;
+  padding: 2px 6px;
+  margin: 0 2px;
+  background-color: rgba(75, 198, 137, 0.15);
+  color: #4bc689;
+  border: none;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: inherit;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+  line-height: 1.2;
+  position: relative;
+}
+
+.genre-link-button:hover {
+  background-color: rgba(75, 198, 137, 0.3);
+  transform: translateY(-1px);
+}
+
+.genre-link-button:active {
+  transform: translateY(0);
+}
+
+/* Tooltip styles using data-tooltip attribute */
+.genre-link-button::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  background-color: #4bc689;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  bottom: calc(100% + 5px);
+  left: 50%;
+  transform: translateX(-50%) translateY(5px);
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  pointer-events: none;
+  z-index: 100;
+}
+
+/* Triangle pointer for tooltip */
+.genre-link-button::before {
+  content: "";
+  position: absolute;
+  bottom: calc(100% + 3px);
+  left: 50%;
+  transform: translateX(-50%) translateY(5px);
+  border-width: 5px;
+  border-style: solid;
+  border-color: #4bc689 transparent transparent transparent;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.2s ease;
+  pointer-events: none;
+  z-index: 100;
+}
+
+/* Show tooltip on hover */
+.genre-link-button:hover::after,
+.genre-link-button:hover::before {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Mobile responsiveness for genre links */
+@media (max-width: 640px) {
+  .genre-link-button {
+    padding: 1px 4px;
+    font-size: 0.95em;
+  }
+  
+  .genre-link-button::after {
+    font-size: 10px;
+    padding: 3px 6px;
+  }
+  
+  /* For very small screens, position tooltip to the side instead of top */
+  @media (max-width: 360px) {
+    .genre-link-button::after {
+      bottom: 50%;
+      left: calc(100% + 5px);
+      transform: translateY(50%) translateX(5px);
+    }
+    
+    .genre-link-button::before {
+      bottom: 50%;
+      left: calc(100% + 3px);
+      transform: translateY(50%);
+      border-color: transparent #4bc689 transparent transparent;
+    }
+    
+    .genre-link-button:hover::after,
+    .genre-link-button:hover::before {
+      transform: translateY(50%) translateX(0);
+    }
+  }
+}
