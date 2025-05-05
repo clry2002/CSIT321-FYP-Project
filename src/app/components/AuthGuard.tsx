@@ -13,7 +13,41 @@ function AuthGuardInner({ children }: { children: ReactNode }) {
   const searchParams = useSearchParams();
   const [isLoading, setIsLoading] = useState(true);
   const [authChecked, setAuthChecked] = useState(false);
+  const [isInactive, setIsInactive] = useState(false);
   const sessionContext = useSession();
+  
+  // Add inactivity timer
+  useEffect(() => {
+    let inactivityTimer: NodeJS.Timeout;
+    const INACTIVITY_TIMEOUT = 5 * 60 * 1000; // 5 minutes in milliseconds
+
+    const resetTimer = () => {
+      if (inactivityTimer) clearTimeout(inactivityTimer);
+      setIsInactive(false);
+      inactivityTimer = setTimeout(() => {
+        setIsInactive(true);
+      }, INACTIVITY_TIMEOUT);
+    };
+
+    // Events to track user activity
+    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+    
+    // Add event listeners
+    events.forEach(event => {
+      window.addEventListener(event, resetTimer);
+    });
+
+    // Initial timer setup
+    resetTimer();
+
+    // Cleanup
+    return () => {
+      if (inactivityTimer) clearTimeout(inactivityTimer);
+      events.forEach(event => {
+        window.removeEventListener(event, resetTimer);
+      });
+    };
+  }, []);
   
   // Extract the loading state from your context
   const isSessionLoading = sessionContext.loading || false;
@@ -241,6 +275,11 @@ function AuthGuardInner({ children }: { children: ReactNode }) {
     if (pathname?.startsWith('/auth/') || 
         PUBLIC_PATHS.some(path => pathname === path || pathname?.startsWith(path + '/')) ||
         (REAUTH_EXEMPT_PATHS.some(path => pathname === path || pathname?.startsWith(path + '/')) && isReauthProcess)) {
+      return children as React.ReactElement;
+    }
+    
+    // Only show loading screen if user is inactive
+    if (!isInactive) {
       return children as React.ReactElement;
     }
     

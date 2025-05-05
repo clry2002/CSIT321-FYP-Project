@@ -215,30 +215,57 @@ export const screenTimeService = {
         console.error("Invalid child ID for tracking");
         return;
       }
-      
-      // Insert usage record
-      const { data, error: insertError } = await supabase
+
+      // Get today's date in local timezone, formatted as YYYY-MM-DD
+      const today = new Date();
+      const todayStr = today.toISOString().split('T')[0];
+      const startOfDay = todayStr + 'T00:00:00Z';
+      const endOfDay = todayStr + 'T23:59:59Z';
+
+      // First check if a record exists for today
+      const { data: existingRecord, error: checkError } = await supabase
         .from('screen_usage')
-        .insert([{
-          child_id: childDbId,
-          duration: durationSeconds,
-          usage_date: new Date().toISOString(),
-        }])
-        .select();
-        
-      if (insertError) {
-        console.error("Error tracking usage:", insertError);
-        
-        // More detailed error logging
-        if (insertError.code === '42P01') {
-          console.error("Table 'screen_usage' does not exist. Create it first.");
-        } else if (insertError.code === '23503') {
-          console.error("Foreign key violation. Check that child_id exists:", childDbId);
-        } else if (insertError.code === '23502') {
-          console.error("Not null violation. Check that all required fields are provided.");
+        .select('id, duration')
+        .eq('child_id', childDbId)
+        .gte('usage_date', startOfDay)
+        .lte('usage_date', endOfDay)
+        .single();
+
+      if (checkError && checkError.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+        console.error("Error checking existing record:", checkError);
+        return;
+      }
+
+      if (existingRecord) {
+        // Update existing record
+        const { error: updateError } = await supabase
+          .from('screen_usage')
+          .update({ 
+            duration: existingRecord.duration + durationSeconds,
+            usage_date: new Date().toISOString()
+          })
+          .eq('id', existingRecord.id);
+
+        if (updateError) {
+          console.error("Error updating usage:", updateError);
+        } else {
+          console.log("Usage updated successfully");
         }
       } else {
-        console.log("Usage tracked successfully:", data);
+        // Insert new record
+        const { error: insertError } = await supabase
+          .from('screen_usage')
+          .insert([{
+            child_id: childDbId,
+            duration: durationSeconds,
+            usage_date: new Date().toISOString(),
+          }]);
+
+        if (insertError) {
+          console.error("Error inserting usage:", insertError);
+        } else {
+          console.log("New usage record created successfully");
+        }
       }
     } catch (e) {
       console.error("Exception in trackUsageInternal:", e);
