@@ -167,12 +167,34 @@ function AuthGuardInner({ children }: { children: ReactNode }) {
     const checkAuth = async () => {
       try {
         console.log('Checking authentication status...');
+        
+        // First try to refresh the session
+        const { data: { session }, error: refreshError } = await supabase.auth.getSession();
+        
+        if (refreshError) {
+          console.error('Session refresh error:', refreshError);
+          // If refresh fails, try to sign out to clear any invalid tokens
+          await supabase.auth.signOut();
+          redirectTo('/landing');
+          return;
+        }
+
+        // If no session, redirect to landing
+        if (!session) {
+          console.log('No active session found, redirecting to landing page');
+          redirectTo('/landing');
+          return;
+        }
+
         const { data: { user }, error: authError } = await supabase.auth.getUser();
         
         // Handle auth error by redirecting to landing page
         if (authError) {
           console.error('Auth error:', authError);
-          // Redirect to landing page instead of login
+          // If we get a JWT error, sign out and redirect
+          if (authError.message.includes('JWT')) {
+            await supabase.auth.signOut();
+          }
           redirectTo('/landing');
           return;
         }
@@ -180,7 +202,6 @@ function AuthGuardInner({ children }: { children: ReactNode }) {
         // If no user, redirect to landing page
         if (!user) {
           console.log('No authenticated user found, redirecting to landing page');
-          // Redirect to landing page instead of login
           redirectTo('/landing');
           return;
         }
@@ -190,23 +211,24 @@ function AuthGuardInner({ children }: { children: ReactNode }) {
         // Get user role from Supabase using your schema
         const { data: userData, error } = await supabase
           .from('user_account')
-          .select('upid')
+          .select('upid, username')
           .eq('user_id', user.id)
           .single();
 
         if (error) {
           console.error('Error fetching user profile:', error);
-          redirectTo('/error');
-          return;
+          // Only sign out if it's not a "not found" error (PGRST116)
+          // This allows admin to stay logged in after deleting other users
+          if (error.code !== 'PGRST116') {
+            await supabase.auth.signOut();
+            redirectTo('/landing');
+            return;
+          }
         }
 
-        // Get the numeric role ID with proper typing
-        const userRoleId: number = userData?.upid || 0;
-        console.log('User role ID:', userRoleId);
-        
         // Special case for root page: redirect to appropriate dashboard
         if (pathname === '/' || pathname === '') {
-          const targetDashboard = DEFAULT_REDIRECTS[userRoleId] || '/dashboard';
+          const targetDashboard = DEFAULT_REDIRECTS[userData?.upid || 0] || '/dashboard';
           console.log('Root path detected, redirecting to dashboard:', targetDashboard);
           redirectTo(targetDashboard);
           return;
@@ -243,11 +265,29 @@ function AuthGuardInner({ children }: { children: ReactNode }) {
           console.log('Checking permissions for path:', matchingPath);
           console.log('Allowed roles:', allowedRoleIds);
           
-          if (!allowedRoleIds.includes(userRoleId)) {
-            console.log(`Access denied: User with role ${userRoleId} cannot access ${pathname}`);
+          // Only check role permissions if we have valid user data
+          if (userData?.upid && !allowedRoleIds.includes(userData.upid)) {
+            console.log(`Access denied: User with role ${userData.upid} cannot access ${pathname}`);
+            
+            // If we're on the admin page and the user is not an admin, force sign out
+            // This prevents any unintended session switches
+            if (matchingPath === '/adminpage' && userData.upid !== 4) {
+              await supabase.auth.signOut();
+              redirectTo('/landing');
+              return;
+            }
+            
             redirectTo('/unauthorized');
             return;
           }
+        }
+
+        // Additional check for admin page access
+        if (pathname?.startsWith('/adminpage') && userData?.upid !== 4) {
+          console.log('Non-admin user attempting to access admin page, forcing sign out');
+          await supabase.auth.signOut();
+          redirectTo('/landing');
+          return;
         }
 
         console.log('Authentication check successful, rendering page');
@@ -255,7 +295,7 @@ function AuthGuardInner({ children }: { children: ReactNode }) {
         setAuthChecked(true);
       } catch (error) {
         console.error('Auth check failed:', error);
-        redirectTo('/error');
+        redirectTo('/landing');
       }
     };
 

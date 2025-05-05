@@ -639,30 +639,56 @@ export const screenTimeService = {
 
   resetLimitState: async (childId: string): Promise<boolean> => {
     try {
-      console.log("Completely resetting time limit state for child:", childId);
-      
-      // 1. End current session to record usage properly
-      await screenTimeService.endSession();
-      
-      // 2. Clear session storage to force fresh initialization
-      sessionStorage.removeItem('sessionStartTime');
-      sessionStorage.removeItem('childDbId');
-      
-      // 3. Clear isLimitExceeded state from localStorage
-      const limitExceededKey = `limit_exceeded_${childId}`;
-      safeLocalStorage.removeItem(limitExceededKey);
-      
-      // 4. Force check for new time limit
-      await screenTimeService.checkAndResetDailyUsage(childId);
-      
-      // 5. Restart the session tracking
-      await screenTimeService.startSession(childId);
-      
-      console.log("Time limit state has been completely reset");
-      return true;
+        console.log("Completely resetting time limit state for child:", childId);
+        
+        // 1. End current session to record usage properly
+        await screenTimeService.endSession();
+        
+        // 2. Clear session storage to force fresh initialization
+        sessionStorage.removeItem('sessionStartTime');
+        sessionStorage.removeItem('childDbId');
+        
+        // 3. Clear all time limit related state from localStorage
+        const limitExceededKey = `limit_exceeded_${childId}`;
+        const previousLimitKey = `previous_limit_${childId}`;
+        const lastLoginKey = `last_login_${childId}`;
+        const timeUsedKey = `time_used_${childId}`;
+        const timeLimitKey = `time_limit_${childId}`;
+        
+        safeLocalStorage.removeItem(limitExceededKey);
+        safeLocalStorage.removeItem(previousLimitKey);
+        safeLocalStorage.removeItem(lastLoginKey);
+        safeLocalStorage.removeItem(timeUsedKey);
+        safeLocalStorage.removeItem(timeLimitKey);
+        
+        // 4. Reset today's usage in the database
+        const today = new Date();
+        const todayStr = today.toISOString().split('T')[0];
+        const startOfDay = todayStr + 'T00:00:00Z';
+        const endOfDay = todayStr + 'T23:59:59Z';
+        
+        const { error: deleteError } = await supabase
+            .from('screen_usage')
+            .delete()
+            .eq('child_id', childId)
+            .gte('usage_date', startOfDay)
+            .lte('usage_date', endOfDay);
+            
+        if (deleteError) {
+            console.error("Error deleting usage records:", deleteError);
+        }
+        
+        // 5. Force check for new time limit and reset daily usage
+        await screenTimeService.checkAndResetDailyUsage(childId);
+        
+        // 6. Restart the session tracking
+        await screenTimeService.startSession(childId);
+        
+        console.log("Time limit state has been completely reset");
+        return true;
     } catch (error) {
-      console.error("Error resetting time limit state:", error);
-      return false;
+        console.error("Error resetting time limit state:", error);
+        return false;
     }
   },
   

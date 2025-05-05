@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
+import { screenTimeService } from '@/services/screenTimeService';
 
 export type UserProfile = {
     id: string;
@@ -201,42 +202,44 @@ export const useParentalControls = ({ childUserId }: UseParentalControlsProps): 
         
                 if (updateError) throw updateError;
             } else {
-                // Try case insensitive search as fallback
-                const { data: caseInsensitiveRelation, error: caseCheckError } = await supabase
+                // Insert new relationship
+                const { error: insertError } = await supabase
                     .from('isparentof')
-                    .select('*')
-                    .ilike('child_id', childProfile.id);
+                    .insert({
+                        parent_id: parentProfile.id,
+                        child_id: childProfile.id,
+                        timeLimitMinute: actualTimeLimit
+                    });
                     
-                if (caseCheckError) {
-                    console.error("Error in case insensitive check:", caseCheckError);
-                }
-                
-                if (caseInsensitiveRelation && caseInsensitiveRelation.length > 0) {
-                    // Update with the actual case from database
-                    const { error: updateError } = await supabase
-                        .from('isparentof')
-                        .update({ timeLimitMinute: actualTimeLimit })
-                        .eq('id', caseInsensitiveRelation[0].id);
-                        
-                    if (updateError) throw updateError;
-                } else {
-                    // Insert new relationship
-                    const { error: insertError } = await supabase
-                        .from('isparentof')
-                        .insert([{
-                            parent_id: parentProfile.id,
-                            child_id: childProfile.id,
-                            timeLimitMinute: actualTimeLimit
-                        }]);
-                        
-                    if (insertError) throw insertError;
-                }
+                if (insertError) throw insertError;
             }
+
+            // Reset the child's time usage data in the database
+            const today = new Date();
+            const todayStr = today.toISOString().split('T')[0];
+            const startOfDay = todayStr + 'T00:00:00Z';
+            const endOfDay = todayStr + 'T23:59:59Z';
+
+            // Delete today's usage records
+            const { error: deleteError } = await supabase
+                .from('screen_usage')
+                .delete()
+                .eq('child_id', childProfile.id)
+                .gte('usage_date', startOfDay)
+                .lte('usage_date', endOfDay);
+
+            if (deleteError) {
+                console.error("Error deleting usage records:", deleteError);
+                // Don't throw here, as the time limit was still updated
+            }
+
+            // Reset the child's time limit state
+            await screenTimeService.resetLimitState(childProfile.id);
             
-            setSuccess(`Time limit for ${childProfile.fullname} updated successfully!`);
+            setSuccess('Time limit updated successfully');
         } catch (err) {
             console.error('Error updating time limit:', err);
-            setError(err instanceof Error ? err.message : 'An error occurred while updating the time limit.');
+            setError(err instanceof Error ? err.message : 'Failed to update time limit');
         } finally {
             setLoading(false);
         }

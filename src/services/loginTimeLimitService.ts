@@ -46,19 +46,21 @@ export const timeLimitCheckService = {
           parentData.length === 0 || 
           parentData[0].timeLimitMinute === undefined || 
           parentData[0].timeLimitMinute === null ||
-          parentData[0].timeLimitMinute === 0) { // Add check for 0 time limit
+          parentData[0].timeLimitMinute === 0) {
+        console.log("No time limit set or time limit is 0");
         return {
           isExceeded: false,
           timeUsed: 0,
-          timeLimit: null, // Treat 0 as null (no limit)
+          timeLimit: null,
           message: "No time limit set"
         };
       }
       
-      const timeLimit = parentData[0].timeLimitMinute;
+      const timeLimit = Number(parentData[0].timeLimitMinute);
       
       // If time limit is "unlimited" (≥1000)
       if (timeLimit >= 1000) {
+        console.log("Unlimited time limit set");
         return {
           isExceeded: false,
           timeUsed: 0,
@@ -100,14 +102,22 @@ export const timeLimitCheckService = {
         0
       );
       
-      // Convert to minutes
-      const timeUsed = totalSeconds / 60;
+      // Convert to minutes and round to 2 decimal places
+      const timeUsed = Math.round((totalSeconds / 60) * 100) / 100;
       
-      console.log(`Time limit check: Used=${timeUsed.toFixed(2)} minutes, Limit=${timeLimit} minutes (Limit type: ${typeof timeLimit})`);
+      console.log(`Time limit check: Used=${timeUsed} minutes, Limit=${timeLimit} minutes`);
       
-      // Add a small buffer (0.1 min) to prevent false triggers on very small overages
-      const buffer = 0.1;
-      const isExceeded = timeUsed >= (timeLimit + buffer);
+      // Compare time used with limit
+      const isExceeded = timeUsed >= timeLimit;
+      
+      // Log the final decision with detailed information
+      console.log("Time limit check result:", {
+        isExceeded,
+        timeUsed,
+        timeLimit,
+        comparison: `${timeUsed} >= ${timeLimit} = ${isExceeded}`,
+        shouldEnforce: true
+      });
       
       return {
         isExceeded,
