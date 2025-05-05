@@ -3,6 +3,7 @@
 import { useRouter, useParams } from 'next/navigation';
 import { useParentalControls } from '@/hooks/useParentalControls';
 import { styles } from '../../../components/parent/parentalControlStyles';
+import { useState, useEffect } from 'react';
 
 export default function ParentalControlPage() {
     const router = useRouter();
@@ -28,6 +29,12 @@ export default function ParentalControlPage() {
         updateBlockedGenres,
         resetToDefaults
     } = useParentalControls({ childUserId });
+
+    const [timeLimitInput, setTimeLimitInput] = useState(timeLimit.toString());
+
+    useEffect(() => {
+        setTimeLimitInput(timeLimit.toString());
+    }, [timeLimit]);
 
     return (
         <div className={styles.pageContainer}>
@@ -84,27 +91,6 @@ export default function ParentalControlPage() {
                                     Set Time Limit: <span className={styles.timeValue}>{timeLimit}</span> minutes per day
                                 </label>
                                 
-                                {/* Slider for easy adjustment */}
-                                <div className={styles.sliderContainer}>
-                                    <input
-                                        id="timeLimitSlider"
-                                        type="range"
-                                        min="1"
-                                        max="240"
-                                        step="5"
-                                        value={timeLimit}
-                                        disabled={!timeLimitEnabled}
-                                        onChange={(e) => setTimeLimit(parseInt(e.target.value, 10))}
-                                        className={styles.slider}
-                                    />
-                                    <div className={styles.sliderMarkers}>
-                                        <span>1 min</span>
-                                        <span>1 hr</span>
-                                        <span>2 hr</span>
-                                        <span>4 hr</span>
-                                    </div>
-                                </div>
-                                
                                 {/* Text input for precise control */}
                                 <div className={styles.inputGroup}>
                                     <label htmlFor="timeLimit" className={styles.inputLabel}>
@@ -112,25 +98,32 @@ export default function ParentalControlPage() {
                                     </label>
                                     <input
                                         id="timeLimit"
-                                        type="text"
-                                        value={timeLimit.toString()}
+                                        type="number"
+                                        min="1"
+                                        max="240"
+                                        value={timeLimitInput}
                                         disabled={!timeLimitEnabled}
                                         onChange={(e) => {
-                                            // Allow empty string temporarily during typing
-                                            if (e.target.value === '') {
-                                                setTimeLimit(1); // Default to 1 but don't show it yet
-                                            } else {
-                                                const val = parseInt(e.target.value, 10);
-                                                if (!Number.isNaN(val)) {
-                                                    setTimeLimit(val < 1 ? 1 : val);
-                                                }
+                                            const val = e.target.value;
+                                            // Allow empty string for editing
+                                            setTimeLimitInput(val);
+                                            const num = parseInt(val, 10);
+                                            if (!Number.isNaN(num)) {
+                                                setTimeLimit(num < 1 ? 1 : num > 240 ? 240 : num);
                                             }
                                         }}
                                         onBlur={(e) => {
-                                            // When focus leaves the input, ensure a valid value
-                                            const val = parseInt(e.target.value, 10);
-                                            if (Number.isNaN(val) || val < 1) {
+                                            const val = e.target.value;
+                                            const num = parseInt(val, 10);
+                                            if (val === '' || Number.isNaN(num) || num < 1) {
                                                 setTimeLimit(1);
+                                                setTimeLimitInput('1');
+                                            } else if (num > 240) {
+                                                setTimeLimit(240);
+                                                setTimeLimitInput('240');
+                                            } else {
+                                                setTimeLimit(num);
+                                                setTimeLimitInput(num.toString());
                                             }
                                         }}
                                         className={styles.textInput}

@@ -1,8 +1,8 @@
 export const styles = {
     // Layout styles
     pageContainer: "flex h-screen bg-white overflow-hidden",
-    contentArea: "flex-1 overflow-y-auto pt-16",
-    contentInner: "px-6 py-8",
+    contentArea: "flex-1 overflow-y-auto pt-2",
+    contentInner: "px-6 py-2",
     sectionContainer: "max-w-2xl space-y-6",
     
     // Header styles
