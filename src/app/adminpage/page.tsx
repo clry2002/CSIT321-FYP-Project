@@ -248,7 +248,7 @@ export default function AdminPage() {
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
-      router.push('/');
+      router.push('/landing');
     } catch (err) {
       console.error('Error logging out:', err);
     }
