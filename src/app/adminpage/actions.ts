@@ -33,4 +33,27 @@ export async function resetUserPassword(userId: string, newPassword: string) {
       error: error instanceof Error ? error.message : 'An error occurred while resetting password' 
     };
   }
+}
+
+export async function createUserAuth(email: string, password: string) {
+  try {
+    if (!email || !password) {
+      throw new Error('Email and password are required');
+    }
+
+    const { data, error } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true // Auto-confirm the email
+    });
+
+    if (error) throw error;
+    return { success: true, data };
+  } catch (error) {
+    console.error('User creation error:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'An error occurred while creating user' 
+    };
+  }
 } 

@@ -77,13 +77,20 @@ export const fetchClassrooms = async () => {
 };
 
 export const createUserAuth = async (email: string, password: string) => {
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
+  const response = await fetch('/api/admin/create-user', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email, password }),
   });
 
-  if (error) throw error;
-  return data;
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to create user');
+  }
+
+  return response.json();
 };
 
 export const createUserAccount = async (userToInsert: Partial<UserAccount>) => {
