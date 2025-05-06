@@ -56,20 +56,19 @@ const Logout = () => {
   // Otherwise, show the confirmation modal
   return (
     <div className="flex items-center justify-center min-h-screen bg-black">
-      <div className="bg-[#131626] p-8 rounded-lg shadow-lg max-w-md w-full">
-        <h1 className="text-3xl font-bold mb-6 text-white">Confirm Logout</h1>
-        <p className="text-xl text-white mb-8">Are you sure you want to logout?</p>
-        
-        <div className="flex justify-end space-x-4">
+      <div className="bg-gray-900 p-6 rounded-lg w-96">
+        <h3 className="text-xl font-bold mb-4 text-white">Confirm Logout</h3>
+        <p className="mb-4 text-white">Are you sure you want to logout?</p>
+        <div className="mt-6 flex justify-end space-x-2">
           <button
             onClick={handleCancel}
-            className="px-6 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-md text-lg"
+            className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-white"
           >
             Cancel
           </button>
           <button
             onClick={handleLogout}
-            className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-md text-lg"
+            className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded text-white"
           >
             Logout
           </button>
