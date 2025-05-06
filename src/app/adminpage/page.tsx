@@ -397,7 +397,18 @@ export default function AdminPage() {
 
       // Delete in order of dependencies to avoid foreign key constraint errors
 
-      // 1. Delete from userInteractions2 if exists
+      // 1. Delete from screen_usage if exists
+      const { error: screenUsageError } = await supabase
+        .from('screen_usage')
+        .delete()
+        .eq('child_id', childData.id);
+
+      if (screenUsageError) {
+        console.error('Error deleting screen usage:', screenUsageError);
+        throw new Error('Failed to delete screen usage records');
+      }
+
+      // 2. Delete from userInteractions2 if exists
       const { error: interactionsError } = await supabase
         .from('userInteractions2')
         .delete()
@@ -407,7 +418,7 @@ export default function AdminPage() {
         console.warn('Warning: Could not delete user interactions. This might be ok if none existed:', interactionsError);
       }
 
-      // 2. Delete from temp_classroomstudents if exists
+      // 3. Delete from temp_classroomstudents if exists
       const { error: classroomError } = await supabase
         .from('temp_classroomstudents')
         .delete()
@@ -417,7 +428,7 @@ export default function AdminPage() {
         console.warn('Warning: Could not delete classroom relationships. This might be ok if none existed:', classroomError);
       }
 
-      // 3. Delete from isparentof
+      // 4. Delete from isparentof
       const { error: relationshipError } = await supabase
         .from('isparentof')
         .delete()
@@ -425,7 +436,7 @@ export default function AdminPage() {
 
       if (relationshipError) throw relationshipError;
 
-      // 4. Delete from child_details
+      // 5. Delete from child_details
       const { error: detailsError } = await supabase
         .from('child_details')
         .delete()
@@ -435,7 +446,7 @@ export default function AdminPage() {
         console.warn('Warning: Could not delete child details. This might be ok if none existed:', detailsError);
       }
 
-      // 5. Delete the auth user if it exists
+      // 6. Delete the auth user if it exists
       if (childData.user_id) {
         try {
           await api.deleteAuthUser(childData.user_id);
@@ -444,7 +455,7 @@ export default function AdminPage() {
         }
       }
 
-      // 6. Finally delete from user_account
+      // 7. Finally delete from user_account
       const { error: deleteError } = await supabase
         .from('user_account')
         .delete()
@@ -838,6 +849,7 @@ export default function AdminPage() {
               parentUsername: parentData.username
             });
             setShowRemoveChildModal(true);
+            setShowUserModal(false); // Close the user details modal
             return;
           }
         }
@@ -849,8 +861,8 @@ export default function AdminPage() {
 
     // For non-child accounts, proceed with normal deletion
     setSelectedRows([user.username]);
-    setShowUserModal(false);
     setShowDeleteModal(true);
+    setShowUserModal(false); // Close the user details modal
   };
 
   const handleSuspendAllUsers = async (profileName: string) => {
