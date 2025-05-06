@@ -44,15 +44,16 @@ const BookAnnouncementBoard: React.FC<BookAnnouncementBoardProps> = ({
       try {
         setIsLoading(true);
         
-        // Fetch books
+        // Fetch books with status = 'approved'
         const { data: booksData, error: booksError } = await supabase
           .from('temp_content')
           .select('cid, title, credit, coverimage, cfid, contenturl')
-          .eq('cfid', 2); // Books only
+          .eq('cfid', 2) // Books only
+          .eq('status', 'approved'); // Only approved content
           
         if (booksError) throw booksError;
         
-        console.log('Books fetched:', booksData?.length || 0);
+        console.log('Approved books fetched:', booksData?.length || 0);
         
         setBooks(booksData || []);
         
@@ -246,7 +247,7 @@ const BookAnnouncementBoard: React.FC<BookAnnouncementBoardProps> = ({
                     </ul>
                   ) : (
                     <div className="p-3 text-gray-500">
-                      No books found matching {searchQuery}
+                      No approved books found matching {searchQuery}
                     </div>
                   )}
                 </div>

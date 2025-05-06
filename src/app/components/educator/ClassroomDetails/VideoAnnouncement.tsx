@@ -43,15 +43,16 @@ const VideoAnnouncementBoard: React.FC<VideoAnnouncementBoardProps> = ({
       try {
         setIsLoading(true);
         
-        // Fetch videos
+        // Fetch videos with status = 'approved'
         const { data: videosData, error: videosError } = await supabase
           .from('temp_content')
           .select('cid, title, credit, coverimage, cfid, contenturl')
-          .eq('cfid', 1); // Videos only
+          .eq('cfid', 1) // Videos only
+          .eq('status', 'approved'); // Only approved content
           
         if (videosError) throw videosError;
         
-        console.log('Videos fetched:', videosData?.length || 0);
+        console.log('Approved videos fetched:', videosData?.length || 0);
         
         setVideos(videosData || []);
         
@@ -259,7 +260,7 @@ const VideoAnnouncementBoard: React.FC<VideoAnnouncementBoardProps> = ({
                     </ul>
                   ) : (
                     <div className="p-3 text-gray-500">
-                      No videos found matching {searchQuery}
+                      No approved videos found matching {searchQuery}
                     </div>
                   )}
                 </div>
