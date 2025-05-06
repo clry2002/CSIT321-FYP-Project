@@ -2,10 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import Navbar from '../components/Navbar';
-import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
-// import { useSession } from '@/contexts/SessionContext';
 import { useRouter } from 'next/navigation';
+import { ArrowLeft } from 'lucide-react';
 
 function ErrorBoundary({ children }: { children: React.ReactNode }) {
   const [hasError, setHasError] = useState(false);
@@ -25,7 +24,6 @@ function ErrorBoundary({ children }: { children: React.ReactNode }) {
 
 export default function AccountSettings() {
   const router = useRouter();
-  // const { userProfile, refreshProfile } = useSession();
   const [email, setEmail] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -110,13 +108,16 @@ export default function AccountSettings() {
     }
   };
 
+  const handleBackToSettings = () => {
+    router.push('/childsettings');
+  };
+
   if (loading) {
     return (
       <ErrorBoundary>
         <div className="flex h-screen bg-white overflow-hidden">
           <Navbar />
-          <div className="flex-1 overflow-y-auto pt-16 flex flex-col items-center justify-start"> {/* Changed to flex-col and justify-start */}
-            <h2 className="text-2xl font-bold text-yellow-400 mb-6">Account Settings</h2> {/* Title above container */}
+          <div className="flex-1 overflow-y-auto pt-16 flex flex-col items-center justify-start">
             <div className="text-lg">Loading your account settings...</div>
           </div>
         </div>
@@ -130,7 +131,6 @@ export default function AccountSettings() {
         <div className="flex h-screen bg-white overflow-hidden">
           <Navbar />
           <div className="flex-1 overflow-y-auto pt-16 flex flex-col items-center justify-start">
-            <h2 className="text-2xl font-bold text-yellow-400 mb-6 mt-15">Account Settings</h2> 
             <div className="text-red-500">{error}</div>
           </div>
         </div>
@@ -146,98 +146,96 @@ export default function AccountSettings() {
       >
         <Navbar />
         <div className="flex-1 overflow-y-auto pt-16 flex flex-col items-center justify-start">
-          <h2 className="text-2xl font-bold text-yellow-400 mb-6 mt-15">Account Settings</h2> 
           <div className="container mx-auto px-6 py-8">
-            {/* <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-yellow-400">Account Settings</h2>
-            </div> */}
-
             <div className="max-w-2xl mx-auto">
-              <div className="space-y-6">
-                <div className="bg-white p-6 rounded-lg shadow">
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Email</label>
-                      <div className="mt-1 text-lg text-gray-900">
-                        {email}
-                      </div>
-                      <p className="mt-1 text-sm text-gray-500">
-                        Contact support to change your email address
-                      </p>
+              <div className="bg-white p-6 rounded-lg shadow">
+                {/* Back button above the title */}
+                <div className="mb-2">
+                  <button
+                    onClick={handleBackToSettings}
+                    className="flex items-center text-blue-600 hover:text-blue-800 transition-colors"
+                  >
+                    <ArrowLeft className="h-5 w-5 mr-1" />
+                    <span>Back to Settings</span>
+                  </button>
+                </div>
+                
+                {/* Title centered */}
+                <h2 className="text-3xl font-bold text-center text-yellow-400 mb-6">Account Settings</h2>
+                
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Email</label>
+                    <div className="mt-1 text-lg text-gray-900">
+                      {email}
                     </div>
-
-                    {!passwordResetDisabled ? (
-                      <div className="pt-4">
-                        <h4 className="text-md font-medium text-gray-900 mb-3">Change Password</h4>
-
-                        {passwordMessage && (
-                          <div className={`mb-4 p-3 rounded-lg text-sm ${
-                            passwordMessage.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                          }`}>
-                            {passwordMessage.text}
-                          </div>
-                        )}
-
-                        <div className="space-y-3">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700">Current Password</label>
-                            <input
-                              type="password"
-                              value={passwordData.currentPassword}
-                              onChange={(e) => setPasswordData({...passwordData, currentPassword: e.target.value})}
-                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 [&::-webkit-contacts-auto-fill-button]:hidden [&::-webkit-credentials-auto-fill-button]:hidden [&::-webkit-credentials-auto-fill-button]:bg-black [&::-webkit-contacts-auto-fill-button]:bg-black [&::-webkit-credentials-auto-fill-button]:text-black [&::-webkit-contacts-auto-fill-button]:text-black"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700">New Password</label>
-                            <input
-                              type="password"
-                              value={passwordData.newPassword}
-                              onChange={(e) => setPasswordData({...passwordData, newPassword: e.target.value})}
-                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 [&::-webkit-contacts-auto-fill-button]:hidden [&::-webkit-credentials-auto-fill-button]:hidden [&::-webkit-credentials-auto-fill-button]:bg-black [&::-webkit-contacts-auto-fill-button]:bg-black [&::-webkit-credentials-auto-fill-button]:text-black [&::-webkit-contacts-auto-fill-button]:text-black"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700">Confirm New Password</label>
-                            <input
-                              type="password"
-                              value={passwordData.confirmPassword}
-                              onChange={(e) => setPasswordData({...passwordData, confirmPassword: e.target.value})}
-                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 [&::-webkit-contacts-auto-fill-button]:hidden [&::-webkit-credentials-auto-fill-button]:hidden [&::-webkit-credentials-auto-fill-button]:bg-black [&::-webkit-contacts-auto-fill-button]:bg-black [&::-webkit-credentials-auto-fill-button]:text-black [&::-webkit-contacts-auto-fill-button]:text-black"
-                            />
-                          </div>
-
-                          <button
-                            onClick={handlePasswordChange}
-                            className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                          >
-                            Update Password
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="pt-4">
-                        <div className="p-4 bg-gray-100 rounded-lg">
-                          <p className="text-gray-600">
-                            Password changes are currently disabled by an administrator. Please contact your parent or guardian for assistance with password changes.
-                          </p>
-                        </div>
-                      </div>
-                    )}
+                    <p className="mt-1 text-sm text-gray-500">
+                      Contact support to change your email address
+                    </p>
                   </div>
+
+                  {!passwordResetDisabled ? (
+                    <div className="pt-4">
+                      <h4 className="text-md font-medium text-gray-900 mb-3">Change Password</h4>
+
+                      {passwordMessage && (
+                        <div className={`mb-4 p-3 rounded-lg text-sm ${
+                          passwordMessage.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                        }`}>
+                          {passwordMessage.text}
+                        </div>
+                      )}
+
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">Current Password</label>
+                          <input
+                            type="password"
+                            value={passwordData.currentPassword}
+                            onChange={(e) => setPasswordData({...passwordData, currentPassword: e.target.value})}
+                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 [&::-webkit-contacts-auto-fill-button]:hidden [&::-webkit-credentials-auto-fill-button]:hidden [&::-webkit-credentials-auto-fill-button]:bg-black [&::-webkit-contacts-auto-fill-button]:bg-black [&::-webkit-credentials-auto-fill-button]:text-black [&::-webkit-contacts-auto-fill-button]:text-black"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">New Password</label>
+                          <input
+                            type="password"
+                            value={passwordData.newPassword}
+                            onChange={(e) => setPasswordData({...passwordData, newPassword: e.target.value})}
+                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 [&::-webkit-contacts-auto-fill-button]:hidden [&::-webkit-credentials-auto-fill-button]:hidden [&::-webkit-credentials-auto-fill-button]:bg-black [&::-webkit-contacts-auto-fill-button]:bg-black [&::-webkit-credentials-auto-fill-button]:text-black [&::-webkit-contacts-auto-fill-button]:text-black"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">Confirm New Password</label>
+                          <input
+                            type="password"
+                            value={passwordData.confirmPassword}
+                            onChange={(e) => setPasswordData({...passwordData, confirmPassword: e.target.value})}
+                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 [&::-webkit-contacts-auto-fill-button]:hidden [&::-webkit-credentials-auto-fill-button]:hidden [&::-webkit-credentials-auto-fill-button]:bg-black [&::-webkit-contacts-auto-fill-button]:bg-black [&::-webkit-credentials-auto-fill-button]:text-black [&::-webkit-contacts-auto-fill-button]:text-black"
+                          />
+                        </div>
+
+                        <button
+                          onClick={handlePasswordChange}
+                          className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                        >
+                          Update Password
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="pt-4">
+                      <div className="p-4 bg-gray-100 rounded-lg">
+                        <p className="text-gray-600">
+                          Password changes are currently disabled by an administrator. Please contact your parent or guardian for assistance with password changes.
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
-            </div>
-
-            <div className="mt-8 -mb-12 self-start"> {/* Moved up more and aligned left */}
-              <Link
-                href="/childsettings"
-                className="text-blue-600 hover:text-blue-800"
-              >
-                ← Back to Settings
-              </Link>
             </div>
           </div>
         </div>

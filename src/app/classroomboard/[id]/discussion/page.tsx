@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import Navbar from '../../../components/Navbar';
+import { ArrowLeft } from 'lucide-react';
 
 type DiscussionEntry = {
   id: number;
@@ -18,6 +19,7 @@ const MAX_VISIBLE_CHARACTERS = 200;
 
 export default function DiscussionBoardPage() {
   const { id } = useParams();
+  const router = useRouter();
   const [classroomName, setClassroomName] = useState('');
   const [teacherQuestion, setTeacherQuestion] = useState('');
   const [responses, setResponses] = useState<DiscussionEntry[]>([]);
@@ -77,7 +79,7 @@ export default function DiscussionBoardPage() {
             const { data: profileData } = await supabase
               .from('user_account')
               .select('fullname')
-              .eq('id', entry.uaid) // Changed: Now using id instead of user_id
+              .eq('id', entry.uaid)
               .single();
 
             return {
@@ -146,7 +148,7 @@ export default function DiscussionBoardPage() {
           const { data: profileData } = await supabase
             .from('user_account')
             .select('fullname')
-            .eq('id', newEntry.uaid) // Changed: Now using id instead of user_id
+            .eq('id', newEntry.uaid)
             .single();
 
           setResponses((prev) => [
@@ -211,7 +213,7 @@ export default function DiscussionBoardPage() {
       const { error } = await supabase.from('discussionboard').insert([
         {
           crid: parseInt(id as string, 10),
-          uaid: userAccount.id, // Changed: Using user_account.id instead of auth user.id
+          uaid: userAccount.id,
           response: newMessage,
         },
       ]);
@@ -271,6 +273,10 @@ export default function DiscussionBoardPage() {
     setSelectedResponse(null);
   };
 
+  const handleBackToClassroom = () => {
+    router.push(`/classroomboard/${id}`);
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-screen bg-blue-100">
@@ -293,7 +299,16 @@ export default function DiscussionBoardPage() {
     >
       <Navbar />
   
-      <div className="bg-white rounded-xl shadow p-6 max-w-5xl w-full mt-25 text-center">
+      <div className="bg-white rounded-xl shadow p-6 max-w-5xl w-full mt-25 text-center relative">
+        {/* Back button */}
+        <button 
+          onClick={handleBackToClassroom}
+          className="absolute left-6 top-6 flex items-center text-blue-600 hover:text-blue-800 transition-colors"
+        >
+          <ArrowLeft className="h-5 w-5 mr-1" />
+          <span>Back to Classroom</span>
+        </button>
+        
         <h2 className="text-2xl font-bold text-blue-700 mb-2"> {classroomName}</h2>
         <h3 className="text-lg font-semibold text-blue-700 mb-3"> Teacher&apos;s Question</h3>
         <p className="text-2xl font-bold text-gray-800">{teacherQuestion || 'No question available yet.'}</p>
