@@ -20,7 +20,10 @@ import logging
 import json
 
 # Import the kid_friendly module
-from kid_friendly_responses import make_kid_friendly, clean_response, analyze_text_complexity
+from kid_friendly_responses import make_kid_friendly
+
+# Import title search helpers
+from title_search import check_title_query, search_for_title
 
 # Load environment variables
 load_dotenv()
@@ -331,6 +334,31 @@ def chat():
     # Save user input to chat history
     save_chat_to_database(context=raw_question, is_chatbot=False, uaid_child=uaid_child)
 
+    # Check if this is a title-specific query
+    is_title_query, title = check_title_query(question)
+    
+    if is_title_query and title:
+        # Search for the specified title
+        content_response = search_for_title(
+            title=title, 
+            uaid_child=uaid_child, 
+            supabase_client=supabase, 
+            get_child_age=get_child_age, 
+            is_genre_blocked=is_genre_blocked, 
+            content_status=CONTENT_STATUS
+        )
+        
+        if "error" not in content_response:
+            # Save the title search response to chat history
+            save_chat_to_database(
+                context=f"Found content for: {title}", 
+                is_chatbot=True, 
+                uaid_child=uaid_child
+            )
+            return jsonify(content_response)
+    
+    # If not a title query or if title search failed, continue with normal processing
+    
     # Read context from file
     context_from_file = read_data_from_file("data.txt")
     if context_from_file is None:
