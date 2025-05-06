@@ -268,15 +268,6 @@ function AuthGuardInner({ children }: { children: ReactNode }) {
           // Only check role permissions if we have valid user data
           if (userData?.upid && !allowedRoleIds.includes(userData.upid)) {
             console.log(`Access denied: User with role ${userData.upid} cannot access ${pathname}`);
-            
-            // If we're on the admin page and the user is not an admin, force sign out
-            // This prevents any unintended session switches
-            if (matchingPath === '/adminpage' && userData.upid !== 4) {
-              await supabase.auth.signOut();
-              redirectTo('/landing');
-              return;
-            }
-            
             redirectTo('/unauthorized');
             return;
           }
@@ -284,9 +275,8 @@ function AuthGuardInner({ children }: { children: ReactNode }) {
 
         // Additional check for admin page access
         if (pathname?.startsWith('/adminpage') && userData?.upid !== 4) {
-          console.log('Non-admin user attempting to access admin page, forcing sign out');
-          await supabase.auth.signOut();
-          redirectTo('/landing');
+          console.log('Non-admin user attempting to access admin page, redirecting to unauthorized');
+          redirectTo('/unauthorized');
           return;
         }
 

@@ -60,7 +60,7 @@ export default function LoginPage() {
   const [mascotClicks, setMascotClicks] = useState(0);
   const [showAdminDialog, setShowAdminDialog] = useState(false);
   const [showSignUpLink, setShowSignUpLink] = useState(false);
-  // New state for password visibility
+  // New state for password
   const [showPassword, setShowPassword] = useState(false);
   
   // State for time limit exceeded
@@ -335,7 +335,7 @@ export default function LoginPage() {
         <div className="flex justify-between items-center">
           <div
             className="flex items-center cursor-pointer"
-            onClick={() => router.push('/')}
+            onClick={() => router.push('/landing')}
           >
             <Image
               src="/logo2.png"
@@ -347,7 +347,7 @@ export default function LoginPage() {
             <h1 className="text-2xl font-bold text-purple-700">CoReadability</h1>
           </div>
           <button
-            onClick={() => router.push('/')}
+            onClick={() => router.push('/landing')}
             className="text-sm text-gray-600 hover:text-gray-800 font-medium"
           >
             ← Back to Home
