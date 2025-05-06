@@ -25,8 +25,8 @@ def check_title_query(query: str) -> Tuple[bool, Optional[str]]:
         {'regex': r'is there a book (called|titled|named) ["\'"]?([A-Za-z0-9\s]+)["\'"]?', 'group': 2},
         {'regex': r'is there a (video|movie) (called|titled|named) ["\'"]?([A-Za-z0-9\s]+)["\'"]?', 'group': 3},
         {'regex': r'(find|show|get) ["\'"]?([A-Za-z0-9\s]+)["\'"]?', 'group': 2},
-        {'regex': r'is (the|a) ([A-Za-z0-9\s]+) available', 'group': 2},  # Added for "is the big fish little fish available?"
-        {'regex': r'do you have (the|a) ([A-Za-z0-9\s]+)', 'group': 2},  # Added for "do you have the xyz book"
+        {'regex': r'is (the|a) ([A-Za-z0-9\s]+) available', 'group': 2},
+        {'regex': r'do you have (the|a) ([A-Za-z0-9\s]+)', 'group': 2},
         {'regex': r'looking for (the|a) ([A-Za-z0-9\s]+)', 'group': 2}, 
         {'regex': r'how about (the|a|an)? ?([A-Za-z0-9\s]+)', 'group': 2},  
         {'regex': r'what about (the|a|an)? ?([A-Za-z0-9\s]+)', 'group': 2},
@@ -41,10 +41,16 @@ def check_title_query(query: str) -> Tuple[bool, Optional[str]]:
                 # Only consider it a title if it's at least 2 words long or 
                 # has specific keywords that indicate it's likely a title
                 words = title.split()
-                if len(words) >= 2 or any(word in title.lower() for word in [
+                
+                # Expanded list of character keywords
+                character_keywords = [
                     "harry", "potter", "peppa", "pig", "disney", "spider", "batman", 
-                    "fish", "fairy", "diary", "captain", "star", "wars", "boy", "girl"
-                ]):
+                    "fish", "fairy", "diary", "captain", "star", "wars", "boy", "girl",
+                    "tom", "jerry", "mickey", "mouse", "spongebob", "dora", "elsa",
+                    "frozen", "paw", "patrol", "bluey", "cocomelon", "marvel", "pokemon"
+                ]
+                
+                if len(words) >= 2 or any(word.lower() in character_keywords for word in words):
                     logging.info(f"Detected title query: '{title}' from '{query}'")
                     return True, title
             except IndexError:
@@ -84,36 +90,46 @@ def check_title_query(query: str) -> Tuple[bool, Optional[str]]:
     return False, None
 
 def search_for_title(title: str, uaid_child: str, supabase_client, get_child_age, is_genre_blocked, content_status) -> Dict[str, Any]:
-    """
-    Search for a specific title in the database
-    
-    Args:
-        title: The title to search for
-        uaid_child: Child's user ID
-        supabase_client: Initialized Supabase client
-        get_child_age: Function to get child's age
-        is_genre_blocked: Function to check if genre is blocked
-        content_status: Dictionary of content status values
-        
-    Returns:
-        Dictionary containing search results or error message
-    """
     try:
-        # Clean up the title for searching (remove question-specific parts)
+        # Clean up the title for searching
         clean_title = re.sub(r'(is|are|can|will|do|does)\s+', '', title, flags=re.IGNORECASE)
         clean_title = re.sub(r'\s+(available|here|there|now|yet)', '', clean_title, flags=re.IGNORECASE)
         clean_title = clean_title.strip()
         
-        # Log the title search
         logging.info(f"Searching for title: '{clean_title}' (original: '{title}') for child {uaid_child}")
         
         # Get child's age for age filtering
         child_age = get_child_age(uaid_child)
-        logging.info(f"Child age for title search: {child_age}")
         
-        # Search in the database for content matching the title
-        # First try an exact match with ILIKE
-        search_query = (
+        # Determine content type (video or book)
+        content_type = None
+        if "video" in clean_title.lower() or "videos" in clean_title.lower() or "episode" in clean_title.lower():
+            content_type = 1  # Video
+        elif "book" in clean_title.lower() or "books" in clean_title.lower() or "story" in clean_title.lower():
+            content_type = 2  # Book
+        
+        # Detect specific character searches
+        character_pairs = {
+            "tom and jerry": ["tom", "jerry"],
+            "mickey mouse": ["mickey", "mouse"],
+            "peppa pig": ["peppa", "pig"],
+            "paw patrol": ["paw", "patrol"],
+            "harry potter": ["harry", "potter"]
+        }
+        
+        active_character = None
+        for char_name, char_parts in character_pairs.items():
+            if all(part in clean_title.lower() for part in char_parts):
+                active_character = char_name
+                logging.info(f"Detected character search: {active_character}")
+                break
+        
+        # ----------- COMBINED SEARCH STRATEGY -----------
+        # Keep track of all results to rank them later
+        all_results = []
+        
+        # 1. Try exact title match
+        exact_query = (
             supabase_client
             .from_("temp_content")
             .select("*")
@@ -121,23 +137,61 @@ def search_for_title(title: str, uaid_child: str, supabase_client, get_child_age
             .eq("status", content_status["APPROVED"])
         )
         
-        # Execute the query
-        response = search_query.execute()
+        # Apply content type filter if specified
+        if content_type is not None:
+            exact_query = exact_query.eq("cfid", content_type)
+            
+        exact_response = exact_query.execute()
+        if exact_response.data:
+            # Add with high relevance score (10)
+            for item in exact_response.data:
+                all_results.append((item, 10))
         
-        # If no results with exact title match, try searching for combinations of words
-        if not response.data and len(clean_title.split()) >= 2:
-            logging.info(f"No exact matches for '{clean_title}', trying phrase combinations")
+        # 2. Character-specific search in both title and description
+        if active_character:
+            # Split character name into parts for matching
+            char_parts = character_pairs[active_character]
             
-            # Split the title into words and create word pairs for searching
+            # Search title with character parts
+            char_title_query = supabase_client.from_("temp_content").select("*").eq("status", content_status["APPROVED"])
+            for part in char_parts:
+                char_title_query = char_title_query.ilike("title", f"%{part}%")
+            
+            # Apply content type filter if specified
+            if content_type is not None:
+                char_title_query = char_title_query.eq("cfid", content_type)
+                
+            char_title_response = char_title_query.execute()
+            if char_title_response.data:
+                # Add with high relevance score (9)
+                for item in char_title_response.data:
+                    all_results.append((item, 9))
+            
+            # Search description with character parts if title search found nothing
+            if not char_title_response.data:
+                char_desc_query = supabase_client.from_("temp_content").select("*").eq("status", content_status["APPROVED"])
+                for part in char_parts:
+                    char_desc_query = char_desc_query.ilike("description", f"%{part}%")
+                
+                # Apply content type filter if specified
+                if content_type is not None:
+                    char_desc_query = char_desc_query.eq("cfid", content_type)
+                    
+                char_desc_response = char_desc_query.execute()
+                if char_desc_response.data:
+                    # Add with medium relevance score (7)
+                    for item in char_desc_response.data:
+                        all_results.append((item, 7))
+        
+        # 3. Word pair search for non-character queries
+        if not active_character and len(clean_title.split()) >= 2:
+            # Split the title into words and create word pairs
             words = clean_title.split()
-            
-            # Create pairs of adjacent words for more precise searching
             word_pairs = []
             for i in range(len(words) - 1):
                 word_pairs.append(f"{words[i]} {words[i+1]}")
             
-            # Try searching for each word pair
-            combined_results = []
+            # Try each word pair
             for word_pair in word_pairs:
                 pair_query = (
                     supabase_client
@@ -146,74 +200,129 @@ def search_for_title(title: str, uaid_child: str, supabase_client, get_child_age
                     .ilike("title", f"%{word_pair}%")
                     .eq("status", content_status["APPROVED"])
                 )
+                
+                # Apply content type filter if specified
+                if content_type is not None:
+                    pair_query = pair_query.eq("cfid", content_type)
+                    
                 pair_response = pair_query.execute()
                 
                 if pair_response.data:
-                    combined_results.extend(pair_response.data)
-            
-            # If we found results with word pairs
-            if combined_results:
-                # Remove duplicates based on cid
-                seen_cids = set()
-                unique_results = []
-                for item in combined_results:
-                    if item["cid"] not in seen_cids:
-                        seen_cids.add(item["cid"])
-                        unique_results.append(item)
-                
-                # Rank results by number of matching words
-                ranked_results = []
-                for item in unique_results:
-                    matches = sum(1 for word in words if word.lower() in item["title"].lower())
-                    ranked_results.append((item, matches))
-                
-                # Sort by number of matches (descending)
-                ranked_results.sort(key=lambda x: x[1], reverse=True)
-                
-                # Take the top 5 most relevant results
-                response.data = [item for item, _ in ranked_results[:5]]
-                
-                logging.info(f"Found {len(response.data)} results through word pair search (from {len(combined_results)} total matches)")
+                    # Add with medium relevance score (6)
+                    for item in pair_response.data:
+                        all_results.append((item, 6))
         
-        # If still no results, try one keyword search with the most distinctive word
-        if not response.data:
-            logging.info(f"No phrase matches found, trying keyword search with most distinctive word")
+        # 4. Fallback to individual keyword searches for most distinctive words
+        if len(all_results) < 3:  # If we still need more results
+            # Define character keywords that should be prioritized
+            character_keywords = [
+                "tom", "jerry", "peppa", "pig", "harry", "potter", "mickey", "mouse",
+                "spongebob", "dora", "barbie", "elsa", "superman", "batman", "spider",
+                "paw", "patrol", "bluey", "disney", "marvel", "frozen"
+            ]
             
-            # Find words with 4+ characters (more likely to be distinctive)
-            keywords = [word for word in clean_title.split() if len(word) >= 4]
+            # Extract all words with 3+ characters
+            words = [word for word in clean_title.split() if len(word) >= 3]
             
-            # If no 4+ character words, use 3+ character words
-            if not keywords:
-                keywords = [word for word in clean_title.split() if len(word) >= 3]
+            # Prioritize character keywords
+            priority_words = [word for word in words if word.lower() in character_keywords]
+            search_words = priority_words if priority_words else words
             
-            # If we have keywords, search for the longest one (likely most distinctive)
-            if keywords:
-                longest_keyword = max(keywords, key=len)
-                logging.info(f"Searching for distinctive keyword: '{longest_keyword}'")
-                
+            # If no search words found, use any words
+            if not search_words and clean_title.split():
+                search_words = [clean_title.split()[0]]
+            
+            # Search with each priority word
+            for word in search_words:
                 keyword_query = (
                     supabase_client
                     .from_("temp_content")
                     .select("*")
-                    .ilike("title", f"%{longest_keyword}%")
+                    .ilike("title", f"%{word}%")
                     .eq("status", content_status["APPROVED"])
-                    .limit(10)  # Limit to 10 results
                 )
                 
+                # Apply content type filter if specified
+                if content_type is not None:
+                    keyword_query = keyword_query.eq("cfid", content_type)
+                    
                 keyword_response = keyword_query.execute()
-                response.data = keyword_response.data
                 
-                logging.info(f"Found {len(response.data)} results with keyword '{longest_keyword}'")
+                if keyword_response.data:
+                    # Add with lower relevance score (4 if character keyword, 3 otherwise)
+                    relevance = 4 if word.lower() in character_keywords else 3
+                    for item in keyword_response.data:
+                        all_results.append((item, relevance))
         
-        if not response.data:
+        # 5. Last resort: Search in description for distinctive words
+        if len(all_results) < 3:  # Still need more results
+            for word in search_words[:2]:  # Limit to first 2 words for efficiency
+                desc_query = (
+                    supabase_client
+                    .from_("temp_content")
+                    .select("*")
+                    .ilike("description", f"%{word}%")
+                    .eq("status", content_status["APPROVED"])
+                )
+                
+                # Apply content type filter if specified
+                if content_type is not None:
+                    desc_query = desc_query.eq("cfid", content_type)
+                    
+                desc_response = desc_query.execute()
+                
+                if desc_response.data:
+                    # Add with lowest relevance score (2)
+                    for item in desc_response.data:
+                        all_results.append((item, 2))
+        
+        # 6. If we're looking for videos and have no results, try matching content type only
+        if content_type is not None and len(all_results) == 0:
+            type_query = (
+                supabase_client
+                .from_("temp_content")
+                .select("*")
+                .eq("cfid", content_type)
+                .eq("status", content_status["APPROVED"])
+                .limit(10)
+            )
+            
+            type_response = type_query.execute()
+            
+            if type_response.data:
+                # Add with lowest relevance score (1)
+                for item in type_response.data:
+                    all_results.append((item, 1))
+        
+        # Process results by removing duplicates and ranking
+        if all_results:
+            # Remove duplicates by keeping highest relevance score
+            seen_cids = {}
+            unique_results = []
+            
+            for item, relevance in all_results:
+                cid = item["cid"]
+                if cid not in seen_cids or relevance > seen_cids[cid]:
+                    seen_cids[cid] = relevance
+                    unique_results.append((item, relevance))
+            
+            # Sort by relevance score (highest first)
+            unique_results.sort(key=lambda x: x[1], reverse=True)
+            
+            # Extract just the items
+            response_data = [item for item, _ in unique_results]
+            
+            logging.info(f"Found {len(response_data)} total results after ranking and de-duplication")
+        else:
+            response_data = []
+        
+        if not response_data:
             logging.info(f"No results found for title '{clean_title}'")
             return {"error": "No content found with that title"}
         
-        logging.info(f"Found {len(response.data)} results for title '{clean_title}'")
-        
-        # Filter by age appropriateness
+        # Apply age and genre filtering
         filtered_content = []
-        for content in response.data:
+        for content in response_data:
             # Skip content that's not age-appropriate
             if "minimumage" in content and content["minimumage"] is not None:
                 if int(content["minimumage"]) > child_age:
@@ -258,11 +367,23 @@ def search_for_title(title: str, uaid_child: str, supabase_client, get_child_age
         books = [item for item in filtered_content if item["cfid"] == 2]
         videos = [item for item in filtered_content if item["cfid"] == 1]
         
+        # Apply additional content type filtering if requested
+        if content_type == 1:  # Videos only
+            books = []
+        elif content_type == 2:  # Books only
+            videos = []
+        
+        # Include a character flag to help the chatbot provide context
+        has_character = bool(active_character)
+        character_name = active_character if active_character else None
+        
         # Return the filtered content
         return {
             "message": f"Found content matching '{clean_title}'",
             "books": books,
-            "videos": videos
+            "videos": videos,
+            "has_character": has_character,
+            "character_name": character_name
         }
         
     except Exception as e:

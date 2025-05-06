@@ -4,6 +4,7 @@ import os
 from langchain_groq import ChatGroq
 from langchain_core.output_parsers import StrOutputParser
 from langchain_community.document_loaders import TextLoader
+from conversation_context import conversation_manager
 
 # Importing Database
 from supabase import create_client, Client
@@ -11,6 +12,18 @@ from supabase import create_client, Client
 # Importing Flask to make Python work with React
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+
+from character_search import (
+    search_database_for_character,
+    detect_character_in_query,
+    extract_character_from_history,
+    detect_content_type,
+    get_recent_conversation_history
+)
+from conversation_template import (
+    create_template_with_context,
+    is_short_response
+)
 
 # Importing regex, random, datetime, and logging
 import re
@@ -54,29 +67,29 @@ CONTENT_STATUS = {
     "SUSPENDED": "suspended"    # Content is archived (not active)
 }
 
-# Enhanced chatbot template with kid-friendly instructions
-template = ("""
-You are an AI-powered chatbot designed to provide 
-recommendations for books and videos for children/kids
-based on the context provided to you only.
-Don't in any way make things up.
+# # Enhanced chatbot template with kid-friendly instructions
+# template = ("""
+# You are an AI-powered chatbot designed to provide 
+# recommendations for books and videos for children/kids
+# based on the context provided to you only.
+# Don't in any way make things up.
 
-# IMPORTANT READABILITY GUIDELINES:
-- Sound kid-friendly and enthusiastic!
-- Use simple words with 1-2 syllables whenever possible
-- Keep sentences short (under 12 words)
-- Use active voice, not passive voice
-- Explain any complex terms immediately
-- Use concrete examples rather than abstract concepts
-- Be enthusiastic and playful! Use exclamation points!
-- Include occasional fun expressions like "Wow!" or "Awesome!"
-- For ages 5-8: Use very simple language (Grade 1-2 level)
-- For ages 9-12: Use moderately simple language (Grade 3-4 level)
+# # IMPORTANT READABILITY GUIDELINES:
+# - Sound kid-friendly and enthusiastic!
+# - Use simple words with 1-2 syllables whenever possible
+# - Keep sentences short (under 12 words)
+# - Use active voice, not passive voice
+# - Explain any complex terms immediately
+# - Use concrete examples rather than abstract concepts
+# - Be enthusiastic and playful! Use exclamation points!
+# - Include occasional fun expressions like "Wow!" or "Awesome!"
+# - For ages 5-8: Use very simple language (Grade 1-2 level)
+# - For ages 9-12: Use moderately simple language (Grade 3-4 level)
 
-Context:{context}
-Question:{question}
-Child's Age:{age}
-""")
+# Context:{context}
+# Question:{question}
+# Child's Age:{age}
+# """)
 
 def save_chat_to_database(context, is_chatbot, uaid_child):
     try:
@@ -320,6 +333,7 @@ def get_content_by_genre_and_format(question, uaid_child):
         return {"error": "Database query failed"}
 
 # Main chatbot route
+# Main chatbot route with improved context handling
 @app.route('/api/chat', methods=['POST'])
 def chat():
     data = request.json
@@ -334,12 +348,160 @@ def chat():
     # Save user input to chat history
     save_chat_to_database(context=raw_question, is_chatbot=False, uaid_child=uaid_child)
 
-    # Check if this is a title-specific query
-    is_title_query, title = check_title_query(question)
+    # Get the child's age
+    child_age = get_child_age(uaid_child)
     
+    # Get recent conversation history
+    recent_history = get_recent_conversation_history(uaid_child, supabase, limit=5)
+    logging.info(f"Retrieved {len(recent_history)} recent messages for context")
+    
+    # Get existing conversation context
+    existing_context = conversation_manager.get_context(uaid_child)
+    logging.info(f"Retrieved existing context: {existing_context}")
+    
+    # Check if this is a short/affirmative response
+    short_response = is_short_response(normalized_question)
+    
+    # Check for location references ("here", "this one", etc.)
+    location_references = ["here", "this one", "that one", "these", "those"]
+    has_location_reference = any(ref in normalized_question for ref in location_references)
+    
+    # Detect character mentions in the current query
+    character_query = detect_character_in_query(normalized_question)
+    
+    # If no character in current query but we have it in context, use that
+    if not character_query and existing_context and 'character' in existing_context:
+        character_query = existing_context['character']
+        logging.info(f"Using character from existing context: {character_query}")
+    # If still no character, check recent history
+    elif not character_query and recent_history:
+        character_query = extract_character_from_history(recent_history)
+    
+    # If we found a character, store it in context
+    if character_query:
+        conversation_manager.update_context(uaid_child, 'character', character_query)
+        logging.info(f"Updated conversation context with character: {character_query}")
+    
+    # Detect content type request (videos/books)
+    content_type = detect_content_type(normalized_question)
+    
+    # If no content type in query but we have a short response, check context
+    if not content_type and (short_response or has_location_reference) and existing_context and 'content_type' in existing_context:
+        content_type = existing_context['content_type']
+        logging.info(f"Using content type from context: {content_type}")
+    
+    # Store content type in context if found
+    if content_type:
+        conversation_manager.update_context(uaid_child, 'content_type', content_type)
+        logging.info(f"Updated conversation context with content type: {content_type}")
+    
+    # Combine character and content type for search if we have both
+    combined_query = None
+    if character_query:
+        if content_type:
+            # Combine character with content type
+            combined_query = f"{character_query} {content_type}"
+            logging.info(f"Created combined query: '{combined_query}'")
+        else:
+            # Just use character
+            combined_query = character_query
+    
+    # If we have a combined or character query, search for it
+    db_content = None
+    if combined_query:
+        logging.info(f"Searching database for: '{combined_query}'")
+        
+        # Check if it's a title query first
+        is_title_query, _ = check_title_query(combined_query)
+        
+        if is_title_query:
+            # Use title search if it looks like a title query
+            db_content = search_for_title(
+                title=combined_query,
+                uaid_child=uaid_child,
+                supabase_client=supabase,
+                get_child_age=get_child_age,
+                is_genre_blocked=is_genre_blocked,
+                content_status=CONTENT_STATUS
+            )
+        else:
+            # Use character search otherwise
+            db_content = search_database_for_character(
+                character=character_query,
+                uaid_child=uaid_child,
+                supabase=supabase,
+                get_child_age=get_child_age,
+                is_genre_blocked=is_genre_blocked,
+                content_status=CONTENT_STATUS,
+                content_type=content_type
+            )
+        
+        # If we found actual content, respond with it
+        if db_content and (db_content.get("books") or db_content.get("videos")):
+            save_chat_to_database(
+                context=f"Found {combined_query if combined_query else character_query} content", 
+                is_chatbot=True, 
+                uaid_child=uaid_child
+            )
+            logging.info(f"Returning direct database content for {combined_query if combined_query else character_query}")
+            return jsonify(db_content)
+    
+    # If it's a short response or we have character context but no direct content match,
+    # use LLM with conversation context
+    if short_response or has_location_reference or character_query:
+        # Read context from file
+        context_from_file = read_data_from_file("data.txt")
+        if context_from_file is None:
+            return jsonify({"error": "Failed to read context from file"}), 500
+        
+        # Create template with conversation context
+        template_with_context = create_template_with_context(
+            conversation_history=recent_history,
+            context_from_file=context_from_file,
+            question=question,
+            child_age=child_age,
+            character=character_query
+        )
+        
+        # Add specific context information for short responses
+        if short_response and character_query:
+            template_with_context += f"\n\nIMPORTANT: The child is responding to your previous message about {character_query} with '{question}'. They likely want to see {character_query} content."
+        
+        if short_response and content_type and not character_query:
+            template_with_context += f"\n\nIMPORTANT: The child is asking for {content_type}. Please suggest appropriate {content_type} for a {child_age}-year-old."
+        
+        if has_location_reference and existing_context:
+            context_info = ", ".join([f"{k}: {v}" for k, v in existing_context.items()])
+            template_with_context += f"\n\nIMPORTANT: The child is referring to something previously mentioned. Current context: {context_info}"
+        
+        try:
+            ai_answer = deepseek_chain.invoke(template_with_context)
+            # Use the kid-friendly function
+            kid_friendly_answer = make_kid_friendly(ai_answer, child_age, deepseek_chain)
+            save_chat_to_database(context=kid_friendly_answer, is_chatbot=True, uaid_child=uaid_child)
+            return jsonify({"answer": kid_friendly_answer})
+        except Exception as e:
+            logging.error(f"AI response with context failed: {e}")
+            # Fall back to regular processing if this fails
+    
+    # If no specific character/content request, check if it's a title query
+    is_title_query, title = check_title_query(question)
     if is_title_query and title:
+        # Store the title in conversation context
+        conversation_manager.update_context(uaid_child, 'title', title)
+        
+        # Check for popular characters to maintain character context
+        popular_characters = ["spongebob", "peppa pig", "harry potter", "dora", "superman", 
+                             "batman", "elsa", "mickey mouse", "paw patrol", "tom and jerry"]
+        
+        for character in popular_characters:
+            if character.lower() in title.lower():
+                conversation_manager.update_context(uaid_child, 'character', character)
+                logging.info(f"Updated character context to '{character}' from title '{title}'")
+                break
+        
         # Search for the specified title
-        content_response = search_for_title(
+        title_content = search_for_title(
             title=title, 
             uaid_child=uaid_child, 
             supabase_client=supabase, 
@@ -348,37 +510,40 @@ def chat():
             content_status=CONTENT_STATUS
         )
         
-        if "error" not in content_response:
+        if "error" not in title_content:
             # Save the title search response to chat history
             save_chat_to_database(
                 context=f"Found content for: {title}", 
                 is_chatbot=True, 
                 uaid_child=uaid_child
             )
-            return jsonify(content_response)
+            return jsonify(title_content)
     
-    # If not a title query or if title search failed, continue with normal processing
-    
-    # Read context from file
-    context_from_file = read_data_from_file("data.txt")
-    if context_from_file is None:
-        return jsonify({"error": "Failed to read context from file"}), 500
-
-    # Get child's age for personalized responses
-    child_age = get_child_age(uaid_child)
-
-    # Get content based on the question (only approved content)
+    # If we reach here, continue with genre-based content processing
     content_response = get_content_by_genre_and_format(question, uaid_child)
-
+    
+    # If a genre was detected, store it in the conversation context
+    if "genre" in content_response and content_response["genre"]:
+        conversation_manager.update_context(uaid_child, 'genre', content_response["genre"])
+        logging.info(f"Updated context with genre: {content_response['genre']}")
+    
     # Handle blocked genres with alternative suggestions
     if "error" in content_response and content_response.get("blocked"):
-        # Prepare a prompt to suggest alternative content
-        alternative_prompt = f"The child asked for {content_response.get('requested_genre', 'certain')} content, but this is not available. Please suggest other kid-friendly genres and explain that this content isn't available right now. Be gentle and positive."
-        template_with_context = template.format(context=context_from_file, question=alternative_prompt, age=child_age)
+        context_from_file = read_data_from_file("data.txt")
+        if context_from_file is None:
+            return jsonify({"error": "Failed to read context from file"}), 500
+            
+        # Create template with conversation context
+        template_with_context = create_template_with_context(
+            conversation_history=recent_history,
+            context_from_file=context_from_file,
+            question=f"The child asked for {content_response.get('requested_genre', 'certain')} content, but this is not available. Please suggest other kid-friendly genres and explain that this content isn't available right now. Be gentle and positive.",
+            child_age=child_age
+        )
         
         try:
             ai_answer = deepseek_chain.invoke(template_with_context)
-            # Use the new kid-friendly function instead of basic cleaning
+            # Use the kid-friendly function
             kid_friendly_answer = make_kid_friendly(ai_answer, child_age, deepseek_chain)
             save_chat_to_database(context=kid_friendly_answer, is_chatbot=True, uaid_child=uaid_child)
             
@@ -390,13 +555,21 @@ def chat():
     
     # Handle age-restricted content
     if "error" in content_response and content_response.get("age_restricted"):
-        # Prepare a prompt to suggest age-appropriate content
-        age_prompt = f"The child (age {child_age}) asked for {content_response.get('genre', 'certain')} content, but we only have content for older kids. Please suggest age-appropriate alternatives and explain in a child-friendly way. Be gentle and positive."
-        template_with_context = template.format(context=context_from_file, question=age_prompt, age=child_age)
+        context_from_file = read_data_from_file("data.txt")
+        if context_from_file is None:
+            return jsonify({"error": "Failed to read context from file"}), 500
+            
+        # Create template with conversation context
+        template_with_context = create_template_with_context(
+            conversation_history=recent_history,
+            context_from_file=context_from_file,
+            question=f"The child (age {child_age}) asked for {content_response.get('genre', 'certain')} content, but we only have content for older kids. Please suggest age-appropriate alternatives and explain in a child-friendly way. Be gentle and positive.",
+            child_age=child_age
+        )
         
         try:
             ai_answer = deepseek_chain.invoke(template_with_context)
-            # Use the new kid-friendly function
+            # Use the kid-friendly function
             kid_friendly_answer = make_kid_friendly(ai_answer, child_age, deepseek_chain)
             save_chat_to_database(context=kid_friendly_answer, is_chatbot=True, uaid_child=uaid_child)
             
@@ -406,46 +579,40 @@ def chat():
             logging.error(f"AI response for age-appropriate content failed: {e}")
             return jsonify({"error": "AI response failed"}), 500
     
-    # If no content at all, use AI
+    # If no content at all, use AI with conversation context
     if "error" in content_response or (
         not content_response.get("books") and not content_response.get("videos")
     ):
-        template_with_context = template.format(context=context_from_file, question=question, age=child_age)
+        context_from_file = read_data_from_file("data.txt")
+        if context_from_file is None:
+            return jsonify({"error": "Failed to read context from file"}), 500
+        
+        # Create template with conversation context
+        template_with_context = create_template_with_context(
+            conversation_history=recent_history,
+            context_from_file=context_from_file,
+            question=question,
+            child_age=child_age,
+            character=character_query
+        )
+        
+        # Include context information in the prompt
+        if existing_context:
+            context_info = ", ".join([f"{k}: {v}" for k, v in existing_context.items()])
+            template_with_context += f"\n\nAdditional context information: {context_info}"
+        
         try:
             ai_answer = deepseek_chain.invoke(template_with_context)
-            # Use the new kid-friendly function
+            # Use the kid-friendly function
             kid_friendly_answer = make_kid_friendly(ai_answer, child_age, deepseek_chain)
             save_chat_to_database(context=kid_friendly_answer, is_chatbot=True, uaid_child=uaid_child)
             return jsonify({"answer": kid_friendly_answer})
         except Exception as e:
             logging.error(f"AI response failed: {e}")
             return jsonify({"error": "AI response failed"}), 500
-
-    # If only missing books, use AI for book recommendations
-    if not content_response.get("books"):
-        try:
-            ai_book_prompt = f"What are some good kid-friendly books about {content_response['genre']} for a {child_age}-year-old child?"
-            template_with_books = template.format(context=context_from_file, question=ai_book_prompt, age=child_age)
-            ai_books = deepseek_chain.invoke(template_with_books)
-            # Use the new kid-friendly function
-            content_response["books_ai"] = make_kid_friendly(ai_books, child_age, deepseek_chain)
-        except Exception as e:
-            logging.warning(f"AI fallback for books failed: {e}")
-
-    # If only missing videos, use AI for video recommendations
-    if not content_response.get("videos"):
-        try:
-            ai_video_prompt = f"What are some good videos for kids about {content_response['genre']} appropriate for a {child_age}-year-old child?"
-            template_with_videos = template.format(context=context_from_file, question=ai_video_prompt, age=child_age)
-            ai_videos = deepseek_chain.invoke(template_with_videos)
-            # Use the new kid-friendly function
-            content_response["videos_ai"] = make_kid_friendly(ai_videos, child_age, deepseek_chain)
-        except Exception as e:
-            logging.warning(f"AI fallback for videos failed: {e}")
-
-    # Save the chatbot response to the database
+    
+    # If we have content, return it
     save_chat_to_database(context=str(content_response), is_chatbot=True, uaid_child=uaid_child)
-
     return jsonify(content_response)
 
 # Standard response endpoints for common questions
