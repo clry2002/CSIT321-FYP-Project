@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image'; // Import Image component
+import Image from 'next/image';
 import { supabase } from '@/lib/supabase';
 
 interface StyleObject {
@@ -47,7 +47,7 @@ export default function SignUpPage() {
     // Trigger the fly-in animation after a short delay when the component mounts
     setTimeout(() => {
       setFormVisible(true);
-    }, 100); // Adjust the delay as needed
+    }, 100);
   }, []);
 
   const handleSignUp = async (e: React.FormEvent) => {
@@ -104,19 +104,19 @@ export default function SignUpPage() {
             {/* Added Logo and CoReadability */}
             <div
               className="flex items-center cursor-pointer"
-              onClick={() => router.push('/')} // Navigate to homepage
+              onClick={() => router.push('/landing')} // Navigate to homepage
             >
               <Image
-                src="/logo2.png" // Path to your logo
+                src="/logo2.png"
                 alt="Logo"
-                width={40} // Adjust the width
-                height={40} // Adjust the height
+                width={40}
+                height={40}
                 className="mr-2"
               />
-              <h1 className="text-2xl font-bold text-purple-700">CoReadability</h1> {/* Changed title color */}
+              <h1 className="text-2xl font-bold text-purple-700">CoReadability</h1>
             </div>
             <button
-              onClick={() => router.push('/')} // Redirects to homepage
+              onClick={() => router.push('/landing')} // Redirects to homepage
               className="text-sm text-gray-600 hover:text-gray-800 font-medium"
             >
               ← Back to Home
@@ -191,19 +191,19 @@ export default function SignUpPage() {
           {/* Added Logo and CoReadability */}
           <div
             className="flex items-center cursor-pointer"
-            onClick={() => router.push('/')} // Navigate to homepage
+            onClick={() => router.push('/landing')}
           >
             <Image
-              src="/logo2.png" // Path to your logo
+              src="/logo2.png"
               alt="Logo"
-              width={40} // Adjust the width
-              height={40} // Adjust the height
+              width={40}
+              height={40}
               className="mr-2"
             />
-            <h1 className="text-2xl font-bold text-purple-700">CoReadability</h1> {/* Changed title color */}
+            <h1 className="text-2xl font-bold text-purple-700">CoReadability</h1>
           </div>
           <button
-            onClick={() => router.push('/')} // Redirects to homepage
+            onClick={() => router.push('/landing')}
             className="text-sm text-gray-600 hover:text-gray-800 font-medium"
           >
             ← Back to Home

@@ -64,7 +64,7 @@ export default function LandingPage() {
           <h1 className="text-2xl font-bold text-gray-800">CoReadability</h1>
         </div>
         <div className="flex items-center justify-center flex-grow space-x-4"> {/* Centered navigation links */}
-          <Link href="/" className="text-gray-800 font-medium hover:text-blue-600 transition">Home</Link>
+          <Link href="/landing" className="text-gray-800 font-medium hover:text-blue-600 transition">Home</Link>
           <Link href="#parents" 
           className={`font-medium transition ${activeSection === 'parents' || activeSection === 'educators' || activeSection === 'publishers' ? 'underline decoration-2 underline-offset-8 text-gray-600' : 'text-gray-800 hover:text-gray-600'}`}
           >Learn More
