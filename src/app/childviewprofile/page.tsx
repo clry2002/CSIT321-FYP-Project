@@ -41,6 +41,7 @@ export default function ChildViewProfile() {
   const [showGenreSelector, setShowGenreSelector] = useState(false);
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
+  const [profileEditDisabled, setProfileEditDisabled] = useState(false);
 
   useEffect(() => {
     const initializeProfile = async () => {
@@ -61,6 +62,19 @@ export default function ChildViewProfile() {
 
         // Get the current user's ID
         const userId = session.user.id;
+
+        // Check profile edit permission
+        const { data: permissionData, error: permissionError } = await supabase
+          .from('childpermissions')
+          .select('*')
+          .eq('permission', 'disable edit profile')
+          .single();
+
+        if (permissionError) {
+          console.error('Error fetching profile edit permission:', permissionError);
+        } else {
+          setProfileEditDisabled(permissionData?.active || false);
+        }
 
         // Get the user's account data
         const { data: userData, error: userError } = await supabase
@@ -343,6 +357,14 @@ export default function ChildViewProfile() {
             )}
   
             <div className="space-y-6">
+              {profileEditDisabled && (
+                <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-yellow-700 text-sm">
+                    Profile editing is currently disabled by an administrator. Please contact your parent or guardian for assistance with profile changes.
+                  </p>
+                </div>
+              )}
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">My Name</label>
                 {editingField === 'full_name' ? (
@@ -352,12 +374,18 @@ export default function ChildViewProfile() {
                     onChange={(e) => handleFieldChange('full_name', e.target.value)}
                     onBlur={handleFieldBlur}
                     autoFocus
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-lg"
+                    disabled={profileEditDisabled}
+                    className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-lg text-black ${
+                      profileEditDisabled ? 'bg-gray-100 cursor-not-allowed' : ''
+                    }`}
                   />
                 ) : (
                   <button
-                    onClick={() => handleFieldClick('full_name')}
-                    className="mt-1 block w-full rounded-md border border-gray-300 bg-white py-2 px-3 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 text-left text-lg text-gray-900 hover:bg-gray-50 transition-colors duration-200"
+                    onClick={() => !profileEditDisabled && handleFieldClick('full_name')}
+                    disabled={profileEditDisabled}
+                    className={`mt-1 block w-full rounded-md border border-gray-300 bg-white py-2 px-3 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 text-left text-lg text-gray-900 hover:bg-gray-50 transition-colors duration-200 ${
+                      profileEditDisabled ? 'cursor-not-allowed opacity-75' : ''
+                    }`}
                   >
                     {profileData?.full_name || <span className="text-gray-400">Tap to add name</span>}
                   </button>
@@ -373,12 +401,18 @@ export default function ChildViewProfile() {
                     onChange={(e) => handleFieldChange('username', e.target.value)}
                     onBlur={handleFieldBlur}
                     autoFocus
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-lg"
+                    disabled={profileEditDisabled}
+                    className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-lg text-black ${
+                      profileEditDisabled ? 'bg-gray-100 cursor-not-allowed' : ''
+                    }`}
                   />
                 ) : (
                   <button
-                    onClick={() => handleFieldClick('username')}
-                    className="mt-1 block w-full rounded-md border border-gray-300 bg-white py-2 px-3 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 text-left text-lg text-gray-900 hover:bg-gray-50 transition-colors duration-200"
+                    onClick={() => !profileEditDisabled && handleFieldClick('username')}
+                    disabled={profileEditDisabled}
+                    className={`mt-1 block w-full rounded-md border border-gray-300 bg-white py-2 px-3 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 text-left text-lg text-gray-900 hover:bg-gray-50 transition-colors duration-200 ${
+                      profileEditDisabled ? 'cursor-not-allowed opacity-75' : ''
+                    }`}
                   >
                     {profileData?.username || <span className="text-gray-400">Tap to add username</span>}
                   </button>
@@ -394,12 +428,18 @@ export default function ChildViewProfile() {
                     onChange={(e) => handleFieldChange('age', parseInt(e.target.value))}
                     onBlur={handleFieldBlur}
                     autoFocus
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-lg"
+                    disabled={profileEditDisabled}
+                    className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-lg text-black ${
+                      profileEditDisabled ? 'bg-gray-100 cursor-not-allowed' : ''
+                    }`}
                   />
                 ) : (
                   <button
-                    onClick={() => handleFieldClick('age')}
-                    className="mt-1 block w-full rounded-md border border-gray-300 bg-white py-2 px-3 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 text-left text-lg text-gray-900 hover:bg-gray-50 transition-colors duration-200"
+                    onClick={() => !profileEditDisabled && handleFieldClick('age')}
+                    disabled={profileEditDisabled}
+                    className={`mt-1 block w-full rounded-md border border-gray-300 bg-white py-2 px-3 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 text-left text-lg text-gray-900 hover:bg-gray-50 transition-colors duration-200 ${
+                      profileEditDisabled ? 'cursor-not-allowed opacity-75' : ''
+                    }`}
                   >
                     {profileData?.age !== undefined ? profileData.age : <span className="text-gray-400">Tap to add age</span>}
                   </button>

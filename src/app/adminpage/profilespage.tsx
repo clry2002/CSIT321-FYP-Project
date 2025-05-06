@@ -7,6 +7,7 @@ import { UserAccount } from './types';
 export default function ProfilesPage() {
   const [publisherDeletePermission, setPublisherDeletePermission] = useState(false);
   const [childPasswordPermission, setChildPasswordPermission] = useState(false);
+  const [childProfileEditPermission, setChildProfileEditPermission] = useState(false);
   const [parentDeletePermission, setParentDeletePermission] = useState(false);
   const [educatorClassroomPermission, setEducatorClassroomPermission] = useState(false);
   const [showPermissionsModal, setShowPermissionsModal] = useState(false);
@@ -71,14 +72,23 @@ export default function ProfilesPage() {
 
   const fetchChildPermissions = async () => {
     try {
-      const { data, error } = await supabase
+      const { data: passwordData, error: passwordError } = await supabase
         .from('childpermissions')
         .select('*')
         .eq('permission', 'disable reset password')
         .single();
 
-      if (error) throw error;
-      setChildPasswordPermission(data?.active || false);
+      if (passwordError) throw passwordError;
+      setChildPasswordPermission(passwordData?.active || false);
+
+      const { data: profileEditData, error: profileEditError } = await supabase
+        .from('childpermissions')
+        .select('*')
+        .eq('permission', 'disable edit profile')
+        .single();
+
+      if (profileEditError) throw profileEditError;
+      setChildProfileEditPermission(profileEditData?.active || false);
     } catch (err) {
       console.error('Error fetching child permissions:', err);
     }
@@ -251,6 +261,20 @@ export default function ProfilesPage() {
       setEducatorClassroomPermission(!educatorClassroomPermission);
     } catch (err) {
       console.error('Error updating educator permission:', err);
+    }
+  };
+
+  const handleToggleChildProfileEditPermission = async () => {
+    try {
+      const { error } = await supabase
+        .from('childpermissions')
+        .update({ active: !childProfileEditPermission })
+        .eq('permission', 'disable edit profile');
+
+      if (error) throw error;
+      setChildProfileEditPermission(!childProfileEditPermission);
+    } catch (err) {
+      console.error('Error updating child profile edit permission:', err);
     }
   };
 
@@ -557,6 +581,25 @@ export default function ProfilesPage() {
                     <span
                       className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
                         childPasswordPermission ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between p-4 bg-gray-800 rounded-lg">
+                  <div>
+                    <h4 className="font-semibold">Disable Profile Edit</h4>
+                    <p className="text-sm text-gray-400">Prevent children from editing their profile information</p>
+                  </div>
+                  <button
+                    onClick={handleToggleChildProfileEditPermission}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${
+                      childProfileEditPermission ? 'bg-indigo-600' : 'bg-gray-600'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        childProfileEditPermission ? 'translate-x-6' : 'translate-x-1'
                       }`}
                     />
                   </button>
