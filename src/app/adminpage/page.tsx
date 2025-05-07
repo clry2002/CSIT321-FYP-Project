@@ -135,13 +135,20 @@ export default function AdminPage() {
 
   const fetchPublisherPermissions = async () => {
     try {
+      // Query the profile_permissions table for the publisher permission
       const { data, error } = await supabase
-        .from('publisherpermissions')
-        .select('*')
-        .eq('permission', 'publisher delete all content')
+        .from('profile_permissions')
+        .select('active')
+        .eq('upid', 1)
+        .eq('permission_key', 'delete_own_content')
         .single();
-
-      if (error) throw error;
+  
+      if (error && error.code !== 'PGRST116') {
+        // Not found error
+        throw error;
+      }
+      
+      // If the permission exists and is active, set the state
       setPublisherDeletePermission(data?.active || false);
     } catch (err) {
       console.error('Error fetching publisher permissions:', err);
@@ -149,18 +156,48 @@ export default function AdminPage() {
   };
 
   const handleTogglePublisherPermission = async () => {
-    try {
-      const { error } = await supabase
-        .from('publisherpermissions')
-        .update({ active: !publisherDeletePermission })
-        .eq('permission', 'publisher delete all content');
+  try {
+    // First check if the permission record exists
+    const { data: existingPermission, error: queryError } = await supabase
+      .from('profile_permissions')
+      .select('ppid')
+      .eq('upid', 1) // Publisher profile type (upid = 1)
+      .eq('permission_key', 'delete_own_content')
+      .single();
 
-      if (error) throw error;
-      setPublisherDeletePermission(!publisherDeletePermission);
-    } catch (err) {
-      console.error('Error updating publisher permission:', err);
+    if (queryError && queryError.code !== 'PGRST116') { // PGRST116 is "not found" error
+      throw queryError;
     }
-  };
+
+    let updateError;
+    
+    if (existingPermission) {
+      // Update existing permission
+      const { error } = await supabase
+        .from('profile_permissions')
+        .update({ active: !publisherDeletePermission })
+        .eq('ppid', existingPermission.ppid);
+      
+      updateError = error;
+    } else {
+      // Insert new permission
+      const { error } = await supabase
+        .from('profile_permissions')
+        .insert({
+          upid: 1, // Publisher profile type
+          permission_key: 'delete_own_content',
+          active: !publisherDeletePermission
+        });
+      
+      updateError = error;
+    }
+
+    if (updateError) throw updateError;
+    setPublisherDeletePermission(!publisherDeletePermission);
+  } catch (err) {
+    console.error('Error updating publisher permission:', err);
+  }
+};
 
   const handleCreateAuth = () => {
     handlers.handleCreateAuth(newUser, setModalMessage, setAuthUserId, setStep);

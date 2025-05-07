@@ -32,6 +32,7 @@ export default function AccountSettings() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [success, setSuccess] = useState<string | null>(null);
+  const [, setUserProfile] = useState<number | null>(null);
 
   useEffect(() => {
     const initializeAccount = async () => {
@@ -52,17 +53,35 @@ export default function AccountSettings() {
 
         setEmail(session.user.email || '');
 
-        // Fetch account settings permission
-        const { data: accountSettingsData, error: accountSettingsError } = await supabase
-          .from('childpermissions')
-          .select('*')
-          .eq('permission', 'disable account settings')
+        // Get user profile type (upid)
+        const { data: userData, error: userError } = await supabase
+          .from('user_account')
+          .select('upid')
+          .eq('user_id', session.user.id) 
           .single();
 
-        if (accountSettingsError) {
-          console.error('Error fetching account settings permission:', accountSettingsError);
-        } else {
-          setAccountSettingsDisabled(accountSettingsData?.active || false);
+        if (userError) {
+          console.error('Error fetching user profile:', userError);
+          throw userError;
+        }
+
+        setUserProfile(userData.upid);
+
+        // Check if the child profile has the "disable_account_settings" permission
+        if (userData.upid === 3) { 
+          const { data: permissionData, error: permissionError } = await supabase
+            .from('profile_permissions')
+            .select('active')
+            .eq('upid', 3)
+            .eq('permission_key', 'disable_account_settings')
+            .single();
+
+          if (permissionError && permissionError.code !== 'PGRST116') { // PGRST116 is "not found" error
+            console.error('Error fetching account settings permission:', permissionError);
+          } else {
+            // If the permission exists and is active, settings are disabled
+            setAccountSettingsDisabled(permissionData?.active || false);
+          }
         }
 
       } catch (err) {

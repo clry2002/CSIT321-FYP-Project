@@ -75,13 +75,20 @@ export default function PublisherPage() {
   useEffect(() => {
     const fetchPublisherPermissions = async () => {
       try {
+        // Query the profile_permissions table for the publisher permission
         const { data, error } = await supabase
-          .from('publisherpermissions')
-          .select('*')
-          .eq('permission', 'publisher delete all content')
+          .from('profile_permissions')
+          .select('active')
+          .eq('upid', 1) // Publisher profile type (upid = 1)
+          .eq('permission_key', 'delete_own_content')
           .single();
 
-        if (error) throw error;
+        if (error && error.code !== 'PGRST116') {
+          // Not found error
+          throw error;
+        }
+        
+        // If the permission exists and is active, enable content deletion
         setCanDeleteAllContent(data?.active || false);
       } catch (err) {
         console.error('Error fetching publisher permissions:', err);

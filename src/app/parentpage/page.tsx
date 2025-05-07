@@ -38,17 +38,18 @@ const ParentDataFetcher = () => {
     try {
       // Fetch parent delete permission
       const { data: permissionData, error: permissionError } = await supabase
-        .from('parentpermissions')
-        .select('active')
-        .eq('permission', 'disable child deletion')
-        .single();
+      .from('profile_permissions')
+      .select('active')
+      .eq('upid', 2)
+      .eq('permission_key', 'disable_child_deletion')
+      .single();
 
-      if (permissionError) {
-        console.error('Error fetching parent permissions:', permissionError);
+      if (permissionError && permissionError.code !== 'PGRST116') { // PGRST116 is "not found" error
+      console.error('Error fetching parent permissions:', permissionError);
       } else {
-        setCanDeleteChild(!permissionData?.active);
+      // If permission exists and is active, disable child deletion
+      setCanDeleteChild(!(permissionData?.active || false));
       }
-
       const { data: { user }, error: userError } = await supabase.auth.getUser();
 
       if (userError) {

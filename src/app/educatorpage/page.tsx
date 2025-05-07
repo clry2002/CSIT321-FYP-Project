@@ -39,17 +39,19 @@ export default function ViewClassrooms() {
                     return;
                 }
 
-                // Check educator permissions
+                // Check educator permissions using the new profile_permissions structure
                 const { data: permissionData, error: permissionError } = await supabase
-                    .from('educatorpermissions')
+                    .from('profile_permissions')
                     .select('active')
-                    .eq('permission', 'disable classroom creation')
+                    .eq('upid', 5)
+                    .eq('permission_key', 'disable_classroom_creation')
                     .single();
 
-                if (permissionError) {
+                if (permissionError && permissionError.code !== 'PGRST116') { // PGRST116 is "not found" error
                     console.error('Error fetching educator permissions:', permissionError);
                 } else {
-                    setCanCreateClassroom(!permissionData?.active);
+                    // If permission exists and is active, disable classroom creation
+                    setCanCreateClassroom(!(permissionData?.active || false));
                 }
 
                 const { data: userData, error: userAccountError } = await supabase

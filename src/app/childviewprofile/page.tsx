@@ -63,28 +63,33 @@ export default function ChildViewProfile() {
         // Get the current user's ID
         const userId = session.user.id;
 
-        // Check account settings permission
-        const { data: accountSettingsData, error: accountSettingsError } = await supabase
-          .from('childpermissions')
-          .select('*')
-          .eq('permission', 'disable account settings')
-          .single();
-
-        if (accountSettingsError) {
-          console.error('Error fetching account settings permission:', accountSettingsError);
-        } else {
-          setAccountSettingsDisabled(accountSettingsData?.active || false);
-        }
-
-        // Get the user's account data
+        // Get the user's account data including profile type (upid)
         const { data: userData, error: userError } = await supabase
           .from('user_account')
-          .select('id, fullname, username, age')
+          .select('id, fullname, username, age, upid')
           .eq('user_id', userId)
           .single();
 
         if (userError) {
           throw userError;
+        }
+
+        // Check if this is a child profile (upid = 3)
+        if (userData.upid === 3) {
+          // Check for the 'disable_account_settings' permission for child profiles
+          const { data: permissionData, error: permissionError } = await supabase
+            .from('profile_permissions')
+            .select('active')
+            .eq('upid', 3)
+            .eq('permission_key', 'disable_account_settings')
+            .single();
+
+          if (permissionError && permissionError.code !== 'PGRST116') { // PGRST116 is "not found" error
+            console.error('Error fetching account settings permission:', permissionError);
+          } else {
+            // If the permission exists and is active, settings are disabled
+            setAccountSettingsDisabled(permissionData?.active || false);
+          }
         }
 
         // Get the child's profile data including favourite genres
@@ -134,55 +139,55 @@ export default function ChildViewProfile() {
                 .select('genrename')
                 .in('gid', genreIds);
 
-          if (genreError) throw genreError;
-          blockedGenreNames = genreData?.map(item => item.genrename) || [];
+              if (genreError) throw genreError;
+              blockedGenreNames = genreData?.map(item => item.genrename) || [];
+            }
+            
+            // Set the profile data
+            setProfileData({
+              full_name: userData.fullname,
+              username: userData.username,
+              age: userData.age,
+              favourite_genres: profileData.favourite_genres || [],
+              blocked_genres: blockedGenreNames
+            });
+            
+            // Set initial selected genres
+            setSelectedGenres(profileData.favourite_genres || []);
+          }
+
+        // Get available genres
+        const { data: genres, error: genresError } = await supabase
+          .from('temp_genre')
+          .select('genrename');
+
+        if (genresError) {
+          throw genresError;
         }
-        
-        // Set the profile data
-        setProfileData({
-          full_name: userData.fullname,
-          username: userData.username,
-          age: userData.age,
-          favourite_genres: profileData.favourite_genres || [],
-          blocked_genres: blockedGenreNames
-        });
-        
-        // Set initial selected genres
-        setSelectedGenres(profileData.favourite_genres || []);
-      }
 
-       // Get available genres
-       const { data: genres, error: genresError } = await supabase
-       .from('temp_genre')
-       .select('genrename');
+        const { data: blockedGenresData, error: blockedGenresError } = await supabase
+          .from('blockedgenres')
+          .select('genreid')
+          .eq('child_id', userData.id);
 
-       if (genresError) {
-        throw genresError;
-      }
+        if (blockedGenresError) throw blockedGenresError;
 
-       const { data: blockedGenresData, error: blockedGenresError } = await supabase
-       .from('blockedgenres')
-       .select('genreid')
-       .eq('child_id', userData.id);
-
-      if (blockedGenresError) throw blockedGenresError;
-
-       // Get genre names for blocked genres
-       let blockedGenreNames: string[] = [];
-       if (blockedGenresData && blockedGenresData.length > 0) {
-         const genreIds = blockedGenresData.map(item => item.genreid);
-         const { data: genreData, error: genreError } = await supabase
-           .from('temp_genre')
-           .select('genrename')
-           .in('gid', genreIds);
+        // Get genre names for blocked genres
+        let blockedGenreNames: string[] = [];
+        if (blockedGenresData && blockedGenresData.length > 0) {
+          const genreIds = blockedGenresData.map(item => item.genreid);
+          const { data: genreData, error: genreError } = await supabase
+            .from('temp_genre')
+            .select('genrename')
+            .in('gid', genreIds);
  
           if (genreError) throw genreError;
           blockedGenreNames = genreData?.map(item => item.genrename) || [];
-       }
+        }
        
-       // Show all genres except blocked ones
+        // Show all genres except blocked ones
         const allAvailableGenres = genres.map(g => g.genrename)
-        .filter(genre => !blockedGenreNames.includes(genre));
+          .filter(genre => !blockedGenreNames.includes(genre));
         setAvailableGenres(allAvailableGenres);  
       } catch (err) {
         console.error('Error loading profile:', err);
@@ -259,10 +264,6 @@ export default function ChildViewProfile() {
       setLoading(false);
     }
   };
-
-  // const handleGenreClick = () => {
-  //   setShowGenreSelector(!showGenreSelector);
-  // };
 
   const handleGenreToggle = (genre: string) => {
     setSelectedGenres(prev => {
@@ -537,5 +538,3 @@ export default function ChildViewProfile() {
     </ErrorBoundary>
   );
 }
-
-// merge fix
