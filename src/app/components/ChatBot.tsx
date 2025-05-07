@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useChatbot } from '@/hooks/useChatbot';
 import { useSpeech } from '@/hooks/useTextToSpeech';
 import { Send } from 'lucide-react';
@@ -16,6 +16,13 @@ import useChatModals from '../../hooks/chatbot/useChatModals';
 import MessageRenderer from './child/chatbot/MessageRenderer';
 import GenreSuggestions from './child/chatbot/GenreSuggestions';
 import ContentItem from './child/chatbot/ContentItem';
+
+// Add type for handle direction
+const HANDLE_DIRECTIONS = [
+  'top', 'left',
+  'top-left'
+] as const;
+type HandleDirection = typeof HANDLE_DIRECTIONS[number];
 
 const ChatBot: React.FC = () => {
   const { messages, isLoading, sendMessage, userFullName } = useChatbot();
@@ -53,6 +60,32 @@ const ChatBot: React.FC = () => {
   
   // Ref for chat container scrolling
   const chatContainerRef = useRef<HTMLDivElement | null>(null);
+  const [dimensions, setDimensions] = useState(() => {
+    // Try to load saved dimensions from localStorage
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('chatbotDimensions');
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch (e) {
+          console.error('Error parsing saved dimensions:', e);
+        }
+      }
+    }
+    return { width: 800, height: 600 };
+  });
+  const [isResizing, setIsResizing] = useState(false);
+  const [resizeDirection, setResizeDirection] = useState<HandleDirection | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const startPosRef = useRef({ x: 0, y: 0 });
+  const startDimRef = useRef({ width: 0, height: 0, left: 0, top: 0 });
+
+  // Save dimensions to localStorage when they change
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('chatbotDimensions', JSON.stringify(dimensions));
+    }
+  }, [dimensions]);
 
   // Scroll to bottom when messages update
   useEffect(() => {
@@ -114,6 +147,71 @@ const ChatBot: React.FC = () => {
     closeChat(stopAllSpeech);
   };
 
+  // Handle resize start
+  const handleResizeStart = (e: React.MouseEvent, direction: HandleDirection) => {
+    e.preventDefault();
+    setIsResizing(true);
+    setResizeDirection(direction);
+    startPosRef.current = { x: e.clientX, y: e.clientY };
+    const rect = containerRef.current?.getBoundingClientRect();
+    startDimRef.current = {
+      width: dimensions.width,
+      height: dimensions.height,
+      left: rect?.left || 0,
+      top: rect?.top || 0
+    };
+  };
+
+  // Handle resize move
+  const handleResizeMove = (e: MouseEvent) => {
+    if (!isResizing || !resizeDirection) return;
+    const deltaX = e.clientX - startPosRef.current.x;
+    const deltaY = e.clientY - startPosRef.current.y;
+    let newWidth = startDimRef.current.width;
+    let newHeight = startDimRef.current.height;
+
+    switch (resizeDirection) {
+      case 'left':
+        newWidth = Math.max(400, startDimRef.current.width - deltaX);
+        break;
+      case 'top':
+        newHeight = Math.max(300, startDimRef.current.height - deltaY);
+        break;
+      case 'top-left':
+        newWidth = Math.max(400, startDimRef.current.width - deltaX);
+        newHeight = Math.max(300, startDimRef.current.height - deltaY);
+        break;
+    }
+    setDimensions({ width: newWidth, height: newHeight });
+  };
+
+  // Handle resize end
+  const handleResizeEnd = () => {
+    setIsResizing(false);
+    setResizeDirection(null);
+  };
+
+  // Add and remove resize event listeners
+  useEffect(() => {
+    if (isResizing) {
+      window.addEventListener('mousemove', handleResizeMove);
+      window.addEventListener('mouseup', handleResizeEnd);
+    }
+    return () => {
+      window.removeEventListener('mousemove', handleResizeMove);
+      window.removeEventListener('mouseup', handleResizeEnd);
+    };
+  }, [isResizing, resizeDirection]);
+
+  // Handle mascot click
+  const handleMascotClick = () => {
+    if (isChatOpen) {
+      handleCloseChat();
+    } else {
+      toggleChat();
+    }
+  };
+
   return (
     <div className="chatbot-wrapper">
       {/* Show mascot to the left of the popup when open */}
@@ -124,6 +222,8 @@ const ChatBot: React.FC = () => {
           className="chatbot-mascot-image"
           width={160}
           height={160}
+          onClick={handleMascotClick}
+          style={{ cursor: 'pointer' }}
         />
       )}
       {/* Blur background when chatbot popup is open */}
@@ -141,7 +241,7 @@ const ChatBot: React.FC = () => {
             </span>
           )}
         </div>
-        <button onClick={toggleChat} className="chatbot-button">
+        <button onClick={handleMascotClick} className="chatbot-button">
           <Image src="/mascot.png" alt="Chatbot" width={64} height={64} className="object-contain" />
         </button>
       </div>
@@ -166,7 +266,11 @@ const ChatBot: React.FC = () => {
         </>
       )}
 
-      <div className={`chatbot-container ${isChatOpen ? 'visible' : 'hidden'}`}>
+      <div 
+        className={`chatbot-container ${isChatOpen ? 'visible' : 'hidden'} ${isResizing ? 'resizing' : ''}`}
+        ref={containerRef}
+        style={{ width: dimensions.width, height: dimensions.height }}
+      >
         <div className="chatbot-header">
           <h2 className="text-lg font-semibold">CoReadability Bot</h2>
           <button onClick={handleCloseChat} className="close-button">✖</button>
@@ -261,6 +365,15 @@ const ChatBot: React.FC = () => {
             <Send size={20} />
           </button>
         </form>
+
+        {/* Add only left and top resize handles */}
+        {HANDLE_DIRECTIONS.map((dir) => (
+          <div
+            key={dir}
+            className={`resize-handle resize-handle-${dir}`}
+            onMouseDown={(e) => handleResizeStart(e, dir)}
+          />
+        ))}
       </div>
 
       {enlargedImage && (
