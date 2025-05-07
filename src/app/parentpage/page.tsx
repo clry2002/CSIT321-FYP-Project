@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { RefreshCw, Settings, LogOut } from 'lucide-react';
+import { RefreshCw, Settings, LogOut, PlusCircle, User, Clock, Shield, Edit, Trash2 } from 'lucide-react';
 import { deleteChildAccount } from '../components/parent/ChildDeletion'
 
 interface Child {
@@ -199,45 +199,90 @@ const ParentDataFetcher = () => {
   };
 
   if (loading) {
-    return <div className="flex items-center justify-center h-screen">Loading...</div>;
+    return (
+      <div className="flex flex-col items-center justify-center h-screen bg-gradient-to-br from-gray-50 to-gray-200">
+        <div className="w-16 h-16 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p className="text-gray-700 text-lg font-medium">Loading dashboard...</p>
+      </div>
+    );
   }
 
+  // Function to get a color based on the child's name (for consistent avatar colors)
+  const getAvatarColor = (name: string) => {
+    const colors = [
+      'bg-blue-500', 'bg-emerald-500', 'bg-purple-500', 'bg-pink-500', 
+      'bg-yellow-500', 'bg-red-500', 'bg-indigo-500', 'bg-cyan-500'
+    ];
+    
+    // Simple hash function to get consistent color for the same name
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+      hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    
+    return colors[Math.abs(hash) % colors.length];
+  };
+
+  // Function to get initials from name
+  const getInitials = (name: string) => {
+    if (!name) return '?';
+    const parts = name.split(' ');
+    if (parts.length === 1) return name.charAt(0).toUpperCase();
+    return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-200 py-10 px-6 shadow-xl overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-200 py-6 px-4 md:px-6 lg:px-8 shadow-xl overflow-hidden">
+      {/* Notification */}
       {showNotification && (
-        <div className="fixed top-8 right-8 bg-emerald-500 text-white px-5 py-3 rounded-md shadow-lg z-50 animate-slide-in-right">
-          {notificationMessage}
+        <div className="fixed top-8 right-8 bg-emerald-500 text-white px-5 py-3 rounded-md shadow-lg z-50 animate-fade-in">
+          <div className="flex items-center">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+            </svg>
+            {notificationMessage}
+          </div>
         </div>
       )}
 
+      {/* Error notification */}
       {error && (
-        <div className="fixed top-8 right-8 bg-rose-500 text-white px-5 py-3 rounded-md shadow-lg z-50 animate-slide-in-right">
-          {error}
+        <div className="fixed top-8 right-8 bg-rose-500 text-white px-5 py-3 rounded-md shadow-lg z-50 animate-fade-in">
+          <div className="flex items-center">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+            </svg>
+            {error}
+          </div>
         </div>
       )}
 
+      {/* Delete confirmation modal */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
-          <div className="bg-white p-8 rounded-xl shadow-2xl max-w-md w-full mx-4">
-            <h3 className="text-xl font-semibold text-gray-800 mb-5">Confirm Deletion</h3>
-            <p className="text-gray-600 mb-6 leading-relaxed">
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 animate-fade-in">
+          <div className="bg-white p-8 rounded-xl shadow-2xl max-w-md w-full mx-4 animate-scale-in">
+            <div className="flex items-center justify-center mb-5 w-16 h-16 mx-auto bg-red-100 text-red-600 rounded-full">
+              <Trash2 size={30} />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-800 mb-2 text-center">Confirm Deletion</h3>
+            <p className="text-gray-600 mb-6 leading-relaxed text-center">
               Are you sure you want to permanently delete{' '}
-              <span className="font-medium text-indigo-600">{childNameToDelete}</span>&apos;s account? This action is irreversible.
+              <span className="font-medium text-indigo-600">{childNameToDelete}</span>&apos;s account?
+              <br />
+              <span className="text-sm text-red-500">This action cannot be undone.</span>
             </p>
-            <div className="flex justify-end space-x-4">
+            <div className="flex justify-center space-x-4">
               <button
                 onClick={handleDeleteCancel}
-                className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-opacity-50 transition-colors"
+                className="px-5 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-opacity-50 transition-all font-medium"
               >
                 Cancel
               </button>
               <button
                 onClick={handleDeleteConfirm}
-                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 transition-colors"
+                className="px-5 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 transition-all font-medium flex items-center"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 inline-block mr-1 -mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
+                <Trash2 className="h-4 w-4 mr-2" />
                 Delete
               </button>
             </div>
@@ -245,96 +290,119 @@ const ParentDataFetcher = () => {
         </div>
       )}
 
-      <div className="max-w-7xl mx-auto py-8">
-        <div className="mb-8 flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight leading-tight">
-              Welcome back, <span className="text-indigo-600">{parentName || 'Parent'}</span>!
-            </h1>
-            <p className="mt-1 text-md text-gray-500">Manage your child&apos;s digital world.</p>
-          </div>
-          <div className="space-x-4">
-            <button
-              className="inline-flex items-center px-4 py-2 bg-indigo-500 text-white rounded-md font-semibold text-sm hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50 transition-colors"
-              onClick={fetchParentData}
-            >
-              <RefreshCw className="h-5 w-5 mr-2" />
-              Refresh
-            </button>
-            <button
-              className="inline-flex items-center px-4 py-2 bg-gray-800 text-white rounded-md font-semibold text-sm hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-800 focus:ring-opacity-50 transition-colors"
-              onClick={() => router.push('/parent/settings')}
-            >
-              <Settings className="h-5 w-5 mr-2" />
-              Settings
-            </button>
-            <button
-              className="inline-flex items-center px-4 py-2 bg-red-500 text-white rounded-md font-semibold text-sm hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 transition-colors"
-              onClick={() => router.push('/logout')}
-            >
-              <LogOut className="h-5 w-5 mr-2" />
-              Logout
-            </button>
+      <div className="max-w-7xl mx-auto">
+        {/* Header with user welcome */}
+        <div className="bg-white rounded-xl shadow-md p-6 mb-6">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+              <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight leading-tight">
+                Welcome back, <span className="text-indigo-600">{parentName || 'Parent'}</span>!
+              </h1>
+              <p className="mt-1 text-md text-gray-500">Manage your child&apos;s digital world from one place</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                className="inline-flex items-center px-4 py-2 bg-emerald-500 text-white rounded-md font-medium text-sm hover:bg-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-opacity-50 transition-all shadow-sm"
+                onClick={() => router.push('/parent/createchild')}
+              >
+                <PlusCircle className="h-5 w-5 mr-2" />
+                Add Child
+              </button>
+              <button
+                className="inline-flex items-center px-4 py-2 bg-indigo-500 text-white rounded-md font-medium text-sm hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50 transition-all shadow-sm"
+                onClick={fetchParentData}
+              >
+                <RefreshCw className="h-5 w-5 mr-2" />
+                Refresh
+              </button>
+              <button
+                className="inline-flex items-center px-4 py-2 bg-gray-800 text-white rounded-md font-medium text-sm hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-800 focus:ring-opacity-50 transition-all shadow-sm"
+                onClick={() => router.push('/parent/settings')}
+              >
+                <Settings className="h-5 w-5 mr-2" />
+                Settings
+              </button>
+              <button
+                className="inline-flex items-center px-4 py-2 bg-red-500 text-white rounded-md font-medium text-sm hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 transition-all shadow-sm"
+                onClick={() => router.push('/logout')}
+              >
+                <LogOut className="h-5 w-5 mr-2" />
+                Logout
+              </button>
+            </div>
           </div>
         </div>
 
+        {/* Child accounts section */}
         <div className="bg-white rounded-xl shadow-md p-6">
-          <h2 className="text-xl font-semibold text-gray-800 mb-5">Child Accounts</h2>
+          <h2 className="text-xl font-semibold text-gray-800 mb-6 flex items-center">
+            <User className="h-5 w-5 mr-2 text-indigo-500" />
+            Child Accounts
+            <span className="ml-3 bg-indigo-100 text-indigo-700 text-sm py-1 px-3 rounded-full">
+              {children.length} {children.length === 1 ? 'Account' : 'Accounts'}
+            </span>
+          </h2>
+
           {children.length > 0 ? (
-            <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {children.map((child) => (
                 <div
                   key={child.id}
-                  className="bg-gray-50 border border-gray-200 rounded-md p-4 flex items-center justify-between"
+                  className="bg-white border border-gray-200 rounded-xl p-6 hover:shadow-md transition-all flex flex-col"
                 >
-                  <div className="flex items-center space-x-4">
-                    <div>
+                  <div className="flex items-center mb-4">
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold text-lg ${getAvatarColor(child.name)}`}>
+                      {getInitials(child.name)}
+                    </div>
+                    <div className="ml-4">
                       <h3
-                        className="font-medium text-gray-800 cursor-pointer hover:text-indigo-600 transition-colors"
+                        className="font-semibold text-gray-800 text-lg cursor-pointer hover:text-indigo-600 transition-colors"
                         onClick={() => router.push(`/parent/viewchild?childId=${child.id}`)}
                       >
                         {child.name}
                       </h3>
                       <p className="text-gray-500 text-sm">
-                        Age: {child.age !== null ? child.age : 'Unknown'}
+                        Age: {child.age !== null ? child.age : 'Not specified'}
                       </p>
                     </div>
                   </div>
-                  <div className="space-x-2 flex items-center">
+                  
+                  <div className="mt-auto grid grid-cols-2 gap-2">
                     <button
-                      className="bg-indigo-500 text-white px-3 py-1 rounded-md text-sm hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50 transition-colors"
+                      className="flex items-center justify-center px-3 py-2 bg-indigo-100 text-indigo-700 rounded-md text-sm hover:bg-indigo-200 focus:outline-none transition-colors"
                       onClick={() => router.push(`/parent/viewchild?childId=${child.id}`)}
                     >
-                      View
+                      <User className="h-4 w-4 mr-2" />
+                      Profile
                     </button>
                     <button
-                      className="bg-blue-400 text-white px-3 py-1 rounded-md text-sm hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-50 transition-colors"
+                      className="flex items-center justify-center px-3 py-2 bg-blue-100 text-blue-700 rounded-md text-sm hover:bg-blue-200 focus:outline-none transition-colors"
                       onClick={() => router.push(`/parent/chathistory?childId=${child.id}`)}
                     >
-                      Chat History
+                      <Clock className="h-4 w-4 mr-2" />
+                      History
                     </button>
                     <button
-                      className="bg-yellow-500 text-white px-3 py-1 rounded-md text-sm hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-opacity-50 transition-colors"
+                      className="flex items-center justify-center px-3 py-2 bg-yellow-100 text-yellow-700 rounded-md text-sm hover:bg-yellow-200 focus:outline-none transition-colors"
                       onClick={() => router.push(`/parent/parentalcontrol/${child.id}`)}
                     >
-                      Parental Controls
+                      <Shield className="h-4 w-4 mr-2" />
+                      Controls
                     </button>
-
                     <button
-                      className="bg-green-500 text-white px-3 py-1 rounded-md text-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 transition-colors"
+                      className="flex items-center justify-center px-3 py-2 bg-green-100 text-green-700 rounded-md text-sm hover:bg-green-200 focus:outline-none transition-colors"
                       onClick={() => router.push(`/parent/updatechild?childId=${child.id}`)}
                     >
+                      <Edit className="h-4 w-4 mr-2" />
                       Edit
                     </button>
                     {canDeleteChild && (
                       <button
-                        className="bg-red-500 text-white px-3 py-1 rounded-md text-sm hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50 transition-colors"
+                        className="col-span-2 flex items-center justify-center px-3 py-2 bg-red-100 text-red-700 rounded-md text-sm hover:bg-red-200 focus:outline-none transition-colors mt-2"
                         onClick={() => handleDeleteClick(child.id)}
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 inline-block mr-1 -mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                        Delete
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete Account
                       </button>
                     )}
                   </div>
@@ -342,18 +410,23 @@ const ParentDataFetcher = () => {
               ))}
             </div>
           ) : (
-            <p className="text-gray-600 py-3">No child profiles added yet.</p>
+            <div className="bg-gray-50 border border-gray-200 rounded-xl p-8 text-center">
+              <div className="flex justify-center mb-4">
+                <div className="bg-indigo-100 text-indigo-500 rounded-full p-3">
+                  <User size={32} />
+                </div>
+              </div>
+              <h3 className="text-lg font-medium text-gray-800 mb-2">No child account added yet</h3>
+              <p className="text-gray-600 mb-6">Create your first child account to get started</p>
+              <button
+                className="inline-flex items-center px-5 py-2 bg-indigo-500 text-white rounded-md font-medium text-sm hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-50 transition-colors"
+                onClick={() => router.push('/parent/createchild')}
+              >
+                <PlusCircle className="h-5 w-5 mr-2" />
+                Add Your Child Now
+              </button>
+            </div>
           )}
-
-          <button
-            className="w-full mt-6 inline-flex items-center justify-center px-4 py-3 bg-emerald-500 text-white rounded-md font-semibold text-sm hover:bg-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-opacity-50 transition-colors"
-            onClick={() => router.push('/parent/createchild')}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-            </svg>
-            Add Child Account
-          </button>
         </div>
       </div>
     </div>
@@ -362,7 +435,12 @@ const ParentDataFetcher = () => {
 
 export default function ParentHome() {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading parent data...</div>}>
+    <Suspense fallback={
+      <div className="flex flex-col items-center justify-center h-screen bg-gradient-to-br from-gray-50 to-gray-200">
+        <div className="w-16 h-16 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p className="text-gray-700 text-lg font-medium">Loading parent dashboard...</p>
+      </div>
+    }>
       <ParentDataFetcher />
     </Suspense>
   );
