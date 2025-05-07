@@ -213,8 +213,8 @@
   position: fixed;
   bottom: 80px;
   right: 60px;
-  width: 800px;
-  height: 600px;
+  min-width: 400px;
+  min-height: 300px;
   background: url('/spacegreen.jpg') center/cover;
   border-radius: 18px;
   box-shadow: 0 8px 32px rgba(0,0,0,0.5);
@@ -224,11 +224,53 @@
   transition: opacity 0.3s ease-in-out, transform 0.3s cubic-bezier(.4,2,.6,1), box-shadow 0.3s;
   border: 1.5px solid #27272a;
   z-index: 1100;
+  resize: none; /* Disable browser's default resize */
 }
 
-/* Remove the dark overlay */
-.chatbot-container::before {
-  display: none;
+/* Resize Handles for left and top edges */
+.resize-handle {
+  position: absolute;
+  z-index: 1101;
+  background: transparent;
+}
+
+/* Top-left corner */
+.resize-handle-top-left {
+  top: -4px;
+  left: -4px;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+  border-top-left-radius: 6px;
+}
+
+/* Top edge */
+.resize-handle-top {
+  top: -4px;
+  left: 16px;
+  right: 16px;
+  height: 10px;
+  cursor: ns-resize;
+}
+
+/* Left edge */
+.resize-handle-left {
+  left: -4px;
+  top: 16px;
+  bottom: 16px;
+  width: 10px;
+  cursor: ew-resize;
+}
+
+/* Visual indicator on hover */
+.resize-handle:hover {
+  background: rgba(59, 130, 246, 0.18);
+}
+
+/* When resizing, prevent text selection */
+.chatbot-container.resizing {
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 /* Show and Hide Chatbot */
@@ -688,10 +730,11 @@ body .calendar-popup.visible ~ .notification-badge,
   transition: transform 0.2s;
   background: none;
   border-radius: 0;
+  cursor: pointer;
 }
 
 .chatbot-mascot-image:hover {
-  transform: scale(1.03) rotate(-2deg);
+  transform: scale(1.05);
 }
 
 /* Dark scrollbar for chatbot container and chat area */
@@ -802,10 +845,6 @@ body .calendar-popup.visible ~ .notification-badge,
   font-family: 'Fredoka One', cursive !important;
 }
 
-
-
-
-
 /* Add these styles to your styles.css file */
 
 /* Favorite Genres Section */
@@ -910,7 +949,6 @@ body .calendar-popup.visible ~ .notification-badge,
   color: #333;
 }
 
-
 /* Add these styles to your styles.css file */
 
 /* Content Header with Title and Age Badge */
@@ -920,8 +958,6 @@ body .calendar-popup.visible ~ .notification-badge,
   gap: 10px;
   margin-bottom: 5px;
 }
-
-
 
 /* Chatbot - Age Badge Styling */
 .age-badge {
@@ -964,7 +1000,6 @@ body .calendar-popup.visible ~ .notification-badge,
 .book-item:hover {
   background-color: rgba(255, 255, 255, 0.1);
 }
-
 
 /* Chatbot - Style for clickable genre links in chat messages */
 .genre-link-button {
