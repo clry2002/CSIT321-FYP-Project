@@ -6,8 +6,7 @@ import { UserAccount } from './types';
 
 export default function ProfilesPage() {
   const [publisherDeletePermission, setPublisherDeletePermission] = useState(false);
-  const [childPasswordPermission, setChildPasswordPermission] = useState(false);
-  const [childProfileEditPermission, setChildProfileEditPermission] = useState(false);
+  const [childAccountSettingsPermission, setChildAccountSettingsPermission] = useState(false);
   const [parentDeletePermission, setParentDeletePermission] = useState(false);
   const [educatorClassroomPermission, setEducatorClassroomPermission] = useState(false);
   const [showPermissionsModal, setShowPermissionsModal] = useState(false);
@@ -72,23 +71,14 @@ export default function ProfilesPage() {
 
   const fetchChildPermissions = async () => {
     try {
-      const { data: passwordData, error: passwordError } = await supabase
+      const { data: accountSettingsData, error: accountSettingsError } = await supabase
         .from('childpermissions')
         .select('*')
-        .eq('permission', 'disable reset password')
+        .eq('permission', 'disable account settings')
         .single();
 
-      if (passwordError) throw passwordError;
-      setChildPasswordPermission(passwordData?.active || false);
-
-      const { data: profileEditData, error: profileEditError } = await supabase
-        .from('childpermissions')
-        .select('*')
-        .eq('permission', 'disable edit profile')
-        .single();
-
-      if (profileEditError) throw profileEditError;
-      setChildProfileEditPermission(profileEditData?.active || false);
+      if (accountSettingsError) throw accountSettingsError;
+      setChildAccountSettingsPermission(accountSettingsData?.active || false);
     } catch (err) {
       console.error('Error fetching child permissions:', err);
     }
@@ -222,20 +212,6 @@ export default function ProfilesPage() {
     }
   };
 
-  const handleToggleChildPermission = async () => {
-    try {
-      const { error } = await supabase
-        .from('childpermissions')
-        .update({ active: !childPasswordPermission })
-        .eq('permission', 'disable reset password');
-
-      if (error) throw error;
-      setChildPasswordPermission(!childPasswordPermission);
-    } catch (err) {
-      console.error('Error updating child permission:', err);
-    }
-  };
-
   const handleToggleParentPermission = async () => {
     try {
       const { error } = await supabase
@@ -264,17 +240,17 @@ export default function ProfilesPage() {
     }
   };
 
-  const handleToggleChildProfileEditPermission = async () => {
+  const handleToggleChildAccountSettingsPermission = async () => {
     try {
       const { error } = await supabase
         .from('childpermissions')
-        .update({ active: !childProfileEditPermission })
-        .eq('permission', 'disable edit profile');
+        .update({ active: !childAccountSettingsPermission })
+        .eq('permission', 'disable account settings');
 
       if (error) throw error;
-      setChildProfileEditPermission(!childProfileEditPermission);
+      setChildAccountSettingsPermission(!childAccountSettingsPermission);
     } catch (err) {
-      console.error('Error updating child profile edit permission:', err);
+      console.error('Error updating child account settings permission:', err);
     }
   };
 
@@ -569,37 +545,18 @@ export default function ProfilesPage() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between p-4 bg-gray-800 rounded-lg">
                   <div>
-                    <h4 className="font-semibold">Disable Password Reset</h4>
-                    <p className="text-sm text-gray-400">Prevent children from resetting their own passwords</p>
+                    <h4 className="font-semibold">Disable Account Settings</h4>
+                    <p className="text-sm text-gray-400">Prevent children from changing their account settings</p>
                   </div>
                   <button
-                    onClick={handleToggleChildPermission}
+                    onClick={handleToggleChildAccountSettingsPermission}
                     className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${
-                      childPasswordPermission ? 'bg-indigo-600' : 'bg-gray-600'
+                      childAccountSettingsPermission ? 'bg-indigo-600' : 'bg-gray-600'
                     }`}
                   >
                     <span
                       className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                        childPasswordPermission ? 'translate-x-6' : 'translate-x-1'
-                      }`}
-                    />
-                  </button>
-                </div>
-
-                <div className="flex items-center justify-between p-4 bg-gray-800 rounded-lg">
-                  <div>
-                    <h4 className="font-semibold">Disable Profile Edit</h4>
-                    <p className="text-sm text-gray-400">Prevent children from editing their profile information</p>
-                  </div>
-                  <button
-                    onClick={handleToggleChildProfileEditPermission}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${
-                      childProfileEditPermission ? 'bg-indigo-600' : 'bg-gray-600'
-                    }`}
-                  >
-                    <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                        childProfileEditPermission ? 'translate-x-6' : 'translate-x-1'
+                        childAccountSettingsPermission ? 'translate-x-6' : 'translate-x-1'
                       }`}
                     />
                   </button>
