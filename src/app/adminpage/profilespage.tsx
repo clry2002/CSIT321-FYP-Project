@@ -293,10 +293,11 @@ const handleTogglePermission = async (profileId: number, permissionKey: string, 
   };
 
   const userTypes = [
-    { id: 3, label: 'Child' },
-    { id: 2, label: 'Parent' },
     { id: 1, label: 'Publisher' },
-    { id: 4, label: 'Educator' }
+    { id: 2, label: 'Parent' },
+    { id: 3, label: 'Child' },
+    { id: 4, label: 'Administrator' },
+    { id: 5, label: 'Educator' }
   ];
 
   // Define permission keys and descriptions for each profile type
