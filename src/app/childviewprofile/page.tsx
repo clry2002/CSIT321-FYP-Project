@@ -33,15 +33,27 @@ export default function ChildViewProfile() {
     favourite_genres: string[];
     blocked_genres: string[];
   } | null>(null);
+  const [originalProfileData, setOriginalProfileData] = useState<{
+    full_name: string;
+    username: string;
+    age: number;
+    favourite_genres: string[];
+    blocked_genres: string[];
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editingField, setEditingField] = useState<string | null>(null);
   const [availableGenres, setAvailableGenres] = useState<string[]>([]);
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
+  const [originalSelectedGenres, setOriginalSelectedGenres] = useState<string[]>([]);
   const [showGenreSelector, setShowGenreSelector] = useState(false);
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
   const [accountSettingsDisabled, setAccountSettingsDisabled] = useState(false);
+  const [usernameError, setUsernameError] = useState<string | null>(null);
+  const [nameError, setNameError] = useState<string | null>(null);
+  const [checkingUsername, setCheckingUsername] = useState(false);
+  const [usernameTimer, setUsernameTimer] = useState<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const initializeProfile = async () => {
@@ -110,15 +122,19 @@ export default function ChildViewProfile() {
               
             if (insertError) throw insertError;
 
-            setProfileData({
+            const newProfileData = {
               full_name: userData.fullname,
               username: userData.username,
               age: userData.age,
               favourite_genres: [],
               blocked_genres: []
-            });
+            };
 
+            setProfileData(newProfileData);
+            setOriginalProfileData(JSON.parse(JSON.stringify(newProfileData)));
             setSelectedGenres([]);
+            setOriginalSelectedGenres([]);
+
           } else if (profileError) {
             throw profileError;
           } else {
@@ -144,16 +160,20 @@ export default function ChildViewProfile() {
             }
             
             // Set the profile data
-            setProfileData({
+            const newProfileData = {
               full_name: userData.fullname,
               username: userData.username,
               age: userData.age,
               favourite_genres: profileData.favourite_genres || [],
               blocked_genres: blockedGenreNames
-            });
+            };
+            
+            setProfileData(newProfileData);
+            setOriginalProfileData(JSON.parse(JSON.stringify(newProfileData)));
             
             // Set initial selected genres
             setSelectedGenres(profileData.favourite_genres || []);
+            setOriginalSelectedGenres(profileData.favourite_genres || []);
           }
 
         // Get available genres
@@ -200,12 +220,94 @@ export default function ChildViewProfile() {
     initializeProfile();
   }, [router]);
 
+  const validateField = (field: string, value: string | number) => {
+    if (field === 'full_name') {
+      if (!value || String(value).trim() === '') {
+        setNameError("Your name cannot be empty.");
+        return false;
+      } else {
+        setNameError(null);
+        return true;
+      }
+    }
+    
+    if (field === 'username') {
+      if (!value || String(value).trim() === '') {
+        setUsernameError("Your username cannot be empty.");
+        return false;
+      }
+      // Username is valid format, now check availability
+      return true; // We check availability separately
+    }
+    
+    return true;
+  };
+
+  const checkUsernameAvailability = async (username: string) => {
+    if (!username || username.trim() === '') {
+      setUsernameError("Your username cannot be empty.");
+      return false;
+    }
+    
+    if (username === originalProfileData?.username) {
+      setUsernameError(null);
+      return true;
+    }
+
+    try {
+      setCheckingUsername(true);
+      const { data, error } = await supabase
+        .from('user_account')
+        .select('username')
+        .eq('username', username)
+        .not('user_id', 'eq', (await supabase.auth.getSession()).data.session?.user.id);
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        setUsernameError("This username is already taken. Please choose another one.");
+        return false;
+      } else {
+        setUsernameError(null);
+        return true;
+      }
+    } catch (err) {
+      console.error('Error checking username:', err);
+      setUsernameError("Couldn't check username availability. Please try again.");
+      return false;
+    } finally {
+      setCheckingUsername(false);
+    }
+  };
+
   const handleSave = async () => {
     try {
       setLoading(true);
       setSaveMessage(null);
 
       if (!profileData) return;
+
+      // Validate name and username
+      const isNameValid = validateField('full_name', profileData.full_name);
+      if (!isNameValid) {
+        setLoading(false);
+        return;
+      }
+      
+      // Check username validity and availability
+      if (!validateField('username', profileData.username)) {
+        setLoading(false);
+        return;
+      }
+      
+      // If username was changed, check availability
+      if (profileData.username !== originalProfileData?.username) {
+        const isUsernameAvailable = await checkUsernameAvailability(profileData.username);
+        if (!isUsernameAvailable) {
+          setLoading(false);
+          return;
+        }
+      }
 
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
@@ -214,17 +316,24 @@ export default function ChildViewProfile() {
 
       const userId = session.user.id;
 
-      // Update user_account table
-      const { error: userError } = await supabase
-        .from('user_account')
-        .update({
-          fullname: profileData.full_name,
-          username: profileData.username,
-          age: profileData.age
-        })
-        .eq('user_id', userId);
+      // Only update user_account if account settings are not disabled
+      if (!accountSettingsDisabled) {
+        const { error: userError } = await supabase
+          .from('user_account')
+          .update({
+            fullname: profileData.full_name,
+            username: profileData.username
+            // age is not included in the update
+          })
+          .eq('user_id', userId);
 
-      if (userError) throw userError;
+        if (userError) {
+          if (userError.code === '23505') { // PostgreSQL unique violation error
+            throw new Error('Username is already taken. Please choose a different one.');
+          }
+          throw userError;
+        }
+      }
 
       // Get the user_account.id first
       const { data: userData, error: userDataError } = await supabase
@@ -236,7 +345,7 @@ export default function ChildViewProfile() {
       if (userDataError) throw new Error('Failed to retrieve user account');
       const userAccountId = userData.id;
 
-      // Update child_details table
+      // Update child_details table (genres are always updateable)
       const { error: profileError } = await supabase
         .from('child_details')
         .update({
@@ -249,6 +358,10 @@ export default function ChildViewProfile() {
       console.log('[Profile] Syncing favorite genres to update scores...');
       await syncFavoriteGenres(userAccountId);
       console.log('[Profile] Favorite genres synced successfully');
+
+      // Update the original data after successful save
+      setOriginalProfileData(JSON.parse(JSON.stringify(profileData)));
+      setOriginalSelectedGenres([...selectedGenres]);
 
       setSaveMessage({ type: 'success', text: 'Profile updated successfully!' });
       setHasChanges(false);
@@ -278,6 +391,22 @@ export default function ChildViewProfile() {
   };
 
   const handleFieldChange = (field: string, value: string | number) => {
+    // Validate the field
+    validateField(field, value);
+    
+    // Check username availability when typing with debounce
+    if (field === 'username' && typeof value === 'string') {
+      if (usernameTimer) {
+        clearTimeout(usernameTimer);
+      }
+      
+      const newTimer = setTimeout(() => {
+        checkUsernameAvailability(value);
+      }, 500); // Wait for 500ms after typing stops
+      
+      setUsernameTimer(newTimer);
+    }
+    
     setProfileData(prev => {
       if (!prev) return null;
       return { ...prev, [field]: value };
@@ -286,11 +415,34 @@ export default function ChildViewProfile() {
   };
 
   const handleFieldClick = (field: string) => {
-    setEditingField(field);
+    // Do not allow editing the age field
+    if (field !== 'age') {
+      setEditingField(field);
+    }
   };
 
   const handleFieldBlur = () => {
+    // Validate field on blur
+    if (editingField === 'full_name' && profileData) {
+      validateField('full_name', profileData.full_name);
+    } else if (editingField === 'username' && profileData) {
+      checkUsernameAvailability(profileData.username);
+    }
+    
     setEditingField(null);
+  };
+
+  const handleCancel = () => {
+    // Revert all changes
+    if (originalProfileData) {
+      setProfileData(JSON.parse(JSON.stringify(originalProfileData)));
+    }
+    setSelectedGenres([...originalSelectedGenres]);
+    setHasChanges(false);
+    setEditingField(null);
+    setShowGenreSelector(false);
+    setUsernameError(null);
+    setNameError(null);
   };
 
   if (loading) {
@@ -351,17 +503,25 @@ export default function ChildViewProfile() {
   
             {saveMessage && (
               <div className={`mb-6 p-4 rounded-md ${
-                saveMessage.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+                saveMessage.type === 'success' ? 'bg-green-100' : 'bg-red-100'
               }`}>
-                <strong className="font-semibold">{saveMessage.type === 'success' ? 'Yay!' : 'Oops!'}</strong> {saveMessage.text}
+                <strong className={`font-bold ${
+                  saveMessage.type === 'success' ? 'text-green-800' : 'text-red-800'
+                }`}>
+                  {saveMessage.type === 'success' ? 'Yay!' : 'Oops!'}
+                </strong>{' '}
+                <span className={`${
+                  saveMessage.type === 'success' ? 'text-green-800' : 'text-red-800'
+                }`}>
+                  {saveMessage.text}
+                </span>
               </div>
             )}
-  
             <div className="space-y-6">
               {accountSettingsDisabled && (
                 <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                   <p className="text-yellow-700 text-sm">
-                    Account settings are currently disabled by an administrator. Please contact your parent or guardian for assistance with account changes.
+                    Some account settings need a grown-up to change. <span className="font-bold">But you can still choose your favorite types of books and stories!</span>
                   </p>
                 </div>
               )}
@@ -369,86 +529,90 @@ export default function ChildViewProfile() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">My Name</label>
                 {editingField === 'full_name' ? (
-                  <input
-                    type="text"
-                    value={profileData?.full_name || ''}
-                    onChange={(e) => handleFieldChange('full_name', e.target.value)}
-                    onBlur={handleFieldBlur}
-                    autoFocus
-                    disabled={accountSettingsDisabled}
-                    className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-lg text-black ${
-                      accountSettingsDisabled ? 'bg-gray-100 cursor-not-allowed' : ''
-                    }`}
-                  />
+                  <div>
+                    <input
+                      type="text"
+                      value={profileData?.full_name || ''}
+                      onChange={(e) => handleFieldChange('full_name', e.target.value)}
+                      onBlur={handleFieldBlur}
+                      autoFocus
+                      disabled={accountSettingsDisabled}
+                      className={`mt-1 block w-full rounded-md ${nameError ? 'border-red-300' : 'border-gray-300'} shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-lg ${
+                        accountSettingsDisabled ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'text-black'
+                      }`}
+                    />
+                    {nameError && (
+                      <p className="mt-1 text-xs text-red-600 font-medium">{nameError}</p>
+                    )}
+                  </div>
                 ) : (
-                  <button
-                    onClick={() => !accountSettingsDisabled && handleFieldClick('full_name')}
-                    disabled={accountSettingsDisabled}
-                    className={`mt-1 block w-full rounded-md border border-gray-300 bg-white py-2 px-3 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 text-left text-lg text-gray-900 hover:bg-gray-50 transition-colors duration-200 ${
-                      accountSettingsDisabled ? 'cursor-not-allowed opacity-75' : ''
+                  <div
+                    className={`mt-1 block w-full rounded-md border border-gray-300 py-2 px-3 shadow-sm text-left text-lg ${
+                      accountSettingsDisabled 
+                        ? 'bg-gray-100 text-gray-500 cursor-not-allowed' 
+                        : 'bg-white text-gray-900 hover:bg-gray-50 transition-colors duration-200 cursor-pointer'
                     }`}
+                    onClick={() => !accountSettingsDisabled && handleFieldClick('full_name')}
                   >
-                    {profileData?.full_name || <span className="text-gray-400">Tap to add name</span>}
-                  </button>
+                    {profileData?.full_name || <span className="text-gray-400">Your name will appear here</span>}
+                  </div>
                 )}
               </div>
   
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">My Username</label>
                 {editingField === 'username' ? (
-                  <input
-                    type="text"
-                    value={profileData?.username || ''}
-                    onChange={(e) => handleFieldChange('username', e.target.value)}
-                    onBlur={handleFieldBlur}
-                    autoFocus
-                    disabled={accountSettingsDisabled}
-                    className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-lg text-black ${
-                      accountSettingsDisabled ? 'bg-gray-100 cursor-not-allowed' : ''
-                    }`}
-                  />
+                  <div>
+                    <input
+                      type="text"
+                      value={profileData?.username || ''}
+                      onChange={(e) => handleFieldChange('username', e.target.value)}
+                      onBlur={handleFieldBlur}
+                      autoFocus
+                      disabled={accountSettingsDisabled}
+                      className={`mt-1 block w-full rounded-md ${usernameError ? 'border-red-300' : 'border-gray-300'} shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-lg ${
+                        accountSettingsDisabled ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'text-black'
+                      }`}
+                    />
+                    {checkingUsername && (
+                      <p className="mt-1 text-xs text-blue-600 font-medium">Checking if username is available...</p>
+                    )}
+                    {usernameError && (
+                      <p className="mt-1 text-xs text-red-600 font-medium">{usernameError}</p>
+                    )}
+                  </div>
                 ) : (
-                  <button
-                    onClick={() => !accountSettingsDisabled && handleFieldClick('username')}
-                    disabled={accountSettingsDisabled}
-                    className={`mt-1 block w-full rounded-md border border-gray-300 bg-white py-2 px-3 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 text-left text-lg text-gray-900 hover:bg-gray-50 transition-colors duration-200 ${
-                      accountSettingsDisabled ? 'cursor-not-allowed opacity-75' : ''
+                  <div
+                    className={`mt-1 block w-full rounded-md border border-gray-300 py-2 px-3 shadow-sm text-left text-lg ${
+                      accountSettingsDisabled 
+                        ? 'bg-gray-100 text-gray-500 cursor-not-allowed' 
+                        : 'bg-white text-gray-900 hover:bg-gray-50 transition-colors duration-200 cursor-pointer'
                     }`}
+                    onClick={() => !accountSettingsDisabled && handleFieldClick('username')}
                   >
-                    {profileData?.username || <span className="text-gray-400">Tap to add username</span>}
-                  </button>
+                    {profileData?.username || <span className="text-gray-400">Your username will appear here</span>}
+                  </div>
                 )}
               </div>
   
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">My Age</label>
-                {editingField === 'age' ? (
-                  <input
-                    type="number"
-                    value={profileData?.age || ''}
-                    onChange={(e) => handleFieldChange('age', parseInt(e.target.value))}
-                    onBlur={handleFieldBlur}
-                    autoFocus
-                    disabled={accountSettingsDisabled}
-                    className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-lg text-black ${
-                      accountSettingsDisabled ? 'bg-gray-100 cursor-not-allowed' : ''
-                    }`}
-                  />
-                ) : (
-                  <button
-                    onClick={() => !accountSettingsDisabled && handleFieldClick('age')}
-                    disabled={accountSettingsDisabled}
-                    className={`mt-1 block w-full rounded-md border border-gray-300 bg-white py-2 px-3 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 text-left text-lg text-gray-900 hover:bg-gray-50 transition-colors duration-200 ${
-                      accountSettingsDisabled ? 'cursor-not-allowed opacity-75' : ''
-                    }`}
-                  >
-                    {profileData?.age !== undefined ? profileData.age : <span className="text-gray-400">Tap to add age</span>}
-                  </button>
-                )}
+                <div className="mt-1 block w-full rounded-md border border-gray-300 bg-gray-50 py-2 px-3 shadow-sm text-left text-lg text-gray-900">
+                  {profileData?.age !== undefined ? profileData.age : <span className="text-gray-400">Not set</span>}
+                </div>
+                <p className="mt-1 text-xs text-gray-500">Age cannot be changed. Ask a grown-up for help if needed.</p>
               </div>
   
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">My Favorites (Genres)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  My Favorites (Genres)
+                  {accountSettingsDisabled && (
+                    <span className="ml-2 inline-block px-2 py-0.5 text-xs font-medium bg-green-100 text-green-800 rounded-full">
+                      You can change these! 😃
+                    </span>
+                  )}
+                </label>
+                
                 {!showGenreSelector ? (
                   <div className="flex flex-wrap gap-2">
                     {selectedGenres.map((genre) => (
@@ -459,6 +623,9 @@ export default function ChildViewProfile() {
                         {genre}
                       </span>
                     ))}
+                    {selectedGenres.length === 0 && (
+                      <span className="text-sm text-gray-500">Pick your favorite types of stories!</span>
+                    )}
                     <button
                       onClick={() => setShowGenreSelector(true)}
                       className="inline-flex items-center rounded-full bg-yellow-300 text-yellow-800 px-3 py-1 text-sm font-semibold hover:bg-yellow-400 transition-colors duration-200"
@@ -508,24 +675,25 @@ export default function ChildViewProfile() {
                     <span className="text-sm text-gray-500">Nothing blocked yet!</span>
                   )}
                 </div>
+                <p className="mt-1 text-xs text-gray-500">Only a grown-up can change these.</p>
               </div>
   
               {hasChanges && (
                 <div className="mt-6 flex justify-end space-x-3">
                   <button
-                    onClick={() => {
-                      setSelectedGenres(profileData?.favourite_genres || []);
-                      setHasChanges(false);
-                      setEditingField(null);
-                      setShowGenreSelector(false);
-                    }}
+                    onClick={handleCancel}
                     className="rounded-md border border-gray-300 bg-white py-2 px-4 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleSave}
-                    className="inline-flex items-center rounded-md border border-transparent bg-indigo-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                    disabled={!!usernameError || !!nameError || checkingUsername}
+                    className={`inline-flex items-center rounded-md border border-transparent ${
+                      usernameError || nameError || checkingUsername 
+                        ? 'bg-indigo-300 cursor-not-allowed' 
+                        : 'bg-indigo-600 hover:bg-indigo-700'
+                    } py-2 px-4 text-sm font-medium text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2`}
                   >
                     Save Profile
                   </button>
