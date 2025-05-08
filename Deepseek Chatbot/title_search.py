@@ -389,3 +389,6 @@ def search_for_title(title: str, uaid_child: str, supabase_client, get_child_age
     except Exception as e:
         logging.error(f"Error searching for title: {e}", exc_info=True)
         return {"error": f"Error searching for title: {str(e)}"}
+
+
+       
