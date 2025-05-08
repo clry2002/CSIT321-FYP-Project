@@ -12,20 +12,19 @@ export default function ChatPage() {
 
   return (
     <div
-      className="flex flex-col h-screen overflow-hidden"
+      className="flex flex-col h-screen"
       style={{
-        backgroundImage: 'url("/stars.png")', // Replace with your image path in 'public'
+        backgroundImage: 'url("/stars.png")',
         backgroundSize: 'cover',
         backgroundRepeat: 'no-repeat',
         backgroundPosition: 'center',
       }}
     >
       <Navbar />
-      <div className="mt-8 pt-16 flex flex-col items-center">
-        <h1 className="text-3xl font-bold mt-8 text-yellow-400">
-          Chat History for {userFullName}
-        </h1>
-        <ChatHistory userId={uaidChild ?? ''} />
+      <div className="flex-1 flex flex-col items-center pt-16 px-4 overflow-hidden">
+        <div className="w-full max-w-4xl flex-1 overflow-y-auto mt-8">
+          <ChatHistory userId={uaidChild ?? ''} userFullName={userFullName} />
+        </div>
       </div>
       <ChatBot />
     </div>

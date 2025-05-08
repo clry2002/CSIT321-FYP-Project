@@ -9,9 +9,10 @@ import { ChatMessage } from '../../../../types/database.types';
 // Props
 interface ChatHistoryProps {
   userId: string;
+  userFullName?: string | null;
 }
 
-function ChatHistory({ userId }: ChatHistoryProps) {
+function ChatHistory({ userId, userFullName }: ChatHistoryProps) {
   const [, setMessages] = useState<ChatMessage[]>([]);
   const [groupedMessages, setGroupedMessages] = useState<{ date: string; messages: ChatMessage[] }[]>([]);
   const [loading, setLoading] = useState(true);
@@ -101,63 +102,66 @@ function ChatHistory({ userId }: ChatHistoryProps) {
   const selectedDateGroup = groupedMessages.find(group => group.date === selectedDate);
 
   return (
-    <div className="max-w-4xl mx-auto mt-8">
-      <div className="flex justify-start">
-        <button
-          onClick={handleBackPage}
-          className="mb-6 px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition"
-        >
-          ← Back
-        </button>
-      </div>
-      
-      <div className="w-full flex flex-col items-center bg-gray-100 px-4 py-6">
-        <div className="w-full max-w-4xl bg-white rounded-xl shadow-md p-6">
-          <h2 className="text-2xl font-bold mb-2 text-gray-800">Chat History</h2>
-          <div className="flex justify-between items-start mb-4">
-            <div>
-              <p className="text-sm text-gray-500">
-                Current Time: {currentTime}
-              </p>
-              <p className="text-sm text-red-500 italic mt-1">
-                Note: Chat messages are automatically deleted after 1 week
-              </p>
-            </div>
-          </div>
-
-          {loading ? (
-            <p className="text-gray-700">Loading chat history...</p>
-          ) : error ? (
-            <p className="text-red-600">{error}</p>
-          ) : groupedMessages.length === 0 ? (
-            <p className="text-gray-500">No chat history found.</p>
-          ) : (
-            <div className="space-y-6">
-              {/* Date Selection Dropdown */}
-              <DateSelector 
-                groupedMessages={groupedMessages}
-                selectedDate={selectedDate || ''}
-                formatDate={formatDate}
-                onDateSelect={handleDateSelect}
-              />
-              
-              {/* Selected Date Messages */}
-              {selectedDateGroup && (
-                <div className="border-t pt-4">
-                  <h3 className="text-lg font-medium text-gray-800 mb-4">
-                    {formatDate(selectedDateGroup.date)}
-                  </h3>
-                  
-                  <div className="flex flex-col space-y-4">
-                    {selectedDateGroup.messages.map((msg) => (
-                      <MessageDetails key={msg.chid} message={msg} />
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
+    <div className="w-full bg-gray-100 rounded-xl shadow-md">
+      <div className="w-full bg-white rounded-xl shadow-md p-6">
+        <div className="flex justify-between items-center mb-6">
+          <button
+            onClick={handleBackPage}
+            className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition"
+          >
+            ← Back
+          </button>
+          
+          <h1 className="text-2xl font-bold text-center text-yellow-400">
+            Chat History {userFullName ? `for ${userFullName}` : ''}
+          </h1>
+          
+          <div className="w-20"></div>
         </div>
+        
+        <div className="flex justify-between items-start mb-4">
+          <div>
+            <p className="text-sm text-gray-500">
+              Current Time: {currentTime}
+            </p>
+            <p className="text-sm text-red-500 italic mt-1">
+              Note: Chat messages are automatically deleted after 1 week
+            </p>
+          </div>
+        </div>
+
+        {loading ? (
+          <p className="text-gray-700">Loading chat history...</p>
+        ) : error ? (
+          <p className="text-red-600">{error}</p>
+        ) : groupedMessages.length === 0 ? (
+          <p className="text-gray-500">No chat history found.</p>
+        ) : (
+          <div className="space-y-6">
+            {/* Date Selection Dropdown */}
+            <DateSelector 
+              groupedMessages={groupedMessages}
+              selectedDate={selectedDate || ''}
+              formatDate={formatDate}
+              onDateSelect={handleDateSelect}
+            />
+            
+            {/* Selected Date Messages */}
+            {selectedDateGroup && (
+              <div className="border-t pt-4">
+                <h3 className="text-lg font-medium text-gray-800 mb-4">
+                  {formatDate(selectedDateGroup.date)}
+                </h3>
+                
+                <div className="flex flex-col space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+                  {selectedDateGroup.messages.map((msg) => (
+                    <MessageDetails key={msg.chid} message={msg} />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
