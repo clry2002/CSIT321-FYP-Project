@@ -23,9 +23,10 @@ interface ReadingCalendarProps {
   selectedBook?: Book;
   onClose?: () => void;
   onScheduleUpdate?: () => void;
+  isChatbot?: boolean;
 }
 
-export default function ReadingCalendar({ selectedBook, onClose, onScheduleUpdate }: ReadingCalendarProps) {
+export default function ReadingCalendar({ selectedBook, onClose, onScheduleUpdate, isChatbot = false }: ReadingCalendarProps) {
   const router = useRouter();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -337,9 +338,11 @@ export default function ReadingCalendar({ selectedBook, onClose, onScheduleUpdat
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-400"></div>
               </div>
             ) : schedules.length === 0 ? (
-              <p className="text-sm text-yellow-200 text-center">
-                No scheduled reading. Click on a date to start scheduling!
-              </p>
+              isChatbot ? <></> : (
+                <p className="text-sm text-yellow-200 text-center">
+                  No scheduled reading. Click on a date to start scheduling!
+                </p>
+              )
             ) : (
               <div className="space-y-4">
                 {/* Pending Schedules */}
@@ -454,8 +457,8 @@ export default function ReadingCalendar({ selectedBook, onClose, onScheduleUpdat
                 <input
                   type="text"
                   className="w-full border border-gray-600 bg-gray-700 rounded-lg p-2 text-yellow-100"
-                  value={bookSearch}
-                  onChange={(e) => {
+                  value={selectedBook ? selectedBook.title : bookSearch}
+                  onChange={selectedBook ? undefined : (e => {
                     const value = e.target.value;
                     setBookSearch(value);
                     setNewSchedule(prev => ({
@@ -463,10 +466,11 @@ export default function ReadingCalendar({ selectedBook, onClose, onScheduleUpdat
                       bookTitle: value
                     }));
                     searchBooks(value);
-                  }}
+                  })}
                   placeholder="Search for a book..."
+                  readOnly={!!selectedBook}
                 />
-                {showSearchResults && searchResults.length > 0 && (
+                {(!selectedBook && showSearchResults && searchResults.length > 0) && (
                   <div className="absolute z-10 w-full bg-gray-800 border border-gray-600 rounded-lg mt-1 shadow-lg max-h-60 overflow-y-auto">
                     {searchResults.map((book) => (
                       <button

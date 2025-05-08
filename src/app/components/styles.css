@@ -759,6 +759,12 @@ body .calendar-popup.visible ~ .notification-badge,
   font-weight: normal !important;
 }
 
+/* Use Fredoka One font for the original reading calendar popup */
+.calendar-popup, .calendar-popup * {
+  font-family: 'Fredoka One', cursive !important;
+  font-weight: normal !important;
+}
+
 /* Bold for CoReadability Bot header */
 .chatbot-header {
   font-weight: normal !important;
@@ -1107,4 +1113,95 @@ body .calendar-popup.visible ~ .notification-badge,
       transform: translateY(50%) translateX(0);
     }
   }
+}
+
+/* Chatbot Modal Overlay (for schedule modal inside chatbot window) */
+.chatbot-modal-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.5);
+  z-index: 1200;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+}
+
+.chatbot-modal-content {
+  background: #23243a;
+  border-radius: 18px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+  padding: 0;
+  min-width: 350px;
+  max-width: 95%;
+  min-height: 200px;
+  max-height: 95%;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  margin-left: 0;
+  margin-right: 10px;
+  margin-top: 10px;
+}
+
+@media (max-width: 600px) {
+  .chatbot-modal-overlay {
+    justify-content: center;
+    align-items: center;
+  }
+  .chatbot-modal-content {
+    margin-left: 0;
+    margin-right: 0;
+    left: 0;
+    right: 0;
+    margin-top: 0;
+  }
+}
+
+/* Ensure close-modal button is visible in modal */
+.chatbot-modal-content .close-modal {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: #e11d48;
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  font-size: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 1201;
+}
+
+.chatbot-modal-content .close-modal:hover {
+  background: #be123c;
+}
+
+.add-to-schedule-link {
+  background-color: #f59e0b; /* amber-500 */
+  color: #fff !important;
+  font-family: 'Fredoka One', cursive !important;
+  font-size: 1rem;
+  font-weight: normal;
+  border: none;
+  border-radius: 7px;
+  padding: 6px 16px;
+  margin-right: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  text-decoration: underline;
+}
+
+.add-to-schedule-link:hover {
+  background-color: #d97706; /* amber-600 */
 }

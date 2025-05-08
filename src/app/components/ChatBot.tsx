@@ -80,6 +80,10 @@ const ChatBot: React.FC = () => {
   const startPosRef = useRef({ x: 0, y: 0 });
   const startDimRef = useRef({ width: 0, height: 0, left: 0, top: 0 });
 
+  // Add state for reading schedule modal and selected book
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
+  const [scheduleBook, setScheduleBook] = useState<{ cid: number; title: string } | null>(null);
+
   // Save dimensions to localStorage when they change
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -212,6 +216,12 @@ const ChatBot: React.FC = () => {
     }
   };
 
+  // Callback to open schedule modal with book
+  const handleAddToSchedule = (book: { cid: number; title: string }) => {
+    setScheduleBook(book);
+    setIsScheduleModalOpen(true);
+  };
+
   return (
     <div className="chatbot-wrapper">
       {/* Show mascot to the left of the popup when open */}
@@ -319,6 +329,7 @@ const ChatBot: React.FC = () => {
                           handleImageClick={showEnlargedImage}
                           index={index}
                           addIframeRef={addIframeRef}
+                          onAddToSchedule={item.cid && item.title ? () => handleAddToSchedule({ cid: item.cid, title: item.title }) : undefined}
                         />
                       );
                     })}
@@ -374,6 +385,20 @@ const ChatBot: React.FC = () => {
             onMouseDown={(e) => handleResizeStart(e, dir)}
           />
         ))}
+
+        {isScheduleModalOpen && (
+          <div className="chatbot-modal-overlay" onClick={() => setIsScheduleModalOpen(false)}>
+            <div className="chatbot-modal-content" onClick={(e) => e.stopPropagation()}>
+              <ReadingCalendar 
+                onScheduleUpdate={refreshPendingSchedules}
+                selectedBook={scheduleBook || undefined}
+                onClose={() => setIsScheduleModalOpen(false)}
+                isChatbot={true}
+              />
+              <button className="close-modal" onClick={() => setIsScheduleModalOpen(false)}>✖</button>
+            </div>
+          </div>
+        )}
       </div>
 
       {enlargedImage && (

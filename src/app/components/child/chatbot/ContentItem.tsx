@@ -23,6 +23,7 @@ interface ContentItem {
     handleImageClick: (imageUrl: string) => void;
     index: number;
     addIframeRef: (index: number, ref: HTMLIFrameElement | null) => void;
+    onAddToSchedule?: () => void;
   }
 
 const ContentItem: React.FC<ContentItemProps> = ({
@@ -33,7 +34,8 @@ const ContentItem: React.FC<ContentItemProps> = ({
   toggleSpeech,
   handleImageClick,
   index,
-  addIframeRef
+  addIframeRef,
+  onAddToSchedule
 }) => {
   const isSpeaking = speakingItemId === itemId;
   
@@ -90,12 +92,21 @@ const ContentItem: React.FC<ContentItemProps> = ({
               View Book
             </a>
             {item.cid && item.cid !== 0 ? (
-              <a
-                href={`/bookdetail/${item.cid}`}
-                className="chatbot-button-style view-details-link"
-              >
-                View Details
-              </a>
+              <>
+                <a
+                  href={`/bookdetail/${item.cid}`}
+                  className="chatbot-button-style view-details-link"
+                >
+                  View Details
+                </a>
+                <button
+                  className="chatbot-button-style add-to-schedule-link"
+                  type="button"
+                  onClick={onAddToSchedule}
+                >
+                  Add to Reading Schedule
+                </button>
+              </>
             ) : (
               <span>Details unavailable</span>
             )}
