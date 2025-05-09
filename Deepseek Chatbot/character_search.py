@@ -206,7 +206,7 @@ def get_recent_conversation_history(uaid_child, supabase, limit=5):
             .from_("temp_chathistory")
             .select("*")
             .eq("uaid_child", uaid_child)
-            .order("createddate", option="desc")
+            .order("createddate", desc=True)
             .limit(limit)
             .execute()
         )

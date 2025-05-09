@@ -31,12 +31,15 @@ import random
 import datetime
 import logging
 import json
+import threading
+import time
 
 # Import the kid_friendly module
 from kid_friendly_responses import make_kid_friendly
 
 # Import title search helpers
-from title_search import check_title_query, search_for_title
+from title_search import check_title_query
+from fts_search import initialize_search_engine, search_for_title as fts_search_for_title
 
 # Load environment variables
 load_dotenv()
@@ -67,29 +70,55 @@ CONTENT_STATUS = {
     "SUSPENDED": "suspended"    # Content is archived (not active)
 }
 
-# # Enhanced chatbot template with kid-friendly instructions
-# template = ("""
-# You are an AI-powered chatbot designed to provide 
-# recommendations for books and videos for children/kids
-# based on the context provided to you only.
-# Don't in any way make things up.
+# Initialize FTS Search Engine
+try:
+    search_engine = initialize_search_engine(supabase, CONTENT_STATUS)
+    logging.info("SQLite FTS5 search engine initialized successfully")
+    USE_FTS_SEARCH = True
+except Exception as e:
+    logging.error(f"Failed to initialize FTS search engine: {e}")
+    logging.warning("Falling back to original search method")
+    USE_FTS_SEARCH = False
 
-# # IMPORTANT READABILITY GUIDELINES:
-# - Sound kid-friendly and enthusiastic!
-# - Use simple words with 1-2 syllables whenever possible
-# - Keep sentences short (under 12 words)
-# - Use active voice, not passive voice
-# - Explain any complex terms immediately
-# - Use concrete examples rather than abstract concepts
-# - Be enthusiastic and playful! Use exclamation points!
-# - Include occasional fun expressions like "Wow!" or "Awesome!"
-# - For ages 5-8: Use very simple language (Grade 1-2 level)
-# - For ages 9-12: Use moderately simple language (Grade 3-4 level)
-
-# Context:{context}
-# Question:{question}
-# Child's Age:{age}
-# """)
+# Modified version of the original search_for_title function that uses FTS5 when available
+def search_for_title(title, uaid_child, supabase_client, get_child_age, is_genre_blocked, content_status):
+    """
+    Search for content by title, using FTS5 if available or falling back to original method.
+    """
+    if USE_FTS_SEARCH:
+        try:
+            # Use the FTS5 search implementation
+            return fts_search_for_title(
+                title=title,
+                uaid_child=uaid_child,
+                supabase_client=supabase_client,
+                get_child_age=get_child_age,
+                is_genre_blocked=is_genre_blocked,
+                content_status=content_status
+            )
+        except Exception as e:
+            logging.error(f"FTS search error: {e}. Falling back to original search")
+            # If FTS search fails, fall back to original implementation
+            from title_search import search_for_title as original_search_for_title
+            return original_search_for_title(
+                title=title,
+                uaid_child=uaid_child,
+                supabase_client=supabase_client,
+                get_child_age=get_child_age,
+                is_genre_blocked=is_genre_blocked,
+                content_status=content_status
+            )
+    else:
+        # Use the original implementation
+        from title_search import search_for_title as original_search_for_title
+        return original_search_for_title(
+            title=title,
+            uaid_child=uaid_child,
+            supabase_client=supabase_client,
+            get_child_age=get_child_age,
+            is_genre_blocked=is_genre_blocked,
+            content_status=content_status
+        )
 
 def save_chat_to_database(context, is_chatbot, uaid_child):
     try:
@@ -208,6 +237,7 @@ def get_content_by_genre_and_format(question, uaid_child):
         if not detected_genre:
             logging.warning(f"[{request_id}] Unable to detect genre from question")
             return {"error": "Unable to detect genre from the question"}
+        
         
         # Check if the detected genre is blocked for this child
         is_blocked = is_genre_blocked(detected_genre, uaid_child)
@@ -332,8 +362,93 @@ def get_content_by_genre_and_format(question, uaid_child):
         logging.error(f"Database query failed: {e}", exc_info=True)
         return {"error": "Database query failed"}
 
-# Main chatbot route
 # Main chatbot route with improved context handling
+
+def should_reset_character_context(question, recent_history, existing_context):
+    """
+    Determine if the character context should be reset based on the user's new question.
+    
+    Args:
+        question: The current user question
+        recent_history: Recent conversation history
+        existing_context: The current conversation context
+        
+    Returns:
+        Boolean indicating if character context should be reset
+    """
+    # If there's no character in existing context, no need to reset
+    if not existing_context or 'character' not in existing_context:
+        return False
+    
+    current_character = existing_context.get('character')
+    normalized_question = question.lower()
+    
+    # Case 1: User explicitly asks for a different character
+    character_list = [
+        "spongebob", "peppa pig", "paw patrol", "harry potter", "tom and jerry",
+        "dora", "mickey mouse", "lego", "superhero", "princess", "frozen", 
+        "elsa", "pokemon", "barbie", "disney", "marvel", "batman", "spiderman"
+    ]
+    
+    for character in character_list:
+        # Skip the current character
+        if character == current_character:
+            continue
+            
+        # If a different character is mentioned, we should reset
+        if character in normalized_question:
+            logging.info(f"Resetting character context from '{current_character}' to '{character}' due to explicit mention")
+            return True
+    
+    # Case 2: User explicitly asks for a different genre or category
+    genre_indicators = [
+        "adventure", "mystery", "science", "math", "animals", "dinosaurs", 
+        "space", "ocean", "forest", "fairy tale", "history", "sports",
+        "music", "dance", "art", "food", "travel", "nature"
+    ]
+    
+    for genre in genre_indicators:
+        if genre in normalized_question:
+            logging.info(f"Resetting character context from '{current_character}' due to genre change to '{genre}'")
+            return True
+    
+    # Case 3: User is asking about a specific title that doesn't contain the character
+    title_phrases = ["book called", "book titled", "book about", "story about", "video about"]
+    
+    for phrase in title_phrases:
+        if phrase in normalized_question and current_character not in normalized_question:
+            logging.info(f"Resetting character context from '{current_character}' due to specific title request")
+            return True
+    
+    # Case 4: Direct change of topic indicators
+    change_indicators = [
+        "different", "something else", "another book", "another video", 
+        "other books", "other videos", "instead", "not interested", 
+        "don't want", "don't like", "change", "new topic"
+    ]
+    
+    for indicator in change_indicators:
+        if indicator in normalized_question:
+            logging.info(f"Resetting character context from '{current_character}' due to topic change indicator")
+            return True
+    
+    # Case 5: Check if the current exchange is simply unrelated to the character
+    # This is more complex and requires analyzing the full question
+    # Look for content requests that don't mention the character
+    content_requests = [
+        "show me", "find me", "can i see", "do you have", 
+        "i want to see", "i want to read", "recommend", "suggest"
+    ]
+    
+    for request in content_requests:
+        if request in normalized_question and current_character not in normalized_question:
+            # This might be a request for something unrelated to the character
+            logging.info(f"Resetting character context from '{current_character}' due to unrelated content request")
+            return True
+    
+    # If none of the above cases match, keep the character context
+    return False
+
 @app.route('/api/chat', methods=['POST'])
 def chat():
     data = request.json
@@ -369,10 +484,16 @@ def chat():
     # Detect character mentions in the current query
     character_query = detect_character_in_query(normalized_question)
     
-    # If no character in current query but we have it in context, use that
+    # Check if we should reset character context before using it
     if not character_query and existing_context and 'character' in existing_context:
-        character_query = existing_context['character']
-        logging.info(f"Using character from existing context: {character_query}")
+        if should_reset_character_context(question, recent_history, existing_context):
+            # Reset the character context if needed
+            conversation_manager.clear_context(uaid_child, 'character')
+            logging.info(f"Cleared character context for user {uaid_child}")
+        else:
+            # Only use the character from context if we shouldn't reset
+            character_query = existing_context['character']
+            logging.info(f"Using character from existing context: {character_query}")
     # If still no character, check recent history
     elif not character_query and recent_history:
         character_query = extract_character_from_history(recent_history)
@@ -491,12 +612,20 @@ def chat():
         conversation_manager.update_context(uaid_child, 'title', title)
         
         # Check for popular characters to maintain character context
-        popular_characters = ["spongebob", "peppa pig", "harry potter", "dora", "superman", 
-                             "batman", "elsa", "mickey mouse", "paw patrol", "tom and jerry"]
+        character_list = [
+            "spongebob", "peppa pig", "harry potter", "dora", "superman", 
+            "batman", "elsa", "mickey mouse", "paw patrol", "tom and jerry"
+        ]
         
-        for character in popular_characters:
+        # If title mentions a new character, update character context
+        for character in character_list:
             if character.lower() in title.lower():
+                # If it's a different character than what we have in context, update it
+                if existing_context and 'character' in existing_context and character != existing_context['character']:
+                    logging.info(f"Switching character context from '{existing_context['character']}' to '{character}' based on title request")
+                
                 conversation_manager.update_context(uaid_child, 'character', character)
+                character_query = character
                 logging.info(f"Updated character context to '{character}' from title '{title}'")
                 break
         
@@ -526,7 +655,73 @@ def chat():
     if "genre" in content_response and content_response["genre"]:
         conversation_manager.update_context(uaid_child, 'genre', content_response["genre"])
         logging.info(f"Updated context with genre: {content_response['genre']}")
-    
+        
+        # If we detected a genre and had a character context, consider resetting the character
+        # This helps prevent the character context from persisting too long
+        if existing_context and 'character' in existing_context:
+            genre = content_response["genre"]
+            # If the genre doesn't naturally relate to the character, reset character context
+            character = existing_context['character']
+            character_related_genres = {
+                "spongebob": ["undersea", "cartoon"],
+                "peppa pig": ["cartoon", "family"],
+                "harry potter": ["magic", "fantasy", "wizards"],
+                # Add more character-genre relationships as needed
+            }
+            
+            # If the character has related genres defined and this genre isn't one of them
+            if character in character_related_genres and genre.lower() not in character_related_genres[character]:
+                conversation_manager.clear_context(uaid_child, 'character')
+                logging.info(f"Cleared character '{character}' context due to unrelated genre '{genre}'")
+    elif "error" in content_response and "Unable to detect genre from the question" in content_response.get("error", ""):
+        logging.info(f"Handling potential genre recommendation request: '{question}'")
+        
+        # Try to handle special cases like "Recommend other genres"
+        special_handler_response = handle_genre_recommendation(
+            question=question,
+            child_age=child_age,
+            existing_context=existing_context,
+            uaid_child=uaid_child
+        )
+        
+        if special_handler_response:
+            logging.info(f"Successfully handled genre recommendation request")
+            return jsonify(special_handler_response)
+        
+        # If this wasn't a genre recommendation request or it failed,
+        # create a generic AI response about genres
+        logging.info(f"Not a genre recommendation request, creating generic AI response")
+        context_from_file = read_data_from_file("data.txt")
+        if context_from_file is None:
+            context_from_file = "You are an AI chatbot that recommends books and videos for children."
+        
+        # Create a generic template that's guaranteed not to be None
+        generic_template = f"""
+        You are an AI-powered chatbot designed to provide recommendations for books and videos for children.
+        
+        The child (age {child_age}) has asked: "{question}"
+        
+        Since I couldn't detect a specific genre in their question, please:
+        1. Respond in a helpful, kid-friendly way
+        2. Suggest a few popular genres they might be interested in
+        3. Use simple language for a {child_age}-year-old
+        4. Be enthusiastic and encouraging!
+        
+        Additional context information: {", ".join([f"{k}: {v}" for k, v in existing_context.items()]) if existing_context else "No additional context available"}
+        """
+        
+        try:
+            ai_answer = deepseek_chain.invoke(generic_template)
+            kid_friendly_answer = make_kid_friendly(ai_answer, child_age, deepseek_chain)
+            save_chat_to_database(context=kid_friendly_answer, is_chatbot=True, uaid_child=uaid_child)
+            return jsonify({"answer": kid_friendly_answer})
+        except Exception as e:
+            logging.error(f"AI response failed: {e}")
+            # Provide a fallback response even if the AI fails
+            fallback_response = "I'd be happy to recommend some books and videos! Would you like adventure stories, animal books, or maybe something about science?"
+            save_chat_to_database(context=fallback_response, is_chatbot=True, uaid_child=uaid_child)
+            return jsonify({"answer": fallback_response})
+        
     # Handle blocked genres with alternative suggestions
     if "error" in content_response and content_response.get("blocked"):
         context_from_file = read_data_from_file("data.txt")
@@ -580,6 +775,9 @@ def chat():
             return jsonify({"error": "AI response failed"}), 500
     
     # If no content at all, use AI with conversation context
+    # Find this section in your chat route and replace it with this code
+
+    # If no content at all, use AI with conversation context
     if "error" in content_response or (
         not content_response.get("books") and not content_response.get("videos")
     ):
@@ -596,10 +794,24 @@ def chat():
             character=character_query
         )
         
-        # Include context information in the prompt
-        if existing_context:
-            context_info = ", ".join([f"{k}: {v}" for k, v in existing_context.items()])
-            template_with_context += f"\n\nAdditional context information: {context_info}"
+        # Check if template_with_context is None before adding to it
+        if template_with_context is not None:
+            # Include context information in the prompt
+            if existing_context:
+                context_info = ", ".join([f"{k}: {v}" for k, v in existing_context.items()])
+                template_with_context += f"\n\nAdditional context information: {context_info}"
+        else:
+            # Create a basic template if the normal template creation failed
+            template_with_context = f"""
+            You are an AI-powered chatbot designed to provide 
+            recommendations for books and videos for children.
+            
+            Question: {question}
+            Child's Age: {child_age}
+            """
+            if existing_context:
+                context_info = ", ".join([f"{k}: {v}" for k, v in existing_context.items()])
+                template_with_context += f"\n\nAdditional context information: {context_info}"
         
         try:
             ai_answer = deepseek_chain.invoke(template_with_context)
@@ -610,10 +822,105 @@ def chat():
         except Exception as e:
             logging.error(f"AI response failed: {e}")
             return jsonify({"error": "AI response failed"}), 500
-    
-    # If we have content, return it
+        # If we have content, return it
     save_chat_to_database(context=str(content_response), is_chatbot=True, uaid_child=uaid_child)
     return jsonify(content_response)
+
+# Add this function to handle specific cases like "Recommend other genres"
+
+def handle_genre_recommendation(question, child_age, existing_context, uaid_child):
+    """
+    Handle specific requests like "Recommend other genres" when no genre is detected.
+    
+    Args:
+        question: The user's question
+        child_age: Child's age
+        existing_context: The current conversation context
+        uaid_child: Child's user ID
+        
+    Returns:
+        Response dictionary or None if not handled
+    """
+    normalized_question = question.lower()
+    
+    # Check if this is a request for genre recommendations
+    genre_request_patterns = [
+        "recommend genres", "recommend other genres", "suggest genres", 
+        "what genres", "other genres", "different genres"
+    ]
+    
+    is_genre_request = any(pattern in normalized_question for pattern in genre_request_patterns)
+    
+    if is_genre_request:
+        try:
+            # Get all available genres from the database
+            genres_query = supabase.from_("temp_genre").select("genrename").execute()
+            
+            if not genres_query.data:
+                return None  # Fall back to regular processing
+                
+            # Get all genres
+            all_genres = [genre["genrename"] for genre in genres_query.data]
+            
+            # Filter out any blocked genres for this child
+            available_genres = []
+            for genre in all_genres:
+                if not is_genre_blocked(genre, uaid_child):
+                    available_genres.append(genre)
+            
+            # Only keep age-appropriate genres (this would require additional logic)
+            # For now, we'll assume all genres can be age-appropriate
+            
+            # Get current/previous genre if any
+            current_genre = None
+            if existing_context and 'genre' in existing_context:
+                current_genre = existing_context['genre']
+            
+            # Create a context prompt for the AI
+            context_from_file = read_data_from_file("data.txt")
+            if context_from_file is None:
+                return None  # Fall back to regular processing
+                
+            # Create a specialized prompt
+            genre_prompt = f"""
+            You are an AI-powered chatbot designed to recommend genres for children's books and videos.
+            
+            The child (age {child_age}) has asked for genre recommendations: "{question}"
+            
+            Available genres in our system: {", ".join(available_genres)}
+            
+            {f"The child has previously shown interest in the '{current_genre}' genre." if current_genre else ""}
+            
+            Please suggest 4-5 age-appropriate genres from the available list. For each genre, briefly explain what 
+            kind of books or videos they would find in that genre. Be enthusiastic and kid-friendly in your explanation!
+            
+            Remember:
+            - Use simple language appropriate for a {child_age}-year-old
+            - Keep your explanations short and fun
+            - Don't recommend anything scary or inappropriate for children
+            - Make your response engaging and encouraging
+            """
+            
+            # Get AI response
+            ai_answer = deepseek_chain.invoke(genre_prompt)
+            
+            # Make it kid-friendly
+            kid_friendly_answer = make_kid_friendly(ai_answer, child_age, deepseek_chain)
+            
+            # Save to chat history
+            save_chat_to_database(
+                context=kid_friendly_answer, 
+                is_chatbot=True, 
+                uaid_child=uaid_child
+            )
+            
+            return {"answer": kid_friendly_answer}
+            
+        except Exception as e:
+            logging.error(f"Error handling genre recommendation: {e}")
+            return None  # Fall back to regular processing
+            
+    return None  # Not a genre recommendation request
 
 # Standard response endpoints for common questions
 @app.route('/api/standard-responses', methods=['GET'])
@@ -635,7 +942,14 @@ def get_standard_responses():
 
 # Run the Flask app
 if __name__ == '__main__':
-    # Start the Flask app
-    # app.run(debug=True)
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=False)
+    try:
+        # Start the Flask app
+        # app.run(debug=True)
+        port = int(os.environ.get("PORT", 5000))
+        app.run(host="0.0.0.0", port=port, debug=False)
+    except KeyboardInterrupt:
+        # When you press Ctrl+C to stop the server, run the debug function
+        from fts_search import debug_title_search
+        print("\nRunning debug for title search...")
+        debug_title_search(search_title="counting cabbage")
+        debug_title_search(search_title="Counting Cabbage")  # Try with proper case

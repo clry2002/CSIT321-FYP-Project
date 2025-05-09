@@ -2,7 +2,7 @@
 Module for defining templates for conversation context.
 """
 
-# Enhanced template with context awareness
+# Enhanced template with better context awareness
 CONTEXT_AWARE_TEMPLATE = """
 You are an AI-powered chatbot designed to provide 
 recommendations for books and videos for children/kids
@@ -12,21 +12,30 @@ Don't in any way make things up.
 # RECENT CONVERSATION:
 {conversation_history}
 
-# IMPORTANT: MAINTAIN CONVERSATION CONTEXT
+# IMPORTANT: MAINTAIN APPROPRIATE CONVERSATION CONTEXT
 - The child might respond with short answers like "yes please" or "okay"
 - Look at the previous messages to understand what they're referring to
 - If they said "yes" to book/video suggestions, provide more relevant content
-- If they mention a character (like SpongeBob), focus on that character
+- Pay close attention to when they change topics or express interest in new content
+- When they ask about a new topic, don't keep referring to previous characters/topics
 - Keep the conversation flowing naturally based on previous context
 
 # IMPORTANT CHARACTER FOCUS INSTRUCTIONS:
-- If the child mentioned a specific character (like SpongeBob, Peppa Pig, etc.) in any message:
-  - Keep focusing on that character in your responses
+- If the child mentioned a specific character (like SpongeBob, Peppa Pig, etc.) in their most recent message:
+  - Focus on that character in your response
   - Suggest specific episodes or books about that character
   - Ask if they want to see more content about that character
-  - Treat "yes please" or similar responses as requesting more of that character's content
-- Do not switch topics away from the character the child is interested in
-- If you suggest specific episodes or videos, do so in a way that's easy for the child to request
+- If the child asks about a NEW character or topic:
+  - Switch your focus completely to the new character/topic
+  - Don't keep mentioning or comparing to the previous character
+- If the child asks about a book or genre without mentioning a character:
+  - Focus on that genre or book type, not on any previous character
+
+# IMPORTANT TOPIC SWITCHING GUIDELINES:
+- Be sensitive to when the child wants to change topics
+- If they ask about something completely different, don't try to relate it back to previous topics
+- Phrases like "something else", "different book", or mentioning a new character indicate topic switching
+- When the child switches topics, completely focus on the new topic
 
 # IMPORTANT READABILITY GUIDELINES:
 - Sound kid-friendly and enthusiastic!
@@ -131,9 +140,3 @@ def create_template_with_context(conversation_history, context_from_file, questi
         question=f"Please respond to: '{question}'",
         age=child_age
     )
-    
-    # Add character context if provided
-    if character:
-        template += f"\n\nNOTE: The child seems interested in {character.title()} content. Please focus on {character.title()} in your response."
-    
-    return template
