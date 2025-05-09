@@ -3,16 +3,10 @@ import logging
 from typing import Tuple, Dict, Any, List, Optional
 
 def check_title_query(query: str) -> Tuple[bool, Optional[str]]:
-    """
-    Check if a query is asking for a specific title
-    
-    Args:
-        query: The user's question or message
-        
-    Returns:
-        Tuple containing (is_title_query, title)
-    """
     # Remove question marks from the query for better title extraction
+    if query.lower().startswith("recommend") and any(word in query.lower() for word in ["books", "videos"]):
+            return False, None
+        
     clean_query = query.replace('?', '')
     
     # Define patterns to detect title queries with specific patterns

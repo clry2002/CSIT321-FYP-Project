@@ -117,19 +117,7 @@ def is_short_response(query):
     return False
 
 def create_template_with_context(conversation_history, context_from_file, question, child_age, character=None):
-    """
-    Create a template with conversation context for the AI.
-    
-    Args:
-        conversation_history: Recent conversation history
-        context_from_file: Content from data.txt
-        question: The user's question
-        child_age: The child's age
-        character: Optional character context
-        
-    Returns:
-        Formatted template string
-    """
+ 
     # Format the conversation history
     formatted_history = format_conversation_history(conversation_history)
     
@@ -140,3 +128,4 @@ def create_template_with_context(conversation_history, context_from_file, questi
         question=f"Please respond to: '{question}'",
         age=child_age
     )
+    return template

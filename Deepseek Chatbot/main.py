@@ -459,6 +459,12 @@ def chat():
 
     if not normalized_question:
         return jsonify({"error": "No question provided"}), 400
+    
+    # Handling none values - prevent chatbot error
+    def safe_template_add(base_template, additional_text):
+        if base_template is None:
+            return additional_text
+        return base_template + additional_text
 
     # Save user input to chat history
     save_chat_to_database(context=raw_question, is_chatbot=False, uaid_child=uaid_child)
@@ -567,9 +573,15 @@ def chat():
             logging.info(f"Returning direct database content for {combined_query if combined_query else character_query}")
             return jsonify(db_content)
     
-    # If it's a short response or we have character context but no direct content match,
+   # If it's a short response or we have character context but no direct content match,
     # use LLM with conversation context
     if short_response or has_location_reference or character_query:
+        # Helper function to safely add to templates
+        def safe_template_add(base_template, additional_text):
+            if base_template is None:
+                return additional_text
+            return base_template + additional_text
+        
         # Read context from file
         context_from_file = read_data_from_file("data.txt")
         if context_from_file is None:
@@ -584,16 +596,36 @@ def chat():
             character=character_query
         )
         
-        # Add specific context information for short responses
+        # Check if template_with_context is None and create a default if needed
+        if template_with_context is None:
+            logging.warning("create_template_with_context returned None, using default template")
+            template_with_context = f"""
+            You are an AI-powered chatbot designed to provide recommendations for books and videos for children.
+            
+            The child (age {child_age}) has asked: "{question}"
+            
+            Please respond in a helpful, kid-friendly way that's appropriate for a {child_age}-year-old.
+            """
+        
+        # Add specific context information for short responses - safely
         if short_response and character_query:
-            template_with_context += f"\n\nIMPORTANT: The child is responding to your previous message about {character_query} with '{question}'. They likely want to see {character_query} content."
+            template_with_context = safe_template_add(
+                template_with_context,
+                f"\n\nIMPORTANT: The child is responding to your previous message about {character_query} with '{question}'. They likely want to see {character_query} content."
+            )
         
         if short_response and content_type and not character_query:
-            template_with_context += f"\n\nIMPORTANT: The child is asking for {content_type}. Please suggest appropriate {content_type} for a {child_age}-year-old."
+            template_with_context = safe_template_add(
+                template_with_context,
+                f"\n\nIMPORTANT: The child is asking for {content_type}. Please suggest appropriate {content_type} for a {child_age}-year-old."
+            )
         
         if has_location_reference and existing_context:
             context_info = ", ".join([f"{k}: {v}" for k, v in existing_context.items()])
-            template_with_context += f"\n\nIMPORTANT: The child is referring to something previously mentioned. Current context: {context_info}"
+            template_with_context = safe_template_add(
+                template_with_context,
+                f"\n\nIMPORTANT: The child is referring to something previously mentioned. Current context: {context_info}"
+            )
         
         try:
             ai_answer = deepseek_chain.invoke(template_with_context)
@@ -605,6 +637,54 @@ def chat():
             logging.error(f"AI response with context failed: {e}")
             # Fall back to regular processing if this fails
     
+    # Special handling for recommendation queries that mention specific genres
+    if normalized_question.startswith("recommend") or "recommend" in normalized_question:
+        # Get all available genres
+        genres_query = supabase.from_("temp_genre").select("genrename").execute()
+        if genres_query.data:
+            genres = [genre["genrename"].lower() for genre in genres_query.data]
+            
+            # Check if any genre is mentioned
+            detected_genre = None
+            for genre in genres:
+                if genre.lower() in normalized_question:
+                    detected_genre = genre
+                    logging.info(f"Detected genre '{detected_genre}' in recommendation query")
+                    break
+            
+            # Explicitly detect and handle content type for recommendations
+            recommendation_content_type = None
+            recommendation_cfid = None
+            
+            if "book" in normalized_question or "books" in normalized_question:
+                recommendation_content_type = "books"
+                recommendation_cfid = 2  # Books
+                logging.info(f"Recommendation specifically for BOOKS")
+            elif "video" in normalized_question or "videos" in normalized_question:
+                recommendation_content_type = "videos"
+                recommendation_cfid = 1  # Videos
+                logging.info(f"Recommendation specifically for VIDEOS")
+            
+            # Update context with content type if detected
+            if recommendation_content_type:
+                conversation_manager.update_context(uaid_child, 'content_type', recommendation_content_type)
+            
+            # If a genre was detected, craft a special query with explicit format
+            if detected_genre:
+                # Create a modified query that will be correctly parsed by get_content_by_genre_and_format
+                modified_question = question
+                
+                # If we detected a specific content type but it's not in the original question,
+                # make sure it's included in the modified question
+                if recommendation_content_type and recommendation_content_type not in normalized_question:
+                    modified_question = f"{question} {recommendation_content_type}"
+                
+                content_response = get_content_by_genre_and_format(modified_question, uaid_child)
+                
+                if content_response and "genre" in content_response and not "error" in content_response:
+                    # Successfully found content for the genre
+                    return jsonify(content_response)
+            
     # If no specific character/content request, check if it's a title query
     is_title_query, title = check_title_query(question)
     if is_title_query and title:
@@ -736,6 +816,16 @@ def chat():
             child_age=child_age
         )
         
+        # Check if template is None
+        if template_with_context is None:
+            template_with_context = f"""
+            You are an AI-powered chatbot designed to help children find age-appropriate content.
+            
+            The child (age {child_age}) asked for {content_response.get('requested_genre', 'certain')} content, 
+            but this content is not available. Please suggest other kid-friendly genres and explain 
+            that this content isn't available right now. Be gentle and positive in your response.
+            """
+        
         try:
             ai_answer = deepseek_chain.invoke(template_with_context)
             # Use the kid-friendly function
@@ -762,6 +852,16 @@ def chat():
             child_age=child_age
         )
         
+        # Check if template is None
+        if template_with_context is None:
+            template_with_context = f"""
+            You are an AI-powered chatbot designed to help children find age-appropriate content.
+            
+            The child (age {child_age}) asked for {content_response.get('genre', 'certain')} content, 
+            but we only have this content for older kids. Please suggest age-appropriate alternatives
+            and explain in a child-friendly way. Be gentle and positive in your response.
+            """
+        
         try:
             ai_answer = deepseek_chain.invoke(template_with_context)
             # Use the kid-friendly function
@@ -773,14 +873,17 @@ def chat():
         except Exception as e:
             logging.error(f"AI response for age-appropriate content failed: {e}")
             return jsonify({"error": "AI response failed"}), 500
-    
-    # If no content at all, use AI with conversation context
-    # Find this section in your chat route and replace it with this code
-
+        
     # If no content at all, use AI with conversation context
     if "error" in content_response or (
         not content_response.get("books") and not content_response.get("videos")
     ):
+        # Helper function to safely add to templates
+        def safe_template_add(base_template, additional_text):
+            if base_template is None:
+                return additional_text
+            return base_template + additional_text
+        
         context_from_file = read_data_from_file("data.txt")
         if context_from_file is None:
             return jsonify({"error": "Failed to read context from file"}), 500
@@ -795,11 +898,23 @@ def chat():
         )
         
         # Check if template_with_context is None before adding to it
-        if template_with_context is not None:
-            # Include context information in the prompt
-            if existing_context:
-                context_info = ", ".join([f"{k}: {v}" for k, v in existing_context.items()])
-                template_with_context += f"\n\nAdditional context information: {context_info}"
+        if template_with_context is None:
+            # Create a basic template if the normal template creation failed
+            template_with_context = f"""
+            You are an AI-powered chatbot designed to provide 
+            recommendations for books and videos for children.
+            
+            Question: {question}
+            Child's Age: {child_age}
+            """
+        
+        # Include context information in the prompt (safely)
+        if existing_context:
+            context_info = ", ".join([f"{k}: {v}" for k, v in existing_context.items()])
+            template_with_context = safe_template_add(
+                template_with_context,
+                f"\n\nAdditional context information: {context_info}"
+            )
         else:
             # Create a basic template if the normal template creation failed
             template_with_context = f"""
