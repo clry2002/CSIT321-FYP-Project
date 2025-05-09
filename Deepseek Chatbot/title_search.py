@@ -38,6 +38,10 @@ def check_title_query(query: str) -> Tuple[bool, Optional[str]]:
         if match:
             try:
                 title = match.group(pattern['group']).strip()
+                
+                # NEW: Remove content type words from the end of extracted titles
+                title = re.sub(r'\s+(book|books|video|videos|story|stories)$', '', title, flags=re.IGNORECASE)
+                
                 # Only consider it a title if it's at least 2 words long or 
                 # has specific keywords that indicate it's likely a title
                 words = title.split()
@@ -65,6 +69,10 @@ def check_title_query(query: str) -> Tuple[bool, Optional[str]]:
             title = match.group(1).strip()
             # Remove leading "the" or "a" if present
             title = re.sub(r'^(the|a)\s+', '', title, flags=re.IGNORECASE)
+            
+            # NEW: Remove content type words from the end of extracted titles
+            title = re.sub(r'\s+(book|books|video|videos|story|stories)$', '', title, flags=re.IGNORECASE)
+            
             if len(title.split()) >= 2:  # Must be at least 2 words
                 logging.info(f"Extracted title from availability question: '{title}'")
                 return True, title
@@ -77,6 +85,10 @@ def check_title_query(query: str) -> Tuple[bool, Optional[str]]:
         match = re.search(r'"([^"]+)"', clean_query)
         if match:
             title = match.group(1).strip()
+            
+            # NEW: Remove content type words from the end of extracted titles
+            title = re.sub(r'\s+(book|books|video|videos|story|stories)$', '', title, flags=re.IGNORECASE)
+            
             logging.info(f"Detected quoted title: '{title}'")
             return True, title
             
@@ -84,6 +96,10 @@ def check_title_query(query: str) -> Tuple[bool, Optional[str]]:
         title_words = [word for word in words if word[0].isupper() if len(word) > 1]
         if len(title_words) >= 2:
             title = " ".join(title_words)
+            
+            # NEW: Remove content type words from the end of extracted titles
+            title = re.sub(r'\s+(book|books|video|videos|story|stories)$', '', title, flags=re.IGNORECASE)
+            
             logging.info(f"Detected likely title from capitalized words: '{title}'")
             return True, title
     
@@ -94,7 +110,16 @@ def search_for_title(title: str, uaid_child: str, supabase_client, get_child_age
         # Clean up the title for searching
         clean_title = re.sub(r'(is|are|can|will|do|does)\s+', '', title, flags=re.IGNORECASE)
         clean_title = re.sub(r'\s+(available|here|there|now|yet)', '', clean_title, flags=re.IGNORECASE)
+        
+        # Store the original cleaned title before removing content type words
+        original_clean_title = clean_title.strip()
+        
+        # Remove common content type words from the end of the title
+        clean_title = re.sub(r'\s+(book|books|video|videos|story|stories)$', '', clean_title, flags=re.IGNORECASE)
         clean_title = clean_title.strip()
+        
+        # Flag to track if we removed content type words
+        has_content_type_word = original_clean_title != clean_title
         
         logging.info(f"Searching for title: '{clean_title}' (original: '{title}') for child {uaid_child}")
         
@@ -103,9 +128,9 @@ def search_for_title(title: str, uaid_child: str, supabase_client, get_child_age
         
         # Determine content type (video or book)
         content_type = None
-        if "video" in clean_title.lower() or "videos" in clean_title.lower() or "episode" in clean_title.lower():
+        if "video" in title.lower() or "videos" in title.lower() or "episode" in title.lower():
             content_type = 1  # Video
-        elif "book" in clean_title.lower() or "books" in clean_title.lower() or "story" in clean_title.lower():
+        elif "book" in title.lower() or "books" in title.lower() or "story" in title.lower():
             content_type = 2  # Book
         
         # Detect specific character searches
@@ -293,6 +318,58 @@ def search_for_title(title: str, uaid_child: str, supabase_client, get_child_age
                 # Add with lowest relevance score (1)
                 for item in type_response.data:
                     all_results.append((item, 1))
+        
+        # 7. If still no results and we removed content type words, try again with original title
+        if len(all_results) == 0 and has_content_type_word:
+            logging.info(f"No results found for '{clean_title}', trying with original title '{original_clean_title}'")
+            
+            # Repeat exact title match with original_clean_title
+            fallback_exact_query = (
+                supabase_client
+                .from_("temp_content")
+                .select("*")
+                .ilike("title", f"%{original_clean_title}%")
+                .eq("status", content_status["APPROVED"])
+            )
+            
+            # Apply content type filter if specified
+            if content_type is not None:
+                fallback_exact_query = fallback_exact_query.eq("cfid", content_type)
+                
+            fallback_exact_response = fallback_exact_query.execute()
+            if fallback_exact_response.data:
+                # Add with high relevance score (8 - slightly lower than primary search)
+                for item in fallback_exact_response.data:
+                    all_results.append((item, 8))
+            
+            # If still no results and we have multiple words, try word pairs
+            if len(all_results) == 0 and len(original_clean_title.split()) >= 2:
+                # Split the title into words and create word pairs
+                words = original_clean_title.split()
+                word_pairs = []
+                for i in range(len(words) - 1):
+                    word_pairs.append(f"{words[i]} {words[i+1]}")
+                
+                # Try each word pair
+                for word_pair in word_pairs:
+                    fallback_pair_query = (
+                        supabase_client
+                        .from_("temp_content")
+                        .select("*")
+                        .ilike("title", f"%{word_pair}%")
+                        .eq("status", content_status["APPROVED"])
+                    )
+                    
+                    # Apply content type filter if specified
+                    if content_type is not None:
+                        fallback_pair_query = fallback_pair_query.eq("cfid", content_type)
+                        
+                    fallback_pair_response = fallback_pair_query.execute()
+                    
+                    if fallback_pair_response.data:
+                        # Add with medium relevance score (5)
+                        for item in fallback_pair_response.data:
+                            all_results.append((item, 5))
         
         # Process results by removing duplicates and ranking
         if all_results:
