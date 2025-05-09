@@ -344,17 +344,25 @@ _SYNC_INTERVAL = 3600  # Sync every hour
 _engine_lock = threading.Lock()
 
 
-def get_search_engine(db_path="db/content_search.db"):
+def get_search_engine(db_path=None):
     """Get the global search engine instance, initializing if needed"""
     global _engine_instance
     
     with _engine_lock:
         if _engine_instance is None:
+            # If db_path is None, use in-memory database in production
+            if db_path is None:
+                if os.environ.get('ENVIRONMENT') == 'production':
+                    db_path = ":memory:"
+                else:
+                    # Try to create a db directory if it doesn't exist
+                    os.makedirs("db", exist_ok=True)
+                    db_path = "db/content_search.db"
+            
             _engine_instance = ContentSearchEngine(db_path)
-            logging.info(f"Created global search engine instance in thread {threading.get_ident()}")
+            logging.info(f"Created global search engine instance in thread {threading.get_ident()} with db_path: {db_path}")
             
     return _engine_instance
-
 
 def sync_search_engine(supabase_client, content_status):
     """Sync the search engine with content from Supabase"""
