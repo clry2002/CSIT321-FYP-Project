@@ -1059,9 +1059,9 @@ def get_standard_responses():
 if __name__ == '__main__':
     try:
         # Start the Flask app
-        # app.run(debug=True)
-        port = int(os.environ.get("PORT", 5000))
-        app.run(host="0.0.0.0", port=port, debug=False)
+        app.run(debug=True)
+        # port = int(os.environ.get("PORT", 5000))
+        # app.run(host="0.0.0.0", port=port, debug=False)
     except KeyboardInterrupt:
         # When you press Ctrl+C to stop the server, run the debug function
         from fts_search import debug_title_search
