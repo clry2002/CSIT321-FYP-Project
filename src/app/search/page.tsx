@@ -4,21 +4,20 @@ import { useState } from 'react';
 import Navbar from '../components/Navbar';
 import { useRouter } from 'next/navigation';
 import ChatBot from "../components/ChatBot";
-import BookCard from '../components/BookCard'; 
-import VideoCard from '../components/VideoCard';
+import GenreSections from '../components/GenreSections';
 import { useBooks } from '../../hooks/useBooks';
 import { useAllVideos } from '../../hooks/useAllVideos';
-import { Book, Video } from "../../types/database.types"; // Make sure to import Video type
+import { Video } from "../../types/database.types";
 
 export default function SearchPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'books' | 'videos'>('books');
   const router = useRouter();
-  const { availableBooks, loading: booksLoading } = useBooks();
   
-  // Use the new useAllVideos hook for the search page
+  // Fetch data
+  const { availableBooks, loading: booksLoading } = useBooks();
   const { 
-    data: availableVideos = [] as Video[], // Explicitly type the empty array
+    data: availableVideos = [] as Video[], 
     isLoading: videosLoading,
     error: videosError,
     isRefetching
@@ -111,12 +110,8 @@ export default function SearchPage() {
           </div>
         </div>
         
-        {/* Content Display Section */}
+        {/* Content Display Section - Now using Genre Sections */}
         <div className="max-w-6xl mx-auto">
-          <h2 className="text-2xl font-bold text-yellow-400 mb-4">
-            {activeTab === 'books' ? 'Available Books' : 'Available Videos'}
-          </h2>
-          
           {/* Show error message if video loading failed */}
           {videosError && activeTab === 'videos' && !isLoading && (
             <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 mb-4">
@@ -126,64 +121,25 @@ export default function SearchPage() {
           
           {isLoading ? (
             // Loading state with skeleton UI
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-              {Array.from({ length: 10 }).map((_, index) => (
-                <div key={index} className="flex flex-col">
-                  <div className="bg-gray-200 rounded-lg aspect-[3/4] animate-pulse"></div>
-                  <div className="mt-2 bg-gray-700 rounded-lg p-2">
-                    <div className="bg-gray-400 h-4 w-3/4 rounded animate-pulse mb-2"></div>
-                    <div className="bg-gray-400 h-3 w-2/3 rounded animate-pulse"></div>
+            <div className="space-y-6">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <div key={index} className="bg-white/5 rounded-lg p-4">
+                  <div className="h-6 bg-gray-600 rounded animate-pulse mb-4 w-1/4"></div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <div key={i} className="bg-gray-700 rounded-lg aspect-[3/4] animate-pulse"></div>
+                    ))}
                   </div>
                 </div>
               ))}
             </div>
-          ) : activeTab === 'books' && availableBooks.length > 0 ? (
-            // Books display
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-              {availableBooks.map((book: Book, index: number) => (
-                <div key={index} className="rounded-lg overflow-hidden">
-                  <BookCard
-                    cid={book.cid}
-                    title={book.title}
-                    credit={book.credit}
-                    coverimage={book.coverimage}
-                    genre={book.genre || []}
-                    minimumage={book.minimumage}
-                    createddate={book.createddate || book.createddate}
-                    viewCount={book.viewcount || 0}
-                    showGenre={true}
-                    isEducator={false}
-                  />
-                </div>
-              ))}
-            </div>
-          ) : activeTab === 'videos' && availableVideos.length > 0 ? (
-            // Videos display with VideoCard component
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-              {availableVideos.map((video: Video, index: number) => (
-                <div key={video.cid || index} className="rounded-lg overflow-hidden">
-                  <VideoCard
-                    cid={video.cid}
-                    title={video.title}
-                    credit={video.credit}
-                    contenturl={video.contenturl}
-                    minimumage={video.minimumage || 0}
-                    isEducator={false}
-                    lazyLoad={true} 
-                    genre={video.genre || []} 
-                    description={video.description || ''} 
-                    cfid={video.cfid || 0}                  
-                  />
-                </div>
-              ))}
-            </div>
           ) : (
-            // No content state
-            <div className="bg-indigo-600/50 rounded-lg p-6 text-center">
-              <p className="text-white">
-                No {activeTab} available at the moment. Try searching for specific titles.
-              </p>
-            </div>
+            // Genre Sections Component
+            <GenreSections 
+              books={availableBooks}
+              videos={availableVideos}
+              activeTab={activeTab}
+            />
           )}
         </div>
         
