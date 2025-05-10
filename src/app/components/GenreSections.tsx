@@ -6,28 +6,34 @@ import BookCard from './BookCard';
 import VideoCard from './VideoCard';
 import { Book, Video } from '../../types/database.types';
 
-interface GenreSection {
-  genreId: number;
-  genreName: string;
+interface Genre {
+  gid: number;
+  genrename: string;
+  bookCount: number;
+  videoCount: number;
+}
+
+interface ContentByGenre {
   books: Book[];
   videos: Video[];
 }
 
-interface GenreSectionsProps {
+interface ClickableGenreNavigationProps {
   books: Book[];
   videos: Video[];
   activeTab: 'books' | 'videos';
 }
 
-export default function GenreSections({ books, videos, activeTab }: GenreSectionsProps) {
-  const [genreSections, setGenreSections] = useState<GenreSection[]>([]);
-  const [, setBlockedGenres] = useState<Set<number>>(new Set());
-  const [isLoading, setIsLoading] = useState(true);
-  const [expandedSections, setExpandedSections] = useState<Set<number>>(new Set());
+export default function ClickableGenreNavigation({ books, videos, activeTab }: ClickableGenreNavigationProps) {
+  const [availableGenres, setAvailableGenres] = useState<Genre[]>([]);
+  const [selectedGenre, setSelectedGenre] = useState<number | null>(null);
+  const [contentByGenre, setContentByGenre] = useState<ContentByGenre>({ books: [], videos: [] });
+  const [isLoadingGenres, setIsLoadingGenres] = useState(true);
+  const [isLoadingContent, setIsLoadingContent] = useState(false);
 
-  // Fetch blocked genres and organize content by genre
+  // Fetch available genres on component mount
   useEffect(() => {
-    const fetchBlockedGenresAndOrganize = async () => {
+    const fetchAvailableGenres = async () => {
       try {
         // Get current user
         const { data: { user } } = await supabase.auth.getUser();
@@ -39,177 +45,234 @@ export default function GenreSections({ books, videos, activeTab }: GenreSection
           .select('genreid')
           .eq('child_id', user.id);
 
-        const blockedGenreSet = new Set(blockedData?.map(item => item.genreid) || []);
-        setBlockedGenres(blockedGenreSet);
+        const blockedGenreIds = new Set(blockedData?.map(item => item.genreid) || []);
 
-        // Fetch all genres
-        const { data: allGenres } = await supabase
-          .from('temp_genre')
-          .select('gid, genrename')
-          .order('genrename');
-
-        if (!allGenres) return;
-
-        // Initialize genre sections
-        const genreMap = new Map<number, GenreSection>();
-        allGenres.forEach(genre => {
-          genreMap.set(genre.gid, {
-            genreId: genre.gid,
-            genreName: genre.genrename,
-            books: [],
-            videos: []
-          });
-        });
-
-        // Fetch all content-genre relationships
+        // Fetch content-genre relationships
         const { data: contentGenres } = await supabase
           .from('temp_contentgenres')
           .select('cid, gid');
 
         if (!contentGenres) return;
 
-        // Create a map of content ID to genre IDs
-        const contentGenreMap = new Map<number, number[]>();
+        // Count content per genre
+        const genreContentCount = new Map<number, { books: number; videos: number }>();
+        
+        // Initialize counts
         contentGenres.forEach(relation => {
-          if (!contentGenreMap.has(relation.cid)) {
-            contentGenreMap.set(relation.cid, []);
+          if (!genreContentCount.has(relation.gid)) {
+            genreContentCount.set(relation.gid, { books: 0, videos: 0 });
           }
-          contentGenreMap.get(relation.cid)!.push(relation.gid);
         });
 
-        // Categorize books by genre (cfid = 2)
+        // Count books and videos per genre
         books.forEach(book => {
-          const genreIds = contentGenreMap.get(Number(book.cid)) || [];
-          genreIds.forEach(genreId => {
-            if (genreMap.has(genreId)) {
-              genreMap.get(genreId)!.books.push(book);
-            }
+          const genreIds = contentGenres
+            .filter(cg => cg.cid === Number(book.cid))
+            .map(cg => cg.gid);
+          
+          genreIds.forEach(gid => {
+            const count = genreContentCount.get(gid);
+            if (count) count.books++;
           });
         });
 
-        // Categorize videos by genre (cfid = 1)
         videos.forEach(video => {
-          const genreIds = contentGenreMap.get(Number(video.cid)) || [];
-          genreIds.forEach(genreId => {
-            if (genreMap.has(genreId)) {
-              genreMap.get(genreId)!.videos.push(video);
-            }
+          const genreIds = contentGenres
+            .filter(cg => cg.cid === Number(video.cid))
+            .map(cg => cg.gid);
+          
+          genreIds.forEach(gid => {
+            const count = genreContentCount.get(gid);
+            if (count) count.videos++;
           });
         });
 
-        // Convert to array and filter out blocked genres and empty sections
-        const sections = Array.from(genreMap.values())
-          .filter(section => 
-            !blockedGenreSet.has(section.genreId) && 
-            (section.books.length > 0 || section.videos.length > 0)
-          )
+        // Fetch genre names
+        const genreIds = Array.from(genreContentCount.keys());
+        const { data: genreData } = await supabase
+          .from('temp_genre')
+          .select('gid, genrename')
+          .in('gid', genreIds);
+
+        if (!genreData) return;
+
+        // Create genre objects with counts, excluding blocked genres
+        const genresWithCounts = genreData
+          .filter(genre => !blockedGenreIds.has(genre.gid))
+          .map(genre => {
+            const count = genreContentCount.get(genre.gid) || { books: 0, videos: 0 };
+            return {
+              gid: genre.gid,
+              genrename: genre.genrename,
+              bookCount: count.books,
+              videoCount: count.videos
+            };
+          })
+          .filter(genre => genre.bookCount > 0 || genre.videoCount > 0)
           .sort((a, b) => {
-            // Sort by total content count
-            const aTotal = a.books.length + a.videos.length;
-            const bTotal = b.books.length + b.videos.length;
-            return bTotal - aTotal;
+            // Sort by total content count, then by name
+            const aTotal = a.bookCount + a.videoCount;
+            const bTotal = b.bookCount + b.videoCount;
+            if (aTotal !== bTotal) return bTotal - aTotal;
+            return a.genrename.localeCompare(b.genrename);
           });
 
-        setGenreSections(sections);
+        setAvailableGenres(genresWithCounts);
       } catch (error) {
-        console.error('Error organizing content by genre:', error);
+        console.error('Error fetching available genres:', error);
       } finally {
-        setIsLoading(false);
+        setIsLoadingGenres(false);
       }
     };
 
-    fetchBlockedGenresAndOrganize();
+    fetchAvailableGenres();
   }, [books, videos]);
 
-  // Toggle expanded state for a genre section
-  const toggleSection = (genreId: number) => {
-    const newExpanded = new Set(expandedSections);
-    if (newExpanded.has(genreId)) {
-      newExpanded.delete(genreId);
-    } else {
-      newExpanded.add(genreId);
+  // Fetch content for selected genre
+  useEffect(() => {
+    if (selectedGenre === null) {
+      setContentByGenre({ books: [], videos: [] });
+      return;
     }
-    setExpandedSections(newExpanded);
-  };
 
-  if (isLoading) {
+    const fetchContentForGenre = async () => {
+      setIsLoadingContent(true);
+      try {
+        // Get content IDs for this genre
+        const { data: contentGenres } = await supabase
+          .from('temp_contentgenres')
+          .select('cid')
+          .eq('gid', selectedGenre);
+
+        if (!contentGenres) return;
+
+        const contentIds = contentGenres.map(cg => cg.cid);
+
+        // Filter books and videos by content IDs
+        const genreBooks = books.filter(book => contentIds.includes(Number(book.cid)));
+        const genreVideos = videos.filter(video => contentIds.includes(Number(video.cid)));
+
+        setContentByGenre({
+          books: genreBooks,
+          videos: genreVideos
+        });
+      } catch (error) {
+        console.error('Error fetching content for genre:', error);
+      } finally {
+        setIsLoadingContent(false);
+      }
+    };
+
+    fetchContentForGenre();
+  }, [selectedGenre, books, videos]);
+
+  if (isLoadingGenres) {
     return (
-      <div className="space-y-6">
-        {Array.from({ length: 6 }).map((_, index) => (
-          <div key={index} className="bg-white/5 rounded-lg p-4">
-            <div className="h-6 bg-gray-600 rounded animate-pulse mb-4 w-1/4"></div>
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="bg-gray-700 rounded-lg aspect-[3/4] animate-pulse"></div>
-              ))}
-            </div>
-          </div>
-        ))}
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+          {Array.from({ length: 12 }).map((_, index) => (
+            <div key={index} className="h-12 bg-gray-600 rounded-lg animate-pulse"></div>
+          ))}
+        </div>
       </div>
     );
   }
 
+  const currentContent = activeTab === 'books' ? contentByGenre.books : contentByGenre.videos;
+  const selectedGenreData = availableGenres.find(g => g.gid === selectedGenre);
+
   return (
     <div className="space-y-6">
-      {genreSections.map((section) => {
-        const displayContent = activeTab === 'books' ? section.books : section.videos;
-        if (displayContent.length === 0) return null;
+      {/* Genre Selection Grid */}
+      <div>
+        <h2 className="text-xl font-bold text-yellow-400 mb-4">
+          Select a Genre
+        </h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+          {availableGenres.map((genre) => {
+            const currentCount = activeTab === 'books' ? genre.bookCount : genre.videoCount;
+            const isActive = selectedGenre === genre.gid;
+            
+            if (currentCount === 0) return null;
 
-        const isExpanded = expandedSections.has(section.genreId);
-        const visibleContent = isExpanded ? displayContent : displayContent.slice(0, 6);
+            return (
+              <button
+                key={genre.gid}
+                onClick={() => setSelectedGenre(genre.gid)}
+                className={`p-3 rounded-lg transition-all duration-200 ${
+                  isActive 
+                    ? 'bg-yellow-400 text-black font-medium' 
+                    : 'bg-black/20 text-white hover:bg-black/30 border border-white/10'
+                }`}
+              >
+                <div className="text-sm font-medium truncate">
+                  {genre.genrename}
+                </div>
+                <div className="text-xs mt-1 opacity-75">
+                  {currentCount} {activeTab}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
-        return (
-          <div key={section.genreId} className="bg-black/20 backdrop-blur-sm rounded-lg p-4">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-bold text-yellow-400">
-                {section.genreName}
-                <span className="ml-2 text-sm text-gray-300">
-                  ({displayContent.length} {activeTab})
-                </span>
-              </h3>
-              {displayContent.length > 6 && (
-                <button
-                  onClick={() => toggleSection(section.genreId)}
-                  className="text-blue-400 hover:text-blue-300 text-sm"
-                >
-                  {isExpanded ? 'Show Less' : `Show All (${displayContent.length})`}
-                </button>
-              )}
-            </div>
+      {/* Content Display */}
+      {selectedGenre && (
+        <div>
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-xl font-bold text-yellow-400">
+              {selectedGenreData?.genrename} - {currentContent.length} {activeTab}
+            </h3>
+            <button
+              onClick={() => setSelectedGenre(null)}
+              className="text-blue-400 hover:text-blue-300 text-sm"
+            >
+              ← Back to genres
+            </button>
+          </div>
 
+          {isLoadingContent ? (
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-              {visibleContent.map((item, index) => (
+              {Array.from({ length: 12 }).map((_, index) => (
+                <div key={index} className="bg-gray-700 rounded-lg aspect-[3/4] animate-pulse"></div>
+              ))}
+            </div>
+          ) : currentContent.length > 0 ? (
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              {currentContent.map((item, index) => (
                 <div key={`${item.cid}-${index}`} className="rounded-lg overflow-hidden">
                   {activeTab === 'books' ? (
                     <BookCard
                       {...(item as Book)}
-                      showGenre={false} // Don't show genre tags since we're already in a genre section
+                      showGenre={false}
                       isEducator={false}
                     />
                   ) : (
                     <VideoCard
                       {...(item as Video)}
                       isEducator={false}
-                      lazyLoad={true}
+                      lazyLoad={false}
                     />
                   )}
                 </div>
               ))}
             </div>
-
-            {displayContent.length === 0 && (
-              <p className="text-center text-gray-400 py-8">
+          ) : (
+            <div className="text-center py-12">
+              <p className="text-gray-400">
                 No {activeTab} available in this genre
               </p>
-            )}
-          </div>
-        );
-      })}
+            </div>
+          )}
+        </div>
+      )}
 
-      {genreSections.length === 0 && (
+      {/* Initial state message */}
+      {!selectedGenre && !isLoadingGenres && (
         <div className="text-center py-12">
           <p className="text-gray-400">
-            No {activeTab} available in your accessible genres
+            Click on a genre above to see {activeTab}
           </p>
         </div>
       )}

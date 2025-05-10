@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Navbar from '../components/Navbar';
 import { useRouter } from 'next/navigation';
 import ChatBot from "../components/ChatBot";
-import GenreSections from '../components/GenreSections';
+import ClickableGenreNavigation from '../components/GenreSections';
 import { useBooks } from '../../hooks/useBooks';
 import { useAllVideos } from '../../hooks/useAllVideos';
 import { Video } from "../../types/database.types";
@@ -110,7 +110,7 @@ export default function SearchPage() {
           </div>
         </div>
         
-        {/* Content Display Section - Now using Genre Sections */}
+        {/* Content Display Section */}
         <div className="max-w-6xl mx-auto">
           {/* Show error message if video loading failed */}
           {videosError && activeTab === 'videos' && !isLoading && (
@@ -122,20 +122,20 @@ export default function SearchPage() {
           {isLoading ? (
             // Loading state with skeleton UI
             <div className="space-y-6">
-              {Array.from({ length: 4 }).map((_, index) => (
-                <div key={index} className="bg-white/5 rounded-lg p-4">
-                  <div className="h-6 bg-gray-600 rounded animate-pulse mb-4 w-1/4"></div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                    {Array.from({ length: 6 }).map((_, i) => (
-                      <div key={i} className="bg-gray-700 rounded-lg aspect-[3/4] animate-pulse"></div>
-                    ))}
-                  </div>
-                </div>
-              ))}
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                {Array.from({ length: 12 }).map((_, index) => (
+                  <div key={index} className="h-12 bg-gray-600 rounded-lg animate-pulse"></div>
+                ))}
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                {Array.from({ length: 12 }).map((_, index) => (
+                  <div key={index} className="bg-gray-700 rounded-lg aspect-[3/4] animate-pulse"></div>
+                ))}
+              </div>
             </div>
           ) : (
-            // Genre Sections Component
-            <GenreSections 
+            // Clickable Genre Navigation Component
+            <ClickableGenreNavigation 
               books={availableBooks}
               videos={availableVideos}
               activeTab={activeTab}

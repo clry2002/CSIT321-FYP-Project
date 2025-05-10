@@ -20,7 +20,7 @@ export interface Video {
     title: string;
     credit: string;
     genre: string[];
-    coverimage?: null;
+    coverimage?: string | null;
     minimumage: number;
     description: string;
     contenturl?: string | null;
