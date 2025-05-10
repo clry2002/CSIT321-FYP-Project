@@ -60,6 +60,7 @@ const ChatBot: React.FC = () => {
   
   // Ref for chat container scrolling
   const chatContainerRef = useRef<HTMLDivElement | null>(null);
+  const isUserScrollingRef = useRef(false);
   const [dimensions, setDimensions] = useState(() => {
     // Try to load saved dimensions from localStorage
     if (typeof window !== 'undefined') {
@@ -91,12 +92,96 @@ const ChatBot: React.FC = () => {
     }
   }, [dimensions]);
 
+  // Custom smooth scroll function with longer duration
+  const smoothScrollToBottom = (element: HTMLDivElement) => {
+    const targetPosition = element.scrollHeight;
+    const startPosition = element.scrollTop;
+    const distance = targetPosition - startPosition;
+    const duration = 8000; // 8 seconds duration
+    let startTime: number | null = null;
+    isUserScrollingRef.current = false;
+
+    const animation = (currentTime: number) => {
+      if (startTime === null) startTime = currentTime;
+      const timeElapsed = currentTime - startTime;
+      const progress = Math.min(timeElapsed / duration, 1);
+      
+      // Easing function for smooth animation
+      const easeInOutCubic = (t: number) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+      
+      if (!isUserScrollingRef.current) {
+        element.scrollTop = startPosition + distance * easeInOutCubic(progress);
+      }
+
+      if (timeElapsed < duration && !isUserScrollingRef.current) {
+        requestAnimationFrame(animation);
+      }
+    };
+
+    requestAnimationFrame(animation);
+  };
+
+  // Add scroll event listener to detect user scrolling
+  useEffect(() => {
+    const chatContainer = chatContainerRef.current;
+    if (!chatContainer) return;
+
+    const handleScroll = () => {
+      isUserScrollingRef.current = true;
+    };
+
+    chatContainer.addEventListener('wheel', handleScroll);
+    chatContainer.addEventListener('touchmove', handleScroll);
+
+    return () => {
+      chatContainer.removeEventListener('wheel', handleScroll);
+      chatContainer.removeEventListener('touchmove', handleScroll);
+    };
+  }, []);
+
   // Scroll to bottom when messages update
   useEffect(() => {
     if (chatContainerRef.current) {
-      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+      const lastMessage = messages[messages.length - 1];
+      
+      // Always scroll for user messages
+      if (lastMessage && lastMessage.role === 'user') {
+        smoothScrollToBottom(chatContainerRef.current);
+        return;
+      }
+
+      // For assistant messages
+      if (lastMessage && lastMessage.role === 'assistant') {
+        // Check if it's a recommendation
+        const isRecommendation = Array.isArray(lastMessage.content);
+        
+        // For the first message or non-recommendation messages, scroll
+        if (messages.length === 1 || !isRecommendation) {
+          // Add a small delay to ensure content is rendered
+          setTimeout(() => {
+            if (chatContainerRef.current) {
+              smoothScrollToBottom(chatContainerRef.current);
+            }
+          }, 100);
+        }
+      }
     }
   }, [messages]);
+
+  // Add a separate effect to handle loading state
+  useEffect(() => {
+    if (!isLoading && chatContainerRef.current) {
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage && lastMessage.role === 'assistant') {
+        // Scroll after loading is complete
+        setTimeout(() => {
+          if (chatContainerRef.current) {
+            smoothScrollToBottom(chatContainerRef.current);
+          }
+        }, 100);
+      }
+    }
+  }, [isLoading, messages]);
   
   // Effect to monitor for bot responses that might indicate uncertainty
   useEffect(() => {
