@@ -554,13 +554,15 @@ export default function ChildPage() {
         </div>
       </main>
 
-      {/* Score Debugger Section - At the very bottom */}
-      <div className="relative">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <h2 className="text-lg font-serif mb-3 text-yellow-400 drop-shadow">Recommendation Score Debug</h2>
-          <ScoreDebugger />
+      {/* Score Debugger Section - At the very bottom - Only in development */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="relative">
+          <div className="max-w-7xl mx-auto px-6 py-4">
+            <h2 className="text-lg font-serif mb-3 text-yellow-400 drop-shadow">Recommendation Score Debug</h2>
+            <ScoreDebugger />
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
