@@ -2,6 +2,7 @@
 // import type { Metadata } from "next";
 // import { Inter } from "next/font/google";
 // import { SessionProvider } from '@/contexts/SessionContext';
+// import ClientAuthWrapper from './components/ClientAuthWrapper';
 
 // const inter = Inter({ subsets: ["latin"] });
 
@@ -19,7 +20,9 @@
 //     <html lang="en">
 //       <body className={inter.className}>
 //         <SessionProvider>
-//           {children}
+//           <ClientAuthWrapper>
+//             {children}
+//           </ClientAuthWrapper>
 //         </SessionProvider>
 //       </body>
 //     </html>
@@ -32,6 +35,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { SessionProvider } from '@/contexts/SessionContext';
 import ClientAuthWrapper from './components/ClientAuthWrapper';
+import QueryProvider from '../providers/QueryProvider';
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -49,9 +53,11 @@ export default function RootLayout({
     <html lang="en">
       <body className={inter.className}>
         <SessionProvider>
-          <ClientAuthWrapper>
-            {children}
-          </ClientAuthWrapper>
+          <QueryProvider>
+            <ClientAuthWrapper>
+              {children}
+            </ClientAuthWrapper>
+          </QueryProvider>
         </SessionProvider>
       </body>
     </html>

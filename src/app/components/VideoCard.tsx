@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { Video } from '@/types/database.types';
 import AssignVideoModal from './educator/ClassroomDetails/AssignVideoModal';
 import { supabase } from '@/lib/supabase';
-import { useInteractions } from '../../hooks/useInteractions'; // Add this import for bookmarking functionality
+import { useInteractions } from '../../hooks/useInteractions';
 
 interface VideoCardProps extends Video {
   isEducator?: boolean;

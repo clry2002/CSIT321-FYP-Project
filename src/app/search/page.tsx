@@ -1,58 +1,32 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Navbar from '../components/Navbar';
 import { useRouter } from 'next/navigation';
 import ChatBot from "../components/ChatBot";
 import BookCard from '../components/BookCard'; 
 import VideoCard from '../components/VideoCard';
 import { useBooks } from '../../hooks/useBooks';
-import { supabase } from '@/lib/supabase';
-import { Book, Video } from "../../types/database.types";
+import { useAllVideos } from '../../hooks/useAllVideos';
+import { Book, Video } from "../../types/database.types"; // Make sure to import Video type
 
 export default function SearchPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'books' | 'videos'>('books');
-  const [isLoading, setIsLoading] = useState(true);
-  const [filteredBooks, setFilteredBooks] = useState<Book[]>([]);
-  const [availableVideos, setAvailableVideos] = useState<Video[]>([]);
   const router = useRouter();
-  const { availableBooks } = useBooks();
+  const { availableBooks, loading: booksLoading } = useBooks();
   
-  // Initialize books from the hook
-  useEffect(() => {
-    if (availableBooks) {
-      setFilteredBooks(availableBooks);
-      setIsLoading(false);
-    }
-  }, [availableBooks]);
-
-  // Fetch videos if needed
-  useEffect(() => {
-    const fetchVideos = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('temp_content')
-          .select('*')
-          .eq('cfid', '1')
-          .eq('status', 'approved');
-
-        if (error) {
-          console.error('Error fetching videos:', error);
-          return;
-        }
-
-        setAvailableVideos(data || []);
-      } catch (error) {
-        console.error('Error in fetchVideos:', error);
-      }
-    };
-
-    if (activeTab === 'videos') {
-      fetchVideos();
-    }
-  }, [activeTab]);
-
+  // Use the new useAllVideos hook for the search page
+  const { 
+    data: availableVideos = [] as Video[], // Explicitly type the empty array
+    isLoading: videosLoading,
+    error: videosError,
+    isRefetching
+  } = useAllVideos();
+  
+  // Determine overall loading state
+  const isLoading = activeTab === 'books' ? booksLoading : videosLoading;
+  
   const handleSearch = (type: 'books' | 'videos') => {
     if (!searchQuery.trim()) return;
     
@@ -132,7 +106,7 @@ export default function SearchPage() {
                   : 'text-gray-300'
               }`}
             >
-              Videos
+              Videos {isRefetching && <span className="text-xs">(updating...)</span>}
             </button>
           </div>
         </div>
@@ -143,14 +117,19 @@ export default function SearchPage() {
             {activeTab === 'books' ? 'Available Books' : 'Available Videos'}
           </h2>
           
+          {/* Show error message if video loading failed */}
+          {videosError && activeTab === 'videos' && !isLoading && (
+            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 mb-4">
+              <p className="text-red-400">Failed to load videos. Please try again.</p>
+            </div>
+          )}
+          
           {isLoading ? (
-            // Loading state with skeleton UI matching your image
+            // Loading state with skeleton UI
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
               {Array.from({ length: 10 }).map((_, index) => (
                 <div key={index} className="flex flex-col">
-                  {/* Gray card area for book cover */}
                   <div className="bg-gray-200 rounded-lg aspect-[3/4] animate-pulse"></div>
-                  {/* Skeleton lines for text */}
                   <div className="mt-2 bg-gray-700 rounded-lg p-2">
                     <div className="bg-gray-400 h-4 w-3/4 rounded animate-pulse mb-2"></div>
                     <div className="bg-gray-400 h-3 w-2/3 rounded animate-pulse"></div>
@@ -158,10 +137,10 @@ export default function SearchPage() {
                 </div>
               ))}
             </div>
-          ) : activeTab === 'books' && filteredBooks.length > 0 ? (
+          ) : activeTab === 'books' && availableBooks.length > 0 ? (
             // Books display
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-              {filteredBooks.map((book, index) => (
+              {availableBooks.map((book: Book, index: number) => (
                 <div key={index} className="rounded-lg overflow-hidden">
                   <BookCard
                     cid={book.cid}
@@ -181,8 +160,8 @@ export default function SearchPage() {
           ) : activeTab === 'videos' && availableVideos.length > 0 ? (
             // Videos display with VideoCard component
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-              {availableVideos.map((video, index) => (
-                <div key={index} className="rounded-lg overflow-hidden">
+              {availableVideos.map((video: Video, index: number) => (
+                <div key={video.cid || index} className="rounded-lg overflow-hidden">
                   <VideoCard
                     cid={video.cid}
                     title={video.title}
@@ -191,9 +170,9 @@ export default function SearchPage() {
                     minimumage={video.minimumage || 0}
                     isEducator={false}
                     lazyLoad={true} 
-                    genre={[]} 
-                    description={''} 
-                    cfid={0}                  
+                    genre={video.genre || []} 
+                    description={video.description || ''} 
+                    cfid={video.cfid || 0}                  
                   />
                 </div>
               ))}
