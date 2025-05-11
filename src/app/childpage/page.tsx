@@ -32,7 +32,6 @@ export default function ChildPage() {
   const [showTimeLimitModal, setShowTimeLimitModal] = useState(false);
   const [userFullName, setUserFullName] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [availableBooksIndex, setAvailableBooksIndex] = useState(0);
   const [recommendedBooksIndex, setRecommendedBooksIndex] = useState(0);
   const [trendingBooksIndex, setTrendingBooksIndex] = useState(0);
   const [popularBooksIndex, setPopularBooksIndex] = useState(0);
@@ -324,15 +323,11 @@ export default function ChildPage() {
   }, [isTimeLoading, isLimitExceeded, showTimeLimitModal]);
 
   // Helper function to handle navigation
-  const handleNavigation = (direction: 'left' | 'right', type: 'available' | 'recommended' | 'trending' | 'popular') => {
+  const handleNavigation = (direction: 'left' | 'right', type: 'recommended' | 'trending' | 'popular') => {
     let books: Book[] = [];
     let setIndex: React.Dispatch<React.SetStateAction<number>>;
     
     switch (type) {
-      case 'available':
-        books = availableBooks;
-        setIndex = setAvailableBooksIndex;
-        break;
       case 'recommended':
         books = recommendedBooksWithGenre;
         setIndex = setRecommendedBooksIndex;
@@ -346,7 +341,7 @@ export default function ChildPage() {
         setIndex = setPopularBooksIndex;
         break;
       default:
-        setIndex = setAvailableBooksIndex;
+        setIndex = setRecommendedBooksIndex;
     }
     
     if (direction === 'left') {
@@ -360,7 +355,7 @@ export default function ChildPage() {
   const renderBookCarousel = (
     books: Book[], 
     index: number, 
-    type: 'available' | 'recommended' | 'trending' | 'popular', 
+    type: 'recommended' | 'trending' | 'popular', 
     title: string, 
     isLoading: boolean
   ) => {
@@ -467,11 +462,17 @@ export default function ChildPage() {
             </p>
           </div>
 
-          {/* Available Books Section */}
-          {renderBookCarousel(availableBooks, availableBooksIndex, 'available', 'Available Books', loading)}
-        
-          {/* Explore More Books */}
-          <div className="mt-2 text-right">
+          {/* Currently Trending Books Section - NOW FIRST */}
+          {renderBookCarousel(trendingBooksWithGenre, trendingBooksIndex, 'trending', 'Currently Trending', isLoadingTrending)}
+
+          {/* Recommended Books Section - NOW SECOND */}
+          {renderBookCarousel(recommendedBooksWithGenre, recommendedBooksIndex, 'recommended', 'Recommended For You!', isLoadingRecommendations)}
+
+          {/* Popular Books Section - NOW THIRD */}
+          {renderBookCarousel(popularBooksWithGenre, popularBooksIndex, 'popular', 'Most Popular', isLoadingPopular)}
+
+          {/* Single "Explore more books" link */}
+          <div className="mt-2 mb-16 text-right">
             <a
               href="/search"
               className="text-blue-600 hover:underline text-sm font-medium"
@@ -479,15 +480,6 @@ export default function ChildPage() {
               Explore more books →
             </a>
           </div>
-
-          {/* Recommended Books Section */}
-          {renderBookCarousel(recommendedBooksWithGenre, recommendedBooksIndex, 'recommended', 'Recommended For You!', isLoadingRecommendations)}
-
-          {/* Currently Trending Books Section */}
-          {renderBookCarousel(trendingBooksWithGenre, trendingBooksIndex, 'trending', 'Currently Trending', isLoadingTrending)}
-
-          {/* Popular Books Section */}
-          {renderBookCarousel(popularBooksWithGenre, popularBooksIndex, 'popular', 'Most Popular', isLoadingPopular)}
 
           {/* Videos for You Section */}
           <div className="mb-16">
