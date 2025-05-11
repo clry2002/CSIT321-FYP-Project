@@ -143,7 +143,7 @@ const VideoCard: React.FC<VideoCardProps> = ({
         className={`border rounded-lg overflow-hidden hover:shadow-md transition-shadow duration-300 relative ${!isEducator ? 'h-full flex flex-col bg-gray-700' : ''}`}
       >
         <Link 
-          href={`/${isEducator ? 'educator/videodetail' : 'videodetails'}/${cid}`}
+          href={`/${isEducator ? 'educator/videodetail' : 'videodetail'}/${cid}`}
           onClick={handleClick}
         >
           {isYoutubeVideo && (
@@ -243,8 +243,8 @@ const VideoCard: React.FC<VideoCardProps> = ({
         <AssignVideoModal
           isOpen={isAssignModalOpen}
           onClose={() => setIsAssignModalOpen(false)}
-          videoId={Number(cid)} // Pass the video ID as bookId (using the naming from AssignVideoModal)
-          videoTitle={title || ''} // Pass the video title as bookTitle
+          videoId={Number(cid)}
+          videoTitle={title || ''}
         />
       )}
     </>

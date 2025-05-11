@@ -40,7 +40,7 @@ export default function SearchBooksPage() {
               clipRule="evenodd" 
             />
           </svg>
-          Back to Search
+          Back
         </button>
 
         <Suspense fallback={<div className="text-center py-8">Loading search...</div>}>

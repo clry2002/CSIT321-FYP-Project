@@ -167,9 +167,14 @@ const BookCard: React.FC<BookCardProps> = ({
     return new Date(dateString).toLocaleDateString();
   }, []);
 
+  // Use grayed background for kids view and white border for educator view
+  const containerClassName = `border rounded-lg overflow-hidden hover:shadow-md transition-shadow duration-200 h-full flex flex-col ${
+    isEducator ? 'bg-white' : 'bg-gray-400/40 backdrop-blur-sm'
+  }`;
+
   return (
     <>
-      <div className="border rounded-lg overflow-hidden hover:shadow-md transition-shadow duration-200 h-full flex flex-col">
+      <div className={containerClassName}>
         {/* Main content with hover effect */}
         <div 
           className="relative group cursor-pointer" 
@@ -282,16 +287,30 @@ const BookCard: React.FC<BookCardProps> = ({
             {displayAuthor}
           </p>
           
-          {/* Genre tags */}
-          {showGenre && genre.length > 0 && (
+          {/* Genre tags - Always shown in kid view, optional for educators */}
+          {((showGenre && isEducator) || !isEducator) && genre.length > 0 && (
             <div className="mt-1 flex flex-wrap gap-1 mb-auto">
               {genre.slice(0, 2).map((g, i) => (
-                <span key={i} className="text-white text-[12px] bg-blue-800 px-2 py-0.5 rounded-full" style={{ fontFamily: 'Quicksand, Nunito, Arial Rounded MT Bold, Arial, sans-serif', maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', display: 'inline-block', whiteSpace: 'nowrap' }}>
+                <span 
+                  key={i} 
+                  className="text-white text-[12px] bg-blue-800 px-2 py-0.5 rounded-full" 
+                  style={{ 
+                    fontFamily: 'Quicksand, Nunito, Arial Rounded MT Bold, Arial, sans-serif', 
+                    maxWidth: '120px', 
+                    overflow: 'hidden', 
+                    textOverflow: 'ellipsis', 
+                    display: 'inline-block', 
+                    whiteSpace: 'nowrap' 
+                  }}
+                >
                   {g.length > 20 ? g.slice(0, 19) + '...' : g}
                 </span>
               ))}
               {genre.length > 2 && (
-                <span className="text-white text-[12px] bg-blue-800 px-2 py-0.5 rounded-full" style={{ fontFamily: 'Quicksand, Nunito, Arial Rounded MT Bold, Arial, sans-serif' }}>
+                <span 
+                  className="text-white text-[12px] bg-blue-800 px-2 py-0.5 rounded-full" 
+                  style={{ fontFamily: 'Quicksand, Nunito, Arial Rounded MT Bold, Arial, sans-serif' }}
+                >
                   +{genre.length - 2}
                 </span>
               )}
