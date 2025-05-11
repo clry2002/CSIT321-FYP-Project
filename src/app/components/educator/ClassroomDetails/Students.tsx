@@ -120,9 +120,12 @@ export default function StudentsSection({ classroomId, educatorId }: StudentsSec
       return;
     }
 
+    // Normalize email to lowercase for case-insensitive comparison
+    const normalizedEmail = studentEmail.trim().toLowerCase();
+
     // Step 1: Query the auth.users table via the Supabase function
     const { data: authUser, error: authError } = await supabase
-      .rpc('get_user_by_email', { email: studentEmail });
+      .rpc('get_user_by_email', { email: normalizedEmail });
 
     if (authError || !authUser || !authUser[0]?.id) {
       setStudentError('No user found for this email.');
