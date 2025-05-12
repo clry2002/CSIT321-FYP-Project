@@ -851,7 +851,6 @@ body .calendar-popup.visible ~ .notification-badge,
   font-family: 'Fredoka One', cursive !important;
 }
 
-/* Add these styles to your styles.css file */
 
 /* Favorite Genres Section */
 .favorite-genres-section {
@@ -1204,4 +1203,424 @@ body .calendar-popup.visible ~ .notification-badge,
 
 .add-to-schedule-link:hover {
   background-color: #d97706; /* amber-600 */
+}
+
+
+
+/* Parental Controls */
+
+/* Add these styles to your styles.css file */
+
+/* Core layout styles */
+.page-container {
+  min-height: 100vh;
+  background-color: #f9fafb;
+  padding: 2rem 1rem;
+}
+
+.content-area {
+  max-width: 768px;
+  margin: 0 auto;
+  background-color: white;
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+}
+
+.content-inner {
+  padding: 1.5rem;
+}
+
+.back-button {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #4b5563;
+  background-color: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.375rem;
+  transition: all 0.2s;
+}
+
+.back-button:hover {
+  background-color: #e5e7eb;
+}
+
+.page-title {
+  font-size: 1.875rem;
+  font-weight: 700;
+  color: #111827;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.child-name {
+  font-size: 1.125rem;
+  color: #6b7280;
+  margin-bottom: 2rem;
+}
+
+.child-name-highlight {
+  font-weight: 600;
+  color: #111827;
+}
+
+.section-container {
+  margin-top: 1rem;
+}
+
+.panel {
+  background-color: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.panel-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 1rem;
+}
+
+.error-alert {
+  background-color: #fee2e2;
+  border: 1px solid #ef4444;
+  color: #b91c1c;
+  padding: 0.75rem 1rem;
+  border-radius: 0.375rem;
+  margin-bottom: 1rem;
+}
+
+.success-alert {
+  background-color: #dcfce7;
+  border: 1px solid #10b981;
+  color: #065f46;
+  padding: 0.75rem 1rem;
+  border-radius: 0.375rem;
+  margin-bottom: 1rem;
+}
+
+.input-group {
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+}
+
+.input-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #4b5563;
+  margin-bottom: 0.25rem;
+}
+
+.help-text {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin-top: 0.5rem;
+}
+
+.update-button-container {
+  margin-top: 1.5rem;
+}
+
+/* Time controls - now only hide the time inputs, not the save button */
+.time-controls {
+  margin-top: 1.5rem;
+}
+
+/* Tab Navigation */
+.tab-navigation {
+  display: flex;
+  border-bottom: 1px solid #e2e8f0;
+  margin-bottom: 1.5rem;
+}
+
+.tab-button {
+  padding: 0.75rem 1.5rem;
+  font-weight: 500;
+  color: #4b5563;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tab-button:hover {
+  color: #000;
+}
+
+.tab-button.active {
+  color: #000;
+  border-bottom-color: #000;
+}
+
+/* Toggle Switch Styles */
+.toggle-switch-container {
+  display: flex;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 50px;
+  height: 24px;
+  margin-right: 12px;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  border-radius: 24px;
+  transition: .3s;
+}
+
+.toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  border-radius: 50%;
+  transition: .3s;
+}
+
+input:checked + .toggle-slider {
+  background-color: #000;
+}
+
+input:checked + .toggle-slider:before {
+  transform: translateX(26px);
+}
+
+.toggle-label {
+  font-weight: 500;
+    color: #111827;
+}
+
+/* Time limit display */
+.time-limit-display {
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+.time-limit-value {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #000;
+}
+
+.time-limit-unit {
+  font-size: 1rem;
+  margin-left: 0.5rem;
+  color: #6b7280;
+}
+
+/* Slider styles */
+.slider-container {
+  margin: 2rem 0;
+}
+
+.time-slider {
+  width: 100%;
+  -webkit-appearance: none;
+  height: 6px;
+  border-radius: 3px;
+  background: #e5e7eb;
+  outline: none;
+}
+
+.time-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #000;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.time-slider::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #000;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.slider-markers {
+  display: flex;
+  justify-content: space-between;
+  color: #6b7280;
+  font-size: 0.8rem;
+  margin-top: 6px;
+}
+
+/* Time input field */
+.time-input {
+  display: block;
+  width: 100px;
+  padding: 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  text-align: center;
+  color: #000;
+  font-weight: 600;
+}
+
+.time-input:focus {
+  outline: none;
+  border-color: #000;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.1);
+}
+
+/* Genre grid */
+.genre-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 1rem;
+  margin-top: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.genre-button {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 1.5rem;
+  background-color: white;
+  color: #4b5563;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.genre-button:hover {
+  border-color: #d1d5db;
+  background-color: #f9fafb;
+}
+
+.genre-button.active {
+  background-color: #fee2e2;
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
+.restriction-icon {
+  margin-right: 4px;
+  font-size: 12px;
+}
+
+.genre-instruction {
+  font-size: 1rem;
+  color: #4b5563;
+  margin-bottom: 1rem;
+}
+
+.restricted-text {
+  color: #ef4444;
+  font-weight: 600;
+}
+
+/* Primary button */
+.primary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 1.5rem;
+  background-color: #000;
+  color: white;
+  font-weight: 500;
+  border-radius: 0.375rem;
+  transition: all 0.2s;
+  border: none;
+  cursor: pointer;
+}
+
+.primary-button:hover {
+  background-color: #111827;
+}
+
+.primary-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.restriction-note {
+  display: block;
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+/* Save reminder */
+.save-reminder {
+  font-size: 0.875rem;
+  color: #ef4444;
+  font-weight: 500;
+  margin-bottom: 0.75rem;
+  opacity: 0;
+  height: 0;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.save-reminder.visible {
+  opacity: 1;
+  height: auto;
+  margin-bottom: 0.75rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .page-container {
+    padding: 1rem 0.5rem;
+  }
+  
+  .content-inner {
+    padding: 1rem;
+  }
+  
+  .page-title {
+    font-size: 1.5rem;
+  }
+  
+  .panel {
+    padding: 1rem;
+  }
+  
+  .genre-grid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  }
+  
+  .time-limit-value {
+    font-size: 2rem;
+  }
 }
