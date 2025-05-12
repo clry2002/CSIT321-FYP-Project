@@ -165,7 +165,7 @@ export default function LandingPage() {
           <div className="flex flex-wrap justify-center gap-6">
             <Link href="/auth/signup">
               <button className="bg-blue-500 text-white font-semibold rounded-full py-3 px-6 hover:bg-blue-600 transition">
-                <Image src="/mascot.png" alt="Games" width={24} height={24} className="inline mr-2" />
+                <Image src="/mascotnew.png" alt="Games" width={24} height={24} className="inline mr-2" />
                 Explore Now
               </button>
             </Link>

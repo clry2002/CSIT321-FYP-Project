@@ -364,7 +364,7 @@ export default function LoginPage() {
             onClick={handleMascotClick}
           >
             <Image
-              src="/mascot.png"
+              src="/mascotnew.png"
               alt="Animated Mascot"
               width={100}
               height={100}
