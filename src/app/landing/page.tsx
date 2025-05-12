@@ -81,7 +81,8 @@ export default function LandingPage() {
       const { data, error } = await supabase
         .from('temp_content')
         .select('cid, title, coverimage')
-        .eq('cfid', 2); // cfid 2 = books
+        .eq('cfid', 2) // cfid 2 = books
+        .eq('status', 'approved'); // Only fetch approved books
 
       if (error) {
         console.error('Error fetching books:', error.message);
