@@ -445,9 +445,9 @@ export default function AdminPage() {
         throw new Error('Failed to delete screen usage records');
       }
 
-      // 2. Delete from userInteractions2 if exists
+      // 2. Delete from userInteractions if exists
       const { error: interactionsError } = await supabase
-        .from('userInteractions2')
+        .from('userInteractions')
         .delete()
         .eq('child_id', childData.id);
 
@@ -631,7 +631,7 @@ export default function AdminPage() {
         return;
       }
 
-      // Try to initialize userInteractions2 with default values for each genre
+      // Try to initialize userInteractions with default values for each genre
       // But don't block the account creation if this fails
       try {
         const { data: genres } = await supabase
@@ -657,7 +657,7 @@ export default function AdminPage() {
           for (let i = 0; i < interactions.length; i += batchSize) {
             const batch = interactions.slice(i, i + batchSize);
             await supabase
-              .from('userInteractions2')
+              .from('userInteractions')
               .insert(batch);
           }
         }
@@ -740,17 +740,19 @@ export default function AdminPage() {
             .eq('child_id', childData.id);
 
           if (screenUsageError) {
-            console.warn('Warning: Could not delete screen usage. This might be ok if none existed:', screenUsageError);
+            // console.warn('Warning: Could not delete screen usage. This might be ok if none existed:', screenUsageError);
+            console.error('Error deleting screen usage for child', child.username, ':', screenUsageError);
+            throw new Error(`Failed to delete screen usage records for child ${child.username}: ${screenUsageError.message}`);
           }
 
-          // 2. Delete from userInteractions2 if exists
+          // 2. Delete from userInteractions if exists
           const { error: interactionsError } = await supabase
-            .from('userInteractions2')
+            .from('userInteractions')
             .delete()
             .eq('child_id', childData.id);
 
           if (interactionsError) {
-            console.warn('Warning: Could not delete user interactions. This might be ok if none existed:', interactionsError);
+            console.warn('Warning: Could not delete user interactions for child', child.username, '. This might be ok if none existed:', interactionsError);
           }
 
           // 3. Delete from temp_classroomstudents if exists
@@ -760,7 +762,7 @@ export default function AdminPage() {
             .eq('uaid_child', childData.id);
 
           if (classroomError) {
-            console.warn('Warning: Could not delete classroom relationships. This might be ok if none existed:', classroomError);
+            console.warn('Warning: Could not delete classroom relationships for child', child.username, '. This might be ok if none existed:', classroomError);
           }
 
           // 4. Delete from isparentof
@@ -778,7 +780,9 @@ export default function AdminPage() {
             .eq('child_id', childData.id);
 
           if (detailsError) {
-            console.warn('Warning: Could not delete child details. This might be ok if none existed:', detailsError);
+            // console.warn('Warning: Could not delete child details. This might be ok if none existed:', detailsError);
+            console.error('Error deleting child details for child', child.username, ':', detailsError);
+            throw new Error(`Failed to delete child details for child ${child.username}: ${detailsError.message}`);
           }
 
           // 6. Delete the auth user if it exists
@@ -786,7 +790,7 @@ export default function AdminPage() {
             try {
               await api.deleteAuthUser(childData.user_id);
             } catch (authError) {
-              console.warn('Warning: Could not delete auth user. This might be ok if already deleted:', authError);
+              console.warn('Warning: Could not delete auth user for child', child.username, '. This might be ok if already deleted:', authError);
             }
           }
 
@@ -845,7 +849,15 @@ export default function AdminPage() {
       setSelectedParentForModify(null);
     } catch (err) {
       console.error('Error deleting parent:', err);
-      setDeleteParentError(err instanceof Error ? err.message : 'An error occurred while deleting parent');
+      if (err instanceof Error) {
+        if (err.message.includes('foreign key constraint')) {
+          setDeleteParentError('Cannot delete parent account because it has linked child accounts. Please remove all child accounts first.');
+        } else {
+          setDeleteParentError(`Error deleting parent account: ${err.message}`);
+        }
+      } else {
+        setDeleteParentError('An unexpected error occurred while deleting the parent account');
+      }
     }
   };
 
@@ -1842,7 +1854,7 @@ export default function AdminPage() {
                 Cancel
               </button>
               <button
-                onClick={() => handleDeleteParent}
+                onClick={handleDeleteParent}
                 className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded"
               >
                 Delete All Accounts
@@ -1862,12 +1874,8 @@ export default function AdminPage() {
               </h3>
               <button
                 onClick={() => {
-                  const parentUser = userAccounts.find(u => u.username === selectedParentForModify.username);
-                  if (parentUser) {
-                    setSelectedRows([parentUser.username]);
-                    setShowDeleteModal(true);
-                    setShowModifyModal(false);
-                  }
+                  setShowDeleteParentModal(true); // Correct: Show dedicated parent delete modal
+                  setShowModifyModal(false);      // Close the current modify modal
                 }}
                 className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2"
               >
