@@ -26,8 +26,7 @@ export default function ParentalControlPage() {
         setTimeLimit,
         handleGenreToggle,
         updateTimeLimit,
-        updateBlockedGenres,
-        resetToDefaults
+        updateBlockedGenres
     } = useParentalControls({ childUserId });
 
     const [timeLimitInput, setTimeLimitInput] = useState(timeLimit.toString());
@@ -188,19 +187,6 @@ export default function ParentalControlPage() {
                                 <span className={styles.buttonHelpText}>
                                     Click to save genre restrictions only
                                 </span>
-                            </div>
-                        </div>
-
-                        {/* Page Actions */}
-                        <div className={styles.bottomActions}>
-                            <div className="flex space-x-3">
-                                <button
-                                    type="button"
-                                    onClick={resetToDefaults}
-                                    className={styles.secondaryButton}
-                                >
-                                    Reset to Default Settings
-                                </button>
                             </div>
                         </div>
                     </div>
