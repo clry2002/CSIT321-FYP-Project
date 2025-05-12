@@ -181,7 +181,7 @@ export const fetchDiscussionData = async (classroomId: number) => {
       const { data: profileData, error: profileError } = await supabase
         .from('user_account')
         .select('fullname')
-        .eq('user_id', entry.uaid)
+        .eq('id', entry.uaid)
         .single();
 
       if (profileError) {

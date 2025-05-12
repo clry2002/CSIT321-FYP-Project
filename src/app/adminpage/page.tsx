@@ -2081,18 +2081,20 @@ export default function AdminPage() {
                 <div className="bg-gray-800 rounded-lg p-4">
                   <h4 className="text-lg font-semibold mb-4">Student Responses</h4>
                   {selectedDiscussion.responses.length > 0 ? (
-                    <div className="space-y-4">
-                      {selectedDiscussion.responses.map((response) => (
-                        <div
-                          key={response.id}
-                          className="bg-gray-700 rounded-lg p-4"
-                        >
-                          <p className="text-gray-300">{response.message}</p>
-                          <div className="text-sm text-gray-400 mt-2 text-right">
-                            – {response.sender_name} • {new Date(response.created_at).toLocaleDateString()}
+                    <div className="max-h-[400px] overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-gray-800 [&::-webkit-scrollbar-thumb]:bg-gray-600 [&::-webkit-scrollbar-thumb]:rounded pr-2">
+                      <div className="space-y-4">
+                        {selectedDiscussion.responses.map((response) => (
+                          <div
+                            key={response.id}
+                            className="bg-gray-700 rounded-lg p-4"
+                          >
+                            <p className="text-gray-300">{response.message}</p>
+                            <div className="text-sm text-gray-400 mt-2 text-right">
+                              – {response.sender_name} • {new Date(response.created_at).toLocaleDateString()}
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
                   ) : (
                     <p className="text-gray-400 italic">No responses yet.</p>
