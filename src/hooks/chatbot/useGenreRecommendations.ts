@@ -12,21 +12,12 @@ interface UseGenreRecommendationsProps {
   favoriteGenres: string[];
 }
 
-/**
- * Custom hook to handle genre recommendations, suggestions, and uncertainty tracking
- * @param favoriteGenres The user's favorite genres to exclude from random suggestions
- * @returns State and handlers for genre recommendations
- */
 export const useGenreRecommendations = ({ favoriteGenres }: UseGenreRecommendationsProps) => {
   const [showGenreSuggestions, setShowGenreSuggestions] = useState(false);
   const [randomGenres, setRandomGenres] = useState<string[]>([]);
   const [showRandomGenres, setShowRandomGenres] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  /**
-   * Process a user message to determine if and what genre suggestions to show
-   * @param message The user's message
-   */
   const processUserMessage = async (message: string): Promise<void> => {
     const isRequestingNewGenres = detectNewGenresRequest(message);
     const isUncertain = detectUserUncertainty(message);
@@ -52,10 +43,6 @@ export const useGenreRecommendations = ({ favoriteGenres }: UseGenreRecommendati
     }
   };
 
-  /**
-   * Process a predefined question to determine if and what genre suggestions to show
-   * @param question The predefined question text
-   */
   const processQuestion = async (question: string): Promise<void> => {
     const isUncertain = isUncertaintyQuestion(question);
     
@@ -78,19 +65,12 @@ export const useGenreRecommendations = ({ favoriteGenres }: UseGenreRecommendati
     }
   };
 
-  /**
-   * Check if a bot message suggests uncertainty that would benefit from genre suggestions
-   * @param message The bot's message content
-   */
   const processBotMessage = (message: string): void => {
     if (typeof message === 'string' && detectBotSuggestion(message)) {
       setShowGenreSuggestions(true);
     }
   };
 
-  /**
-   * Handle a user's request for different genre suggestions
-   */
   const handleRequestDifferentGenres = async (): Promise<void> => {
     setIsLoading(true);
     try {
@@ -105,10 +85,6 @@ export const useGenreRecommendations = ({ favoriteGenres }: UseGenreRecommendati
     }
   };
 
-  /**
-   * Fetch random genre recommendations
-   * @param count The number of random genres to fetch
-   */
   const handleRequestRandomGenres = async (count: number): Promise<void> => {
     setIsLoading(true);
     try {
@@ -122,18 +98,12 @@ export const useGenreRecommendations = ({ favoriteGenres }: UseGenreRecommendati
     }
   };
 
-  /**
-   * Reset all genre suggestion states
-   */
   const resetSuggestions = (): void => {
     UncertaintyTracker.reset();
     setShowGenreSuggestions(false);
     setShowRandomGenres(false);
   };
 
-  /**
-   * Handle when a user selects a specific genre
-   */
   const handleGenreSelected = (): void => {
     resetSuggestions();
   };

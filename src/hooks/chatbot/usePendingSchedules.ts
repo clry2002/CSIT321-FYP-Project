@@ -10,11 +10,6 @@ interface ReadingSchedule {
   content_id?: number;
 }
 
-/**
- * Custom hook to fetch and manage a user's pending reading schedules
- * @param trigger Optional dependency to trigger a refresh (e.g., when calendar closes)
- * @returns Object containing pendingSchedules and related state and functions
- */
 export const usePendingSchedules = (trigger?: unknown) => {
   const [pendingSchedules, setPendingSchedules] = useState<ReadingSchedule[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
