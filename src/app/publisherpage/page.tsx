@@ -32,6 +32,8 @@ export default function PublisherPage() {
 
   const [books, setBooks] = useState<Content[]>([]);
   const [videos, setVideos] = useState<Content[]>([]);
+  const [bookSearchTerm, setBookSearchTerm] = useState('');
+  const [videoSearchTerm, setVideoSearchTerm] = useState('');
   const [uaidPublisher, setUaidPublisher] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [publisherName, setPublisherName] = useState<string>('');
@@ -198,6 +200,15 @@ export default function PublisherPage() {
     }
   };
 
+  // Add these computed values before the return statement
+  const filteredBooks = books.filter(book => 
+    book.title.toLowerCase().includes(bookSearchTerm.toLowerCase())
+  );
+
+  const filteredVideos = videos.filter(video => 
+    video.title.toLowerCase().includes(videoSearchTerm.toLowerCase())
+  );
+
   if (loading) {
     return <div>Loading...</div>;
   }
@@ -264,12 +275,35 @@ export default function PublisherPage() {
         <div className="bg-white shadow-md rounded-lg p-6 mb-8">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold text-gray-900">Published Books</h2>
-            <button
-              className="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-50"
-              onClick={() => router.push('/publisher/addbook')}
-            >
-              + Add Book
-            </button>
+            <div className="flex items-center space-x-4">
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Search books..."
+                  value={bookSearchTerm}
+                  onChange={(e) => setBookSearchTerm(e.target.value)}
+                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent text-gray-900"
+                />
+                <svg
+                  className="absolute left-3 top-2.5 h-5 w-5 text-gray-400"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </div>
+              <button
+                className="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-50"
+                onClick={() => router.push('/publisher/addbook')}
+              >
+                + Add Book
+              </button>
+            </div>
           </div>
           <div className="overflow-x-auto">
             <table className="min-w-full leading-normal">
@@ -283,8 +317,8 @@ export default function PublisherPage() {
                 </tr>
               </thead>
               <tbody className="text-gray-600 text-sm">
-                {books.length > 0 ? (
-                  books.map((book, index) => (
+                {filteredBooks.length > 0 ? (
+                  filteredBooks.map((book, index) => (
                     <tr
                       key={index}
                       className={
@@ -360,12 +394,35 @@ export default function PublisherPage() {
         <div className="bg-white shadow-md rounded-lg p-6 mb-8">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold text-gray-900">Published Videos</h2>
-            <button
-              className="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-2 px-4 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-opacity-50"
-              onClick={() => router.push('/publisher/addvideo')}
-            >
-              + Add Video
-            </button>
+            <div className="flex items-center space-x-4">
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Search videos..."
+                  value={videoSearchTerm}
+                  onChange={(e) => setVideoSearchTerm(e.target.value)}
+                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent text-gray-900"
+                />
+                <svg
+                  className="absolute left-3 top-2.5 h-5 w-5 text-gray-400"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </div>
+              <button
+                className="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-2 px-4 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-opacity-50"
+                onClick={() => router.push('/publisher/addvideo')}
+              >
+                + Add Video
+              </button>
+            </div>
           </div>
           <div className="overflow-x-auto">
             <table className="min-w-full leading-normal">
@@ -379,8 +436,8 @@ export default function PublisherPage() {
                 </tr>
               </thead>
               <tbody className="text-gray-600 text-sm">
-                {videos.length > 0 ? (
-                  videos.map((video, index) => (
+                {filteredVideos.length > 0 ? (
+                  filteredVideos.map((video, index) => (
                     <tr
                       key={index}
                       className={

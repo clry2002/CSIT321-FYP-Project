@@ -312,7 +312,7 @@ const ChatBot: React.FC = () => {
       {/* Show mascot to the left of the popup when open */}
       {isChatOpen && (
         <Image 
-          src="/mascot.png" 
+          src="/mascotnew.png" 
           alt="Mascot" 
           className="chatbot-mascot-image"
           width={160}
@@ -337,7 +337,7 @@ const ChatBot: React.FC = () => {
           )}
         </div>
         <button onClick={handleMascotClick} className="chatbot-button">
-          <Image src="/mascot.png" alt="Chatbot" width={64} height={64} className="object-contain" />
+          <Image src="/mascotnew.png" alt="Chatbot" width={64} height={64} className="object-contain" />
         </button>
       </div>
 
