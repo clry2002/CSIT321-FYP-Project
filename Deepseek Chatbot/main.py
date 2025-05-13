@@ -18,8 +18,10 @@ from character_search import (
     detect_character_in_query,
     extract_character_from_history,
     detect_content_type,
-    get_recent_conversation_history
+    get_recent_conversation_history,
+    should_reset_character_context
 )
+
 from conversation_template import (
     create_template_with_context,
     is_short_response
@@ -222,16 +224,25 @@ def get_content_by_genre_and_format(question, uaid_child):
         
         # Define format keywords for content type detection
         format_keywords = {
-            "read": 2, "story": 2, "watch": 1, "movie": 1,
-            "video": 1, "book": 2, "books": 2, "videos": 1
+            "read": 2, "story": 2, "stories": 2, "watch": 1, "movie": 1, "movies": 1,
+            "video": 1, "videos": 1, "book": 2, "books": 2
         }
 
         # Normalize the question and detect genre
         normalized_question = re.sub(r'[^\w\s]', '', question).strip().lower()
         detected_genre = next((genre for genre in genres if genre in normalized_question), None)
-        detected_format = next((word for word in question.split() if word.lower() in format_keywords), None)
-        cfid = format_keywords.get(detected_format.lower(), None) if detected_format else None
 
+        # Improved format detection - check for any format keyword in the normalized question
+        detected_format = None
+        cfid = None
+        for keyword, format_id in format_keywords.items():
+            if keyword in normalized_question:
+                detected_format = keyword
+                cfid = format_id
+                # If we specifically find "book" or "video" words, prioritize them
+                if keyword in ["book", "books", "video", "videos"]:
+                    break
+                
         logging.info(f"[{request_id}] Detected genre: {detected_genre}, format: {detected_format}, cfid: {cfid}")
 
         if not detected_genre:
@@ -268,9 +279,15 @@ def get_content_by_genre_and_format(question, uaid_child):
         logging.info(f"[{request_id}] Executing query with status filter: status={CONTENT_STATUS['APPROVED']}")
 
         # Filter by content format if specified
-        if cfid:
+        logging.info(f"[{request_id}] Format detection - detected_format: {detected_format}, cfid: {cfid}")
+
+        # Filter by content format if specified
+        if cfid is not None:
             query = query.eq("temp_content.cfid", cfid)
             logging.info(f"[{request_id}] Added format filter: cfid={cfid}")
+        else:
+            # Log when no format filter is applied
+            logging.info(f"[{request_id}] No format filter applied to query")
 
         # Execute the query and log results
         response = query.execute()
@@ -362,93 +379,6 @@ def get_content_by_genre_and_format(question, uaid_child):
         logging.error(f"Database query failed: {e}", exc_info=True)
         return {"error": "Database query failed"}
 
-# Main chatbot route with improved context handling
-
-def should_reset_character_context(question, recent_history, existing_context):
-    """
-    Determine if the character context should be reset based on the user's new question.
-    
-    Args:
-        question: The current user question
-        recent_history: Recent conversation history
-        existing_context: The current conversation context
-        
-    Returns:
-        Boolean indicating if character context should be reset
-    """
-    # If there's no character in existing context, no need to reset
-    if not existing_context or 'character' not in existing_context:
-        return False
-    
-    current_character = existing_context.get('character')
-    normalized_question = question.lower()
-    
-    # Case 1: User explicitly asks for a different character
-    character_list = [
-        "spongebob", "peppa pig", "paw patrol", "harry potter", "tom and jerry",
-        "dora", "mickey mouse", "lego", "superhero", "princess", "frozen", 
-        "elsa", "pokemon", "barbie", "disney", "marvel", "batman", "spiderman"
-    ]
-    
-    for character in character_list:
-        # Skip the current character
-        if character == current_character:
-            continue
-            
-        # If a different character is mentioned, we should reset
-        if character in normalized_question:
-            logging.info(f"Resetting character context from '{current_character}' to '{character}' due to explicit mention")
-            return True
-    
-    # Case 2: User explicitly asks for a different genre or category
-    genre_indicators = [
-        "adventure", "mystery", "science", "math", "animals", "dinosaurs", 
-        "space", "ocean", "forest", "fairy tale", "history", "sports",
-        "music", "dance", "art", "food", "travel", "nature"
-    ]
-    
-    for genre in genre_indicators:
-        if genre in normalized_question:
-            logging.info(f"Resetting character context from '{current_character}' due to genre change to '{genre}'")
-            return True
-    
-    # Case 3: User is asking about a specific title that doesn't contain the character
-    title_phrases = ["book called", "book titled", "book about", "story about", "video about"]
-    
-    for phrase in title_phrases:
-        if phrase in normalized_question and current_character not in normalized_question:
-            logging.info(f"Resetting character context from '{current_character}' due to specific title request")
-            return True
-    
-    # Case 4: Direct change of topic indicators
-    change_indicators = [
-        "different", "something else", "another book", "another video", 
-        "other books", "other videos", "instead", "not interested", 
-        "don't want", "don't like", "change", "new topic"
-    ]
-    
-    for indicator in change_indicators:
-        if indicator in normalized_question:
-            logging.info(f"Resetting character context from '{current_character}' due to topic change indicator")
-            return True
-    
-    # Case 5: Check if the current exchange is simply unrelated to the character
-    # This is more complex and requires analyzing the full question
-    # Look for content requests that don't mention the character
-    content_requests = [
-        "show me", "find me", "can i see", "do you have", 
-        "i want to see", "i want to read", "recommend", "suggest"
-    ]
-    
-    for request in content_requests:
-        if request in normalized_question and current_character not in normalized_question:
-            # This might be a request for something unrelated to the character
-            logging.info(f"Resetting character context from '{current_character}' due to unrelated content request")
-            return True
-    
-    # If none of the above cases match, keep the character context
-    return False
-
 @app.route('/api/chat', methods=['POST'])
 def chat():
     data = request.json
@@ -471,6 +401,39 @@ def chat():
 
     # Get the child's age
     child_age = get_child_age(uaid_child)
+    
+        # Process this BEFORE any other logic
+    if "recommend" in normalized_question and any(word in normalized_question for word in ["book", "books", "stories", "story"]):
+        # Get all available genres
+        genres_query = supabase.from_("temp_genre").select("genrename").execute()
+        if genres_query.data:
+            genres = [genre["genrename"].lower() for genre in genres_query.data]
+            
+            # Check if any genre is mentioned
+            book_genre = None
+            for genre in genres:
+                if genre.lower() in normalized_question:
+                    book_genre = genre
+                    logging.info(f"HIGH PRIORITY: Detected book recommendation for genre '{book_genre}'")
+                    break
+            
+            if book_genre:
+                # Try the simple content retrieval first - highest chance of success
+                content_response = get_content_by_genre_and_format(question, uaid_child)
+                
+                # If we found database content, return it immediately
+                if content_response and "genre" in content_response and "error" not in content_response:
+                    # Store content type in context
+                    conversation_manager.update_context(uaid_child, 'content_type', "books")
+                    conversation_manager.update_context(uaid_child, 'genre', book_genre)
+                    
+                    # Save and return the response
+                    save_chat_to_database(
+                        context=f"Found {book_genre} books content", 
+                        is_chatbot=True, 
+                        uaid_child=uaid_child
+                    )
+                    return jsonify(content_response)
     
     # Get recent conversation history
     recent_history = get_recent_conversation_history(uaid_child, supabase, limit=5)
@@ -500,10 +463,21 @@ def chat():
             # Only use the character from context if we shouldn't reset
             character_query = existing_context['character']
             logging.info(f"Using character from existing context: {character_query}")
-    # If still no character, check recent history
+            
+    # Only extract from history for very specific cases
     elif not character_query and recent_history:
-        character_query = extract_character_from_history(recent_history)
-    
+        # Only look in history for characters if user is clearly asking about characters
+        character_phrases = ["who is", "character", "cartoon", "show me the", "about the"]
+        explicitly_asking_for_character = any(phrase in normalized_question for phrase in character_phrases)
+        
+        # Or if it's a very short follow-up and we just talked about characters
+        is_short_followup = len(normalized_question.split()) <= 3
+        
+        if explicitly_asking_for_character or (is_short_followup and recent_history[0].get('ischatbot', False)):
+            character_query = extract_character_from_history(recent_history)
+            if character_query:
+                logging.info(f"Extracted character '{character_query}' from history for relevant query")
+        
     # If we found a character, store it in context
     if character_query:
         conversation_manager.update_context(uaid_child, 'character', character_query)
@@ -636,54 +610,6 @@ def chat():
         except Exception as e:
             logging.error(f"AI response with context failed: {e}")
             # Fall back to regular processing if this fails
-    
-    # Special handling for recommendation queries that mention specific genres
-    if normalized_question.startswith("recommend") or "recommend" in normalized_question:
-        # Get all available genres
-        genres_query = supabase.from_("temp_genre").select("genrename").execute()
-        if genres_query.data:
-            genres = [genre["genrename"].lower() for genre in genres_query.data]
-            
-            # Check if any genre is mentioned
-            detected_genre = None
-            for genre in genres:
-                if genre.lower() in normalized_question:
-                    detected_genre = genre
-                    logging.info(f"Detected genre '{detected_genre}' in recommendation query")
-                    break
-            
-            # Explicitly detect and handle content type for recommendations
-            recommendation_content_type = None
-            recommendation_cfid = None
-            
-            if "book" in normalized_question or "books" in normalized_question:
-                recommendation_content_type = "books"
-                recommendation_cfid = 2  # Books
-                logging.info(f"Recommendation specifically for BOOKS")
-            elif "video" in normalized_question or "videos" in normalized_question:
-                recommendation_content_type = "videos"
-                recommendation_cfid = 1  # Videos
-                logging.info(f"Recommendation specifically for VIDEOS")
-            
-            # Update context with content type if detected
-            if recommendation_content_type:
-                conversation_manager.update_context(uaid_child, 'content_type', recommendation_content_type)
-            
-            # If a genre was detected, craft a special query with explicit format
-            if detected_genre:
-                # Create a modified query that will be correctly parsed by get_content_by_genre_and_format
-                modified_question = question
-                
-                # If we detected a specific content type but it's not in the original question,
-                # make sure it's included in the modified question
-                if recommendation_content_type and recommendation_content_type not in normalized_question:
-                    modified_question = f"{question} {recommendation_content_type}"
-                
-                content_response = get_content_by_genre_and_format(modified_question, uaid_child)
-                
-                if content_response and "genre" in content_response and not "error" in content_response:
-                    # Successfully found content for the genre
-                    return jsonify(content_response)
             
     # If no specific character/content request, check if it's a title query
     is_title_query, title = check_title_query(question)
@@ -746,7 +672,6 @@ def chat():
                 "spongebob": ["undersea", "cartoon"],
                 "peppa pig": ["cartoon", "family"],
                 "harry potter": ["magic", "fantasy", "wizards"],
-                # Add more character-genre relationships as needed
             }
             
             # If the character has related genres defined and this genre isn't one of them
@@ -983,9 +908,6 @@ def handle_genre_recommendation(question, child_age, existing_context, uaid_chil
                 if not is_genre_blocked(genre, uaid_child):
                     available_genres.append(genre)
             
-            # Only keep age-appropriate genres (this would require additional logic)
-            # For now, we'll assume all genres can be age-appropriate
-            
             # Get current/previous genre if any
             current_genre = None
             if existing_context and 'genre' in existing_context:
@@ -1057,14 +979,11 @@ def get_standard_responses():
 
 # Run the Flask app
 if __name__ == '__main__':
-    try:
-        # Start the Flask app
-        # app.run(debug=True)
-        port = int(os.environ.get("PORT", 5000))
-        app.run(host="0.0.0.0", port=port, debug=False)
-    except KeyboardInterrupt:
-        # When you press Ctrl+C to stop the server, run the debug function
-        from fts_search import debug_title_search
-        print("\nRunning debug for title search...")
-        debug_title_search(search_title="counting cabbage")
-        debug_title_search(search_title="Counting Cabbage")  # Try with proper case
+    # Start the Flask app
+    
+    # For testing development:
+    # app.run(debug=True)
+    
+    # For deployed version:
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=False)

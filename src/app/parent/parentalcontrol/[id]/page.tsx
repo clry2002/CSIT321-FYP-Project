@@ -242,8 +242,8 @@ export default function ParentalControlPage() {
                                             onClick={() => handleGenreToggle(genre.genrename)}
                                             className={
                                                 bannedGenres.includes(genre.genrename)
-                                                    ? "genre-button active"
-                                                    : "genre-button"
+                                                    ? "parent-genre-button active"
+                                                    : "parent-genre-button"
                                             }
                                         >
                                             {bannedGenres.includes(genre.genrename) && (

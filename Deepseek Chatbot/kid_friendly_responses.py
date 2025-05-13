@@ -13,15 +13,30 @@ def make_kid_friendly(text, age, llm_chain):
     """
     Process text to ensure it's kid-friendly based on the child's age.
     Uses textstat for readability metrics and LLM for simplification if needed.
-    
-    Args:
-        text (str): The text to be processed
-        age (int): The child's age
-        llm_chain: The LLM chain to use for simplification
-        
-    Returns:
-        str: Kid-friendly processed text
     """
+    # First, check if there are meta-commentary sections to remove
+    if "---" in text:
+        # Extract just the content between the first set of "---" markers
+        parts = text.split("---")
+        if len(parts) >= 3:
+            # Take only the middle part (the actual content)
+            text = parts[1].strip()
+    
+    # Remove any lines that talk about readability metrics or instructions
+    lines_to_keep = []
+    for line in text.split("\n"):
+        line = line.strip()
+        # Skip lines that contain metric-related words
+        if any(word in line.lower() for word in ["flesch", "score", "readability", "grade level", "ensuring", "criteria", "polished version"]):
+            continue
+        # Skip lines that appear to be instructions or meta-commentary
+        if line.startswith("This version") or "year-old" in line:
+            continue
+        lines_to_keep.append(line)
+    
+    # Rejoin the cleaned lines - THIS IS THE MISSING STEP
+    text = "\n".join(lines_to_keep)
+    
     # Define target readability scores by age
     def get_target_score(child_age):
         if child_age < 6:
@@ -41,6 +56,7 @@ def make_kid_friendly(text, age, llm_chain):
     cleaned_text = re.sub("\n+", "<br>", cleaned_text)
     cleaned_text = re.sub(r"^\s*<br>", "", cleaned_text)
     cleaned_text = cleaned_text.strip()
+
     
     # Calculate readability metrics
     flesch_score = textstat.flesch_reading_ease(cleaned_text)
@@ -64,13 +80,19 @@ def make_kid_friendly(text, age, llm_chain):
         # Prepare prompt for LLM simplification
         simplify_prompt = f"""
         The following text is too complex for a {age}-year-old child (readability score: {flesch_score}, grade level: {grade_level}).
-        
+
         Please rewrite it to be:
         1. At a readability level appropriate for this age (target score: {target_score})
         2. {tone_guide}
         3. Maintain the original meaning and information
         4. Sound natural and engaging, not robotic
-        
+
+        IMPORTANT: Your response should ONLY include the simplified text for the child. 
+        DO NOT include any meta-commentary about your changes, readability scores, or text quality.
+        DO NOT include phrases like "This version..." or any text analysis.
+        DO NOT use markdown formatting with --- to separate sections.
+        JUST PROVIDE THE SIMPLIFIED TEXT DIRECTLY.
+
         Text to simplify:
         {cleaned_text}
         """
@@ -78,6 +100,24 @@ def make_kid_friendly(text, age, llm_chain):
         try:
             # Request a simplified version from the LLM
             simplified_text = llm_chain.invoke(simplify_prompt)
+            
+            
+            # Clean it for meta-commentary again
+            if "---" in simplified_text:
+                parts = simplified_text.split("---")
+                if len(parts) >= 3:
+                    simplified_text = parts[1].strip()
+
+            simplified_lines = []
+            for line in simplified_text.split("\n"):
+                line = line.strip()
+                if any(word in line.lower() for word in ["flesch", "score", "readability", "grade level"]):
+                    continue
+                if line.startswith("This version") or "year-old" in line:
+                    continue
+                simplified_lines.append(line)
+
+            simplified_text = "\n".join(simplified_lines)
             
             # Clean the simplified text
             simplified_text = re.sub(r"<think>.*?</think>", "", simplified_text, flags=re.DOTALL)
@@ -98,7 +138,6 @@ def make_kid_friendly(text, age, llm_chain):
                 
         except Exception as e:
             logging.error(f"Error during text simplification: {e}")
-            # Continue with the original text if simplification fails
     
     # Add kid-friendly enhancements
     # For very young children, consider adding emojis based on content
@@ -181,6 +220,7 @@ def get_recommended_age_range(text):
     """
     flesch_score = textstat.flesch_reading_ease(text)
     grade_level = textstat.text_standard(text, float_output=True)
+    logging.info(f"Original text - Flesch score: {flesch_score}, Grade level: {grade_level}")
     
     if flesch_score >= 90:  # Very easy
         return (5, 6)

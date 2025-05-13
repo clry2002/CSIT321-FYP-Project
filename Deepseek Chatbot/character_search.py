@@ -3,21 +3,8 @@ import random
 from typing import Dict, Any, List, Optional
 
 def search_database_for_character(character, uaid_child, supabase, get_child_age, is_genre_blocked, content_status, content_type=None):
-    """
-    Search database directly for content related to a specific character.
-    
-    Args:
-        character: The character name (e.g., "spongebob")
-        uaid_child: Child's user ID
-        supabase: Initialized Supabase client
-        get_child_age: Function to get child's age
-        is_genre_blocked: Function to check if genre is blocked
-        content_status: Dictionary of content status values
-        content_type: Optional content type filter (videos, books, etc.)
-        
-    Returns:
-        Dictionary with books and videos lists
-    """
+
+    # Search database directly for content related to a specific character.
     try:
         logging.info(f"Searching database for {character} content for child {uaid_child}")
         
@@ -27,7 +14,7 @@ def search_database_for_character(character, uaid_child, supabase, get_child_age
         # Determine content format ID (cfid) if content_type is specified
         cfid = None
         if content_type:
-            content_type_lower = content_type.lower().rstrip('s')  # Remove trailing 's' if present
+            content_type_lower = content_type.lower().rstrip('s')
             if content_type_lower in ['video', 'show', 'episode']:
                 cfid = 1  # Video
             elif content_type_lower in ['book', 'story']:
@@ -151,18 +138,10 @@ def search_database_for_character(character, uaid_child, supabase, get_child_age
         return {"books": [], "videos": []}
 
 def detect_character_in_query(query):
-    """
-    Detect if a query is about a specific character.
     
-    Args:
-        query: The normalized user query
-        
-    Returns:
-        Character name if found, None otherwise
-    """
     # List of popular characters to check for
     characters = [
-        "spongebob", "peppa pig", "paw patrol", "harry potter", "tom and jerry"
+        "spongebob", "peppa pig", "paw patrol", "harry potter", "tom and jerry",
         "dora", "mickey mouse", "lego", "superhero", "princess", "frozen", "elsa"
     ]
     
@@ -218,3 +197,83 @@ def get_recent_conversation_history(uaid_child, supabase, limit=5):
     except Exception as e:
         logging.error(f"Error retrieving conversation history: {e}")
         return []
+    
+
+def should_reset_character_context(question, recent_history, existing_context):
+    """
+    Determine if the character context should be reset based on the user's new question.
+    Uses a more aggressive approach to detect topic changes.
+    
+    """
+    # If there's no character in existing context, no need to reset
+    if not existing_context or 'character' not in existing_context:
+        return False
+    
+    current_character = existing_context.get('character')
+    normalized_question = question.lower()
+    
+    # APPROACH 1: Check if the current character is explicitly mentioned
+    # If the character is NOT mentioned, it's likely a topic change
+    if current_character not in normalized_question:
+        # Only keep character context if question is very short or references something previously mentioned
+        if len(normalized_question.split()) > 2:  # Not just "yes" or "ok"
+            # Check for continuity phrases that would indicate keeping the same topic
+            continuity_phrases = [
+                "more", "another", "similar", "like that", "tell me more", 
+                "can i see", "show me", "again", "that one", "this one", "yes", "yeah"
+            ]
+            
+            has_continuity = any(phrase in normalized_question for phrase in continuity_phrases)
+            
+            if not has_continuity:
+                logging.info(f"Resetting character context from '{current_character}' due to topic change - character not mentioned")
+                return True
+    
+    # APPROACH 2: Check for explicit topic change indicators
+    topic_change_indicators = [
+        "different", "something else", "new", "another", "instead", "other",
+        "change", "not that", "don't want", "recommend", "suggest", "find", 
+        "what about", "rather", "prefer", "genre", "category", "type"
+    ]
+    
+    # If any topic change indicator is present AND the character isn't mentioned,
+    # it's very likely a topic change
+    if any(indicator in normalized_question for indicator in topic_change_indicators) and current_character not in normalized_question:
+        logging.info(f"Resetting character context from '{current_character}' due to explicit topic change indicator")
+        return True
+    
+    # APPROACH 3: Check for new entity mentions (other characters, genres, categories)
+    # List of entities that would indicate a topic change if mentioned
+    topic_entities = [
+        # Characters
+        "spongebob", "peppa pig", "paw patrol", "harry potter", "tom and jerry",
+        "dora", "mickey mouse", "lego", "superhero", "princess", "frozen", 
+        "elsa", "pokemon", "barbie", "disney", "marvel", "batman", "spiderman",
+        
+        # Genres/Categories
+        "adventure", "mystery", "science", "math", "animals", "dinosaurs", 
+        "space", "ocean", "forest", "fairy tale", "history", "sports",
+        "music", "dance", "art", "food", "travel", "nature", "counting",
+        
+        # Content types
+        "video", "book", "story", "show", "movie"
+    ]
+    
+    # If any entity other than the current character is mentioned, it's likely a topic change
+    for entity in topic_entities:
+        if entity in normalized_question and entity != current_character:
+            logging.info(f"Resetting character context from '{current_character}' due to new entity mention: '{entity}'")
+            return True
+    
+    # APPROACH 4: Check for question type - certain types of questions indicate topic changes
+    question_starters = [
+        "what", "how", "can you", "do you have", "is there", "are there", 
+        "tell me about", "show me", "find", "search"
+    ]
+    
+    if any(normalized_question.startswith(starter) for starter in question_starters) and current_character not in normalized_question:
+        logging.info(f"Resetting character context from '{current_character}' due to new question type")
+        return True
+    
+    # If none of the above cases triggered, keep the character context
+    return False

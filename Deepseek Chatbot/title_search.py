@@ -3,9 +3,8 @@ import logging
 from typing import Tuple, Dict, Any, List, Optional
 
 def check_title_query(query: str) -> Tuple[bool, Optional[str]]:
-    # Remove question marks from the query for better title extraction
-    if query.lower().startswith("recommend") and any(word in query.lower() for word in ["books", "videos"]):
-            return False, None
+    # if query.lower().startswith("recommend") and any(word in query.lower() for word in ["books", "videos"]):
+    #         return False, None
         
     clean_query = query.replace('?', '')
     
