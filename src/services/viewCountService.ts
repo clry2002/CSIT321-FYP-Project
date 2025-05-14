@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { handleBookView } from './userInteractionsService';
 
 /**
- * Updates view count for a specific content item
+ * Updates view count for a specific content item (both books and videos)
  * Also updates user interactions if user is logged in
  */
 export const incrementViewCount = async (
@@ -53,7 +53,7 @@ export const incrementViewCount = async (
         console.error('Error fetching user account:', userError);
         // Continue even if user account not found - view count was updated
       } else if (userAccount) {
-        // Record the view in user interactions
+        // Record the view in user interactions (works for both books and videos)
         await handleBookView(userAccount.id.toString(), contentId);
       }
     }

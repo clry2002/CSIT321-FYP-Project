@@ -1,4 +1,4 @@
-// userInteractionsService.ts
+// services/userInteractionsService.ts
 import { supabase } from '@/lib/supabase';
 
 // Score constants
@@ -74,9 +74,10 @@ export const updateGenreInteraction = async (
       return false;
     }
   };
+
 /**
- * Updates user interactions when bookmarking or removing a book bookmark
- * Will only update scores for books (cfid = 2) and not videos
+ * Updates user interactions when bookmarking or removing a content bookmark
+ * Works for both books (cfid = 2) and videos (cfid = 1)
  */
 export const handleBookmarkAction = async (
     uaid: string,
@@ -84,23 +85,7 @@ export const handleBookmarkAction = async (
     isAdding: boolean
   ): Promise<boolean> => {
     try {
-      // First, check if the content is a book (cfid = 2)
-      const { data: content, error: contentError } = await supabase
-        .from('temp_content')
-        .select('cfid')
-        .eq('cid', cid)
-        .single();
-        
-      if (contentError) {
-        return false;
-      }
-      
-      // Skip score update if not a book
-      if (content.cfid !== 2) {
-        return true;
-      }
-      
-      // Get genres for the book
+      // Get genres for the content (both books and videos)
       const { data: contentGenres, error: genresError } = await supabase
         .from('temp_contentgenres')
         .select('gid')
@@ -128,7 +113,7 @@ export const handleBookmarkAction = async (
   };
 
 /**
- * Updates user interactions when viewing a book (without incrementing views)
+ * Updates user interactions when viewing content (both books and videos)
  */
 export const handleBookView = async (
   uaid: string,
@@ -161,7 +146,7 @@ export const handleBookView = async (
 };
 
 /**
- * Updates user interactions when searching for a book
+ * Updates user interactions when searching for content (both books and videos)
  */
 export const handleBookSearch = async (
   uaid: string,
@@ -292,6 +277,7 @@ export const handleFavoriteGenre = async (
       return false;
     }
   };
+
 /**
  * Sets a genre score to 0 when blocked by parent
  */
@@ -560,9 +546,10 @@ export const syncFavoriteGenres = async (uaid: string): Promise<boolean> => {
       return false;
     }
   };
+
 /**
- * Syncs user interaction scores for all existing book bookmarks (content id = 2 only)
- * Call this to ensure all book bookmarks have proper scores in the interactions table
+ * Syncs user interaction scores for all existing content bookmarks
+ * Works for both books (cfid = 2) and videos (cfid = 1)
  */
 export const syncExistingBookmarks = async (uaid: string): Promise<boolean> => {
     try {
@@ -580,31 +567,13 @@ export const syncExistingBookmarks = async (uaid: string): Promise<boolean> => {
         return true;
       }
       
-      // Get the content types for these bookmarks to filter for books only (cfid = 2)
       const bookmarkCids = bookmarks.map(b => b.cid);
-      const { data: contentTypes, error: contentTypesError } = await supabase
-        .from('temp_content')
-        .select('cid, cfid')
-        .in('cid', bookmarkCids);
-        
-      if (contentTypesError) {
-        return false;
-      }
       
-      // Filter to only include books (cfid = 2)
-      const bookCids = contentTypes
-        .filter(content => content.cfid === 2)
-        .map(content => content.cid);
-        
-      if (bookCids.length === 0) {
-        return true;
-      }
-      
-      // Get all genres for these book bookmarks
+      // Get all genres for these bookmarks
       const { data: contentGenres, error: genresError } = await supabase
         .from('temp_contentgenres')
         .select('cid, gid')
-        .in('cid', bookCids);
+        .in('cid', bookmarkCids);
         
       if (genresError) {
         return false;
@@ -643,10 +612,10 @@ export const syncExistingBookmarks = async (uaid: string): Promise<boolean> => {
         genresByCid[cg.cid].push(cg.gid);
       });
       
-      // Check and sync scores for each book bookmark
+      // Check and sync scores for each bookmark
       const BOOKMARK_SCORE = 5;  // Score for a bookmark
       
-      for (const cid of bookCids) {
+      for (const cid of bookmarkCids) {
         const genres = genresByCid[cid] || [];
         
         for (const gid of genres) {
@@ -693,6 +662,12 @@ export const debugUserInteractions = async (uaid: string): Promise<void> => {
         genreMap[genre.gid] = genre.genrename;
       });
     }
+    
+    // Log interactions with genre names for debugging
+    console.log('User Interactions:');
+    data?.forEach(interaction => {
+      console.log(`Genre: ${genreMap[interaction.gid] || interaction.gid}, Score: ${interaction.score}`);
+    });
     
   } catch {
     // No error handling needed for debug function

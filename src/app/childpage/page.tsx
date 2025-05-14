@@ -17,6 +17,7 @@ import { getRecommendedBooks } from '../../services/recommendationService';
 import { getTrendingBooks, getPopularBooks } from '../../services/trendingPopularService';
 import { useScreenTime } from '../../hooks/useScreenTime';
 import { useRouter } from 'next/navigation';
+import VideoSection from '../components/VideoSection';
 
 export default function ChildPage() {
   // Use refs to maintain stable references
@@ -36,6 +37,13 @@ export default function ChildPage() {
   const [trendingBooksIndex, setTrendingBooksIndex] = useState(0);
   const [popularBooksIndex, setPopularBooksIndex] = useState(0);
   const router = useRouter();
+
+  const { 
+    recommendedVideos,
+    trendingVideos,
+    popularVideos,
+    loading: videosLoading
+  } = useVideos();
 
   useEffect(() => {
       const checkAuth = async () => {
@@ -80,8 +88,7 @@ export default function ChildPage() {
   });
   
   // Hooks
-  const { availableBooks, loading } = useBooks();
-  const { videos } = useVideos();
+  const { availableBooks } = useBooks();
   const { syncFavoriteGenresForUser } = useInteractions();
 
   // Combine genre component display with recommended books
@@ -462,13 +469,9 @@ export default function ChildPage() {
             </p>
           </div>
 
-          {/* Currently Trending Books Section - NOW FIRST */}
+          {/* Books Sections */}
           {renderBookCarousel(trendingBooksWithGenre, trendingBooksIndex, 'trending', 'Currently Trending', isLoadingTrending)}
-
-          {/* Recommended Books Section - NOW SECOND */}
           {renderBookCarousel(recommendedBooksWithGenre, recommendedBooksIndex, 'recommended', 'Recommended For You!', isLoadingRecommendations)}
-
-          {/* Popular Books Section - NOW THIRD */}
           {renderBookCarousel(popularBooksWithGenre, popularBooksIndex, 'popular', 'Most Popular', isLoadingPopular)}
 
           {/* Single "Explore more books" link */}
@@ -481,62 +484,38 @@ export default function ChildPage() {
             </a>
           </div>
 
-          {/* Videos for You Section */}
-          <div className="mb-16">
-            <h2 className="text-3xl font-extrabold text-yellow-400 drop-shadow text-center font-sans mb-3" style={{ fontFamily: 'Quicksand, Nunito, Arial Rounded MT Bold, Arial, sans-serif' }}>Videos for You</h2>
-            <div className="grid grid-cols-4 gap-2">
-              {loading ? (
-                Array.from({ length: 4 }).map((_, index) => (
-                  <div key={index} className="space-y-1">
-                    <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-gray-200 animate-pulse" />
-                    <div className="h-3 bg-gray-200 rounded animate-pulse w-3/4" />
-                    <div className="h-3 bg-gray-200 rounded animate-pulse w-1/2" />
-                  </div>
-                ))
-              ) : videos.length > 0 ? (
-                videos.map((video) => {
-                  const videoId = video.contenturl?.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/)?.[1];
-                
-                  return (
-                    <div key={video.title} className="border rounded-lg overflow-hidden bg-white/20 backdrop-blur-md shadow-lg">
-                      <div className="aspect-video relative">
-                        {videoId ? (
-                          <iframe
-                            src={`https://www.youtube.com/embed/${videoId}`}
-                            title={video.title}
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                            allowFullScreen
-                            className="absolute inset-0 w-full h-full"
-                          />
-                        ) : (
-                          <div className="absolute inset-0 bg-gray-100 flex items-center justify-center">
-                            <p className="text-gray-500">Invalid video link</p>
-                          </div>
-                        )}
-                      </div>
-                      <div className="p-2">
-                        <h3 className="font-medium text-xs text-white leading-tight" style={{ fontFamily: 'Quicksand, Nunito, Arial Rounded MT Bold, Arial, sans-serif' }}>{video.title}</h3>
-                      </div>
-                    </div>
-                  );
-                })
-                
-              ) : (
-                <div className="col-span-4 text-center text-gray-500 py-4">
-                  No videos available at the moment
-                </div>
-              )}
+          {/* Video Sections */}
+          <div className="video-sections mb-16">
+            <VideoSection
+              title="Trending Videos"
+              videos={trendingVideos}
+              loading={videosLoading}
+              type="trending"
+            />
+            
+            <VideoSection
+              title="Recommended Videos"
+              videos={recommendedVideos}
+              loading={videosLoading}
+              type="recommended"
+            />
+            
+            <VideoSection
+              title="Popular Videos"
+              videos={popularVideos}
+              loading={videosLoading}
+              type="popular"
+            />
+            
+            {/* Explore More Videos */}
+            <div className="mt-2 text-right">
+              <a
+                href="/searchvideos"
+                className="text-blue-600 hover:underline text-sm font-medium"
+              >
+                Explore more videos →
+              </a>
             </div>
-          </div>
-
-          {/* Explore More Videos */}
-          <div className="mt-2 text-right">
-            <a
-              href="/search"
-              className="text-blue-600 hover:underline text-sm font-medium"
-            >
-              Explore more videos →
-            </a>
           </div>
 
           {/* ChatBot Section */}
