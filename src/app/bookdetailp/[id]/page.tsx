@@ -139,6 +139,7 @@ export default function BookDetailPage() {
                   alt={book.title}
                   fill
                   className="object-contain"
+                  unoptimized
                 />
               ) : (
                 <div className="flex h-full items-center justify-center bg-gray-200">

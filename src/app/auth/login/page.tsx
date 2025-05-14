@@ -343,6 +343,7 @@ export default function LoginPage() {
               width={40}
               height={40}
               className="mr-2"
+              unoptimized
             />
             <h1 className="text-2xl font-bold text-purple-700">CoReadability</h1>
           </div>
@@ -369,6 +370,7 @@ export default function LoginPage() {
               width={100}
               height={100}
               className="animate-wiggle"
+              unoptimized
             />
           </div>
 

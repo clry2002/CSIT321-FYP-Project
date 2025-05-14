@@ -62,6 +62,7 @@ const ContentItem: React.FC<ContentItemProps> = ({
           height={150}
           className="book-cover-image"
           onClick={() => item.coverimage && handleImageClick(item.coverimage)}
+          unoptimized
         />
       )}
 

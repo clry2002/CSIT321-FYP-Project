@@ -81,6 +81,7 @@ const TimeLimitExceededPage: React.FC<TimeLimitExceededPageProps> = ({
               width={100}
               height={100}
               className="animate-bounce"
+              unoptimized
             />
           </div>
           

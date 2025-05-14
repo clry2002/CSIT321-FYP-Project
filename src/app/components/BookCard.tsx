@@ -199,6 +199,7 @@ const BookCard: React.FC<BookCardProps> = ({
                   style={{ objectFit: 'cover' }}
                   onError={() => setImageError(true)}
                   priority={false}
+                  unoptimized
                 />
               </div>
             ) : (

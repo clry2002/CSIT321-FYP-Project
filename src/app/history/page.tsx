@@ -54,6 +54,7 @@ export default function HistoryPage() {
                 width={32}
                 height={32}
                 className="rounded-full"
+                unoptimized
               />
               <span className="font-medium text-sm">Alexander Mark</span>
             </div>

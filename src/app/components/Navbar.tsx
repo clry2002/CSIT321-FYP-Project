@@ -38,11 +38,12 @@ export default function Navbar() {
         <Image
           src={homeIcon}
           alt="Home Icon"
-          width={28} // Increased width
-          height={28} // Increased height
+          width={28}
+          height={28}
           className={`mb-0.5 transition-colors duration-300 ${
             activeLink === '/childpage' ? 'animate-bounce' : 'hover:filter brightness-110 saturate-120'
           }`}
+          unoptimized
         />
         <b className={`text-xs transition-colors duration-200 ${activeLink === '/childpage' ? 'text-blue-700' : 'text-white group-hover:text-blue-600'}`}>Home</b>
       </Link>
@@ -57,11 +58,12 @@ export default function Navbar() {
         <Image
           src={exploreIcon}
           alt="Explore Icon"
-          width={28} // Increased width
-          height={28} // Increased height
+          width={28}
+          height={28}
           className={`mb-0.5 transition-colors duration-300 ${
             activeLink === '/search' ? 'hover:filter brightness-110 saturate-120 animate-pulse' : 'hover:filter brightness-110 saturate-120'
           }`}
+          unoptimized
         />
         <b className={`text-xs transition-colors duration-200 ${activeLink === '/search' ? 'text-green-700 animate-pulse' : 'text-white group-hover:text-green-600'}`}>Search</b>
       </Link>
@@ -76,11 +78,12 @@ export default function Navbar() {
         <Image
           src={booksIcon}
           alt="My Books Icon"
-          width={28} // Increased width
-          height={28} // Increased height
+          width={28}
+          height={28}
           className={`mb-0.5 transition-colors duration-300 ${
             activeLink === '/bookmark' ? 'hover:filter brightness-110 saturate-120 animate-pulse' : 'hover:filter brightness-110 saturate-120'
           }`}
+          unoptimized
         />
         <b className={`text-xs transition-colors duration-200 ${activeLink === '/bookmark' ? 'text-yellow-700 animate-pulse' : 'text-white group-hover:text-yellow-600'}`}>Bookmarks</b>
       </Link>
@@ -95,11 +98,12 @@ export default function Navbar() {
         <Image
           src={classroomIcon}
           alt="Learning Hub Icon"
-          width={28} // Increased width
-          height={28} // Increased height
+          width={28}
+          height={28}
           className={`mb-0.5 transition-colors duration-300 ${
             activeLink === '/classroom' ? 'hover:filter brightness-110 saturate-120 animate-pulse' : 'hover:filter brightness-110 saturate-120'
           }`}
+          unoptimized
         />
         <b className={`text-xs transition-colors duration-200 ${activeLink === '/classroom' ? 'text-purple-700 animate-pulse' : 'text-white group-hover:text-purple-600'}`}>Classroom</b>
       </Link>
@@ -114,11 +118,12 @@ export default function Navbar() {
         <Image
           src={settingsIcon}
           alt="My Space Icon"
-          width={28} // Increased width
-          height={28} // Increased height
+          width={28}
+          height={28}
           className={`mb-0.5 transition-colors duration-300 ${
             activeLink === '/childsettings' ? 'hover:filter brightness-110 saturate-120 animate-pulse' : 'hover:filter brightness-110 saturate-120'
           }`}
+          unoptimized
         />
         <b className={`text-xs transition-colors duration-200 ${activeLink === '/childsettings' ? 'text-orange-700 animate-pulse' : 'text-white group-hover:text-orange-600'}`}>Settings</b>
       </Link>
@@ -134,11 +139,12 @@ export default function Navbar() {
         <Image
           src={logoutIcon}
           alt="Log Out Icon"
-          width={28} // Increased width
-          height={28} // Increased height
+          width={28}
+          height={28}
           className={`mb-0.5 transition-colors duration-300 ${
             activeLink === '/logout' ? 'hover:filter brightness-110 saturate-120 animate-pulse' : 'hover:filter brightness-110 saturate-120'
           }`}
+          unoptimized
         />
         <b className={`text-xs transition-colors duration-200 ${activeLink === '/logout' ? 'text-red-700 animate-pulse' : 'text-white group-hover:text-red-600'}`}>Log Out</b>
       </Link>

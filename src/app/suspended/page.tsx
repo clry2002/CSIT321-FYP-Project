@@ -77,6 +77,7 @@ export default function SuspendedPage() {
                 width={40}
                 height={40}
                 className="mr-2"
+                unoptimized
               />
               <h1 className="text-2xl font-bold text-gray-900">CoReadability</h1>
             </div>

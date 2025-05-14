@@ -17,6 +17,7 @@ export default function UnauthorizedPage() {
               width={80}
               height={80}
               className="rounded-full"
+              unoptimized
             />
           </div>
           <h2 className="text-3xl font-bold text-gray-900 mb-4">

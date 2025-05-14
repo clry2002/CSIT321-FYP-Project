@@ -115,6 +115,7 @@ export default function PublisherBookDetail({ params }: { params: Promise<{ cid:
                   layout="fill"
                   objectFit="cover"
                   className="w-full h-full object-cover"
+                  unoptimized
                 />
               ) : (
                 <div className="w-full h-full bg-gray-200 flex items-center justify-center">

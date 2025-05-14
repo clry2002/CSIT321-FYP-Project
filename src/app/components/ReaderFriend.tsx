@@ -17,6 +17,7 @@ export default function ReaderFriend({ name, avatarUrl, comment, chapter, timeAg
         width={48}
         height={48}
         className="rounded-full"
+        unoptimized
       />
       <div className="flex-1">
         <h3 className="font-medium">{name}</h3>

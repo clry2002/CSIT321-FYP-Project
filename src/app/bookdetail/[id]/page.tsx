@@ -299,6 +299,7 @@ export default function BookDetailPage() {
                     alt={book.title}
                     fill
                     className="w-full h-full object-contain rounded-lg"
+                    unoptimized
                   />
                 ) : (
                   <div className="w-full h-full bg-gray-800 rounded-lg flex items-center justify-center">

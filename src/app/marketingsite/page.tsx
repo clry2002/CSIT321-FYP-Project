@@ -3,7 +3,6 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
-// import { useRouter } from 'next/navigation';
 
 export default function LandingPage() {
   const [activeSection, setActiveSection] = useState('');
@@ -60,6 +59,7 @@ export default function LandingPage() {
             width={40}
             height={40}
             className="mr-2"
+            unoptimized
           />
           <h1 className="text-2xl font-bold text-gray-800">CoReadability</h1>
         </div>

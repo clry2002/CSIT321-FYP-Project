@@ -421,6 +421,7 @@ const extractContentWithRegex = (content: string, router: ReturnType<typeof useR
                           width={800} 
                           height={400}
                           className="w-full object-cover rounded"
+                          unoptimized
                         />
                       ) : (
                         <div className="w-full h-64 bg-gray-200 rounded flex items-center justify-center">

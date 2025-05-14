@@ -230,6 +230,7 @@ const BookAnnouncementBoard: React.FC<BookAnnouncementBoardProps> = ({
                                 width={40}
                                 height={56}
                                 className="object-cover w-full h-full"
+                                unoptimized
                               />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center">
@@ -266,6 +267,7 @@ const BookAnnouncementBoard: React.FC<BookAnnouncementBoardProps> = ({
                       width={40}
                       height={60}
                       className="object-cover mr-3 border"
+                      unoptimized
                     />
                   ) : (
                     <div className="w-10 h-16 bg-gray-200 flex items-center justify-center mr-3">
@@ -340,6 +342,7 @@ const BookAnnouncementBoard: React.FC<BookAnnouncementBoardProps> = ({
                       width={180}
                       height={240}
                       className="object-cover w-full h-full"
+                      unoptimized
                     />
                   ) : (
                     <div className="w-full h-full bg-gray-200 flex items-center justify-center">

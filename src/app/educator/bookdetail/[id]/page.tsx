@@ -169,6 +169,7 @@ export default function TeacherBookDetailPage() {
                     alt={book.title}
                     fill
                     className="w-full h-full object-contain rounded-md shadow-sm"
+                    unoptimized
                   />
                 ) : (
                   <div className="w-full h-full bg-gray-200 rounded-lg flex items-center justify-center">

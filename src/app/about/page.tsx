@@ -14,6 +14,7 @@ export default function AboutPage() {
           fill
           className="object-cover"
           priority
+          unoptimized
         />
         {/* Dark Overlay */}
         <div className="absolute inset-0 bg-black opacity-50"></div>
@@ -59,6 +60,7 @@ export default function AboutPage() {
               width={180}
               height={180}
               className="rounded-full"
+              unoptimized
             />
           </div>
 

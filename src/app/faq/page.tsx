@@ -14,6 +14,7 @@ export default function FAQPage() {
           fill
           className="object-cover"
           priority
+          unoptimized
         />
         {/* Dark Overlay */}
         <div className="absolute inset-0 bg-black opacity-50"></div>
@@ -30,6 +31,7 @@ export default function FAQPage() {
               width={40}
               height={40}
               className="mr-2"
+              unoptimized
             />
             <Link href="/">
               <h1 className="text-2xl font-bold text-gray-800 cursor-pointer">

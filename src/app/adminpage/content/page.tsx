@@ -301,6 +301,7 @@ export default function ContentReviewPage() {
               width={40}
               height={40}
               className="mr-2"
+              unoptimized
             />
             <h1 className="text-2xl font-bold">Content Review</h1>
           </div>
@@ -456,6 +457,7 @@ export default function ContentReviewPage() {
                           layout="fill"
                           objectFit="cover"
                           className="rounded-lg"
+                          unoptimized
                         />
                       </div>
                     ) : (
@@ -545,6 +547,7 @@ export default function ContentReviewPage() {
                         layout="fill"
                         objectFit="cover"
                         className="rounded-lg"
+                        unoptimized
                       />
                     </div>
                   ) : (

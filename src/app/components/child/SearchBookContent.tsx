@@ -314,6 +314,7 @@ function SearchResults({ query }: { query: string }) {
                     width={96}
                     height={144}
                     className="w-full h-full object-contain rounded-md shadow-sm"
+                    unoptimized
                   />
                 ) : (
                   <div className="w-full h-full bg-gray-200 rounded-md flex items-center justify-center">

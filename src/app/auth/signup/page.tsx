@@ -104,7 +104,7 @@ export default function SignUpPage() {
             {/* Added Logo and CoReadability */}
             <div
               className="flex items-center cursor-pointer"
-              onClick={() => router.push('/landing')} // Navigate to homepage
+              onClick={() => router.push('/landing')}
             >
               <Image
                 src="/logo2.png"
@@ -112,11 +112,12 @@ export default function SignUpPage() {
                 width={40}
                 height={40}
                 className="mr-2"
+                unoptimized
               />
               <h1 className="text-2xl font-bold text-purple-700">CoReadability</h1>
             </div>
             <button
-              onClick={() => router.push('/landing')} // Redirects to homepage
+              onClick={() => router.push('/landing')}
               className="text-sm text-gray-600 hover:text-gray-800 font-medium"
             >
               ← Back to Home
@@ -136,7 +137,7 @@ export default function SignUpPage() {
             </p>
             <Link
               href="/auth/login"
-              className="inline-block mt-4 text-purple-700 hover:text-purple-800 font-medium" // Changed link color
+              className="inline-block mt-4 text-purple-700 hover:text-purple-800 font-medium"
             >
               Return to login
             </Link>
@@ -199,6 +200,7 @@ export default function SignUpPage() {
               width={40}
               height={40}
               className="mr-2"
+              unoptimized
             />
             <h1 className="text-2xl font-bold text-purple-700">CoReadability</h1>
           </div>

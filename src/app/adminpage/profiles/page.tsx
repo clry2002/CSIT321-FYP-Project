@@ -19,6 +19,7 @@ export default function ProfilesRoute() {
               width={40}
               height={40}
               className="mr-2"
+              unoptimized
             />
             <h1 className="text-2xl font-bold">Profile Management</h1>
           </div>

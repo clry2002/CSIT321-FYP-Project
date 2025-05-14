@@ -460,6 +460,7 @@ export default function ClassroomBoardPage() {
                           width={180}
                           height={240}
                           className="object-cover w-full h-full"
+                          unoptimized
                         />
                       ) : (
                         // Fallback for missing content

@@ -18,6 +18,7 @@ export const BookItem = ({ book, handleViewBookDetails }: BookItemProps) => {
             width={64} 
             height={80}
             className="object-cover rounded flex-shrink-0 mr-3"
+            unoptimized
           />
         ) : (
           <div className="w-16 h-20 bg-gray-200 rounded flex-shrink-0 mr-3 flex items-center justify-center">

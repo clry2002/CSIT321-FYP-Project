@@ -98,6 +98,7 @@ export default function BookDetailComponent({ id }: { id: string }) {
                     const imgElement = e.currentTarget as HTMLImageElement;
                     imgElement.style.display = 'none';
                   }}
+                  unoptimized
                 />
               ) : (
                 <div className="w-60 h-90 bg-gray-200 rounded-lg flex items-center justify-center">

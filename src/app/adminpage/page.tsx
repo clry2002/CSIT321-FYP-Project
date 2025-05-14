@@ -998,6 +998,7 @@ export default function AdminPage() {
               width={40}
               height={40}
               className="mr-2"
+              unoptimized
             />
             <h1 className="text-2xl font-bold">CoReadability</h1>
           </div>
