@@ -543,7 +543,7 @@ export default function BookmarksPage() {
                   <div className="flex-1 flex items-center space-x-6 p-6">
                     <div className="flex-shrink-0 w-32 h-48 relative">
                       {book.coverimage ? (
-                        <Image src={book.coverimage} alt={book.title} fill className="object-cover rounded-md" />
+                        <Image src={book.coverimage} alt={book.title} fill className="object-cover rounded-md" unoptimized/>
                       ) : (
                         <div className="w-full h-full bg-gray-700 flex items-center justify-center rounded-md">
                           <span className="text-gray-500 text-sm">No cover</span>

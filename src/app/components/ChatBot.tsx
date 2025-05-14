@@ -319,6 +319,7 @@ const ChatBot: React.FC = () => {
           height={160}
           onClick={handleMascotClick}
           style={{ cursor: 'pointer' }}
+          unoptimized
         />
       )}
       {/* Blur background when chatbot popup is open */}
@@ -328,7 +329,7 @@ const ChatBot: React.FC = () => {
       <div className="flex flex-col items-end space-y-2">
         <div className="relative">
           <button onClick={toggleCalendar} className="calendar-button">
-            <Image src="/calendar.png" alt="Calendar" width={40} height={40} className="object-contain" />
+            <Image src="/calendar.png" alt="Calendar" width={40} height={40} className="object-contain" unoptimized/>
           </button>
           {pendingSchedules.length > 0 && !isChatOpen && (
             <span className="notification-badge">
@@ -337,7 +338,7 @@ const ChatBot: React.FC = () => {
           )}
         </div>
         <button onClick={handleMascotClick} className="chatbot-button">
-          <Image src="/mascotnew.png" alt="Chatbot" width={64} height={64} className="object-contain" />
+          <Image src="/mascotnew.png" alt="Chatbot" width={64} height={64} className="object-contain" unoptimized />
         </button>
       </div>
 
@@ -495,6 +496,7 @@ const ChatBot: React.FC = () => {
               className="enlarged-image"
               width={600}
               height={900}
+              unoptimized
             />
             <button className="close-modal" onClick={closeEnlargedImage}>✖</button>
           </div>

@@ -67,7 +67,8 @@ const ViewChildBookmark: React.FC<BookmarkedContentProps> = ({
                       src={book.coverimage} 
                       alt={book.title} 
                       fill 
-                      className="object-cover rounded-md" 
+                      className="object-cover rounded-md"
+                      unoptimized
                     />
                   ) : (
                     <div className="w-full h-full bg-gray-200 flex items-center justify-center rounded-md">
