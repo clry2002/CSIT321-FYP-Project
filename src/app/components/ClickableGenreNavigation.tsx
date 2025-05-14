@@ -43,14 +43,31 @@ export default function ClickableGenreNavigation({ books, videos, activeTab }: C
         // Get current user
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
-
-        // Get blocked genres for this child
+  
+        // First get the child's user_account ID
+        const { data: userAccount, error: userAccountError } = await supabase
+          .from('user_account')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('upid', 3) // Child profiles have upid=3
+          .single();
+  
+        if (userAccountError || !userAccount) {
+          console.error('Error fetching child profile:', userAccountError);
+          return;
+        }
+  
+        const childId = userAccount.id;
+        console.log('Found child ID:', childId);
+  
+        // Get blocked genres using the correct childId
         const { data: blockedData } = await supabase
           .from('blockedgenres')
           .select('genreid')
-          .eq('child_id', user.id);
-
+          .eq('child_id', childId);
+  
         const blockedGenreIds = new Set(blockedData?.map(item => item.genreid) || []);
+        console.log('Blocked genre IDs:', Array.from(blockedGenreIds));
 
         // Fetch content-genre relationships
         const { data: contentGenres } = await supabase
@@ -145,10 +162,50 @@ export default function ClickableGenreNavigation({ books, videos, activeTab }: C
       setContentByGenre({ books: [], videos: [] });
       return;
     }
-
+  
     const fetchContentForGenre = async () => {
       setIsLoadingContent(true);
       try {
+        // Get current user to double-check if genre is blocked
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          setIsLoadingContent(false);
+          return;
+        }
+  
+        // Get the child's user_account ID
+        const { data: userAccount, error: userAccountError } = await supabase
+          .from('user_account')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('upid', 3) // Child profiles
+          .single();
+  
+        if (userAccountError || !userAccount) {
+          console.error('Error fetching child profile:', userAccountError);
+          setIsLoadingContent(false);
+          return;
+        }
+  
+        const childId = userAccount.id;
+  
+        // Check if the selected genre is blocked (safety check)
+        const { data: blockedCheck } = await supabase
+          .from('blockedgenres')
+          .select('genreid')
+          .eq('child_id', childId)
+          .eq('genreid', selectedGenre)
+          .maybeSingle();
+  
+        // If genre is blocked, reset and return
+        if (blockedCheck) {
+          console.log(`Genre ${selectedGenre} is blocked for this user`);
+          setSelectedGenre(null);
+          setContentByGenre({ books: [], videos: [] });
+          setIsLoadingContent(false);
+          return;
+        }
+  
         // Get content IDs for this genre
         const { data: contentGenres } = await supabase
           .from('temp_contentgenres')
