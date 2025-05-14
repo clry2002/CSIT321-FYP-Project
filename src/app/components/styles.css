@@ -473,7 +473,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 1000;
+  z-index: 9999;
 }
 
 /* Modal content styling */
@@ -489,11 +489,12 @@
   display: flex;
   justify-content: center;
   align-items: center;
+  z-index: 10000; 
 }
 
 /* Enlarged image styling */
 .enlarged-image {
-  width: 80%; /* 80% of the modal width */
+  width: 80%;
   height: auto;
   max-width: 600px;
   max-height: 80vh; 
@@ -501,7 +502,6 @@
   object-fit: contain; 
 }
 
-/* Close button for the modal */
 .close-modal {
   position: absolute;
   top: 10px;
@@ -509,10 +509,31 @@
   background-color: rgba(255, 0, 0, 0.7);
   color: white;
   border: none;
-  padding: 15px;
+  width: 40px;
+  height: 40px;
   font-size: 16px;
   cursor: pointer;
   border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0;
+}
+
+.chatbot-container {
+  z-index: 1000;
+}
+
+.chatbot-popup-backdrop {
+  z-index: 999;
+}
+
+.calendar-popup {
+  z-index: 1001;
+}
+
+.calendar-popup-backdrop {
+  z-index: 998;
 }
 
 /* Chatbot View Book Button*/
@@ -844,13 +865,19 @@ body .calendar-popup.visible ~ .notification-badge,
   align-items: center;
   justify-content: center;
   gap: 7px;
+  background-color: #e0d0ff;
+  border: 1px solid #c8b6e8;
+  transition: background-color 0.2s ease;
+}
+
+.audio-button:hover {
+  background-color: #d6c2ff;
 }
 
 .audio-button .description-text {
   font-size: 1rem;
   font-family: 'Fredoka One', cursive !important;
 }
-
 
 /* Favorite Genres Section */
 .favorite-genres-section {
