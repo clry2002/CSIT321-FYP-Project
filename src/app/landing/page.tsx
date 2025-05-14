@@ -131,7 +131,7 @@ export default function LandingPage() {
       {/* Header */}
       <header className="flex justify-between items-center p-4 bg-white shadow-md relative z-10">
         <div className="flex items-center">
-          <Image src="/logo2.png" alt="CoReadability Logo" width={70} height={70} className="mr-3" />
+          <Image src="/logo2.png" alt="CoReadability Logo" width={70} height={70} className="mr-3" unoptimized/>
           <h1 className="text-3xl font-bold text-purple-700">CoReadability</h1>
         </div>
         <div className="space-x-2">
@@ -165,7 +165,7 @@ export default function LandingPage() {
           <div className="flex flex-wrap justify-center gap-6">
             <Link href="/auth/signup">
               <button className="bg-blue-500 text-white font-semibold rounded-full py-3 px-6 hover:bg-blue-600 transition">
-                <Image src="/mascotnew.png" alt="Games" width={24} height={24} className="inline mr-2" />
+                <Image src="/mascotnew.png" alt="Games" width={24} height={24} className="inline mr-2" unoptimized/>
                 Explore Now
               </button>
             </Link>
@@ -185,6 +185,7 @@ export default function LandingPage() {
                         width={160}
                         height={220}
                         className="w-full h-[220px] object-cover rounded-t-lg"
+                        unoptimized
                       />
                       <div className="p-2 text-center text-sm font-semibold text-gray-800">
                         {book.title}
