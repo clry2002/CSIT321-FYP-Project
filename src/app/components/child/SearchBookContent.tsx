@@ -51,12 +51,13 @@ export default function SearchContent() {
 // Component to fetch and display search results
 function SearchResults({ query }: { query: string }) {
   const [books, setBooks] = useState<BookWithGenres[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [bookmarkedBooks, setBookmarkedBooks] = useState<Set<string>>(new Set());
   const [notification, setNotification] = useState<{ message: string; show: boolean }>({ message: '', show: false });
   const [childId, setChildId] = useState<string | null>(null);
   const [blockedGenreIds, setBlockedGenreIds] = useState<number[] | null>(null);
+  const [hasSearched, setHasSearched] = useState(false); // New state to track if search was performed
   const { toggleBookmark, recordBookView } = useInteractions();
 
   useEffect(() => {
@@ -128,16 +129,22 @@ function SearchResults({ query }: { query: string }) {
     fetchBookmarks();
   }, [childId]);
 
-  // Replace your fetchBooks function with this:
-
   useEffect(() => {
     const fetchBooks = async () => {
-      if (!query || childId === null || blockedGenreIds === null) {
+      // Only set loading state when we have a query
+      if (query) {
+        setIsLoading(true);
+        setHasSearched(false); // Reset search status
+      } else {
         setIsLoading(false);
         return;
       }
-  
-      setIsLoading(true);
+      
+      // Don't proceed if we don't have childId or blockedGenreIds yet
+      if (childId === null || blockedGenreIds === null) {
+        return; // Keep the loading state, but don't fetch yet
+      }
+      
       setError(null);
   
       try {
@@ -145,6 +152,8 @@ function SearchResults({ query }: { query: string }) {
         const { data: rawBooks, error } = await supabase.rpc('search_books', {
           searchquery: query
         });
+  
+        setHasSearched(true); // Mark that a search has completed
   
         if (error) {
           console.error('Error from search_books function', error);
@@ -294,33 +303,46 @@ function SearchResults({ query }: { query: string }) {
         </div>
       )}
 
-      {isLoading ? (
+      {!query ? (
+        // No query entered yet
+        <div className="text-center py-8 text-gray-400">Enter a search term to find books</div>
+      ) : isLoading || (query && !hasSearched) ? (
+        // Show loading when explicitly loading OR when we have a query but haven't completed search
         <div className="text-center py-8">Loading books...</div>
       ) : error ? (
+        // Show error if there is one
         <div className="text-center py-8 text-red-500">{error}</div>
       ) : books.length > 0 ? (
+        // Show books if we have results
         <div className="space-y-4">
           {books.map((book) => (
             <div key={book.cid} className="flex items-start space-x-4 p-4 bg-white/20 backdrop-blur-md rounded-lg shadow-lg">
               <div className="flex-shrink-0 w-24 h-36 relative">
-                {book.coverimage && book.coverimage.trim() !== "" ? (
-                  <Image
-                    src={
-                      book.coverimage.includes('http')
-                        ? book.coverimage
-                        : `https://bexeexbozsosdtatunld.supabase.co/storage/v1/object/public/book-covers/${book.coverimage}`
-                    }
-                    alt={book.title}
-                    width={96}
-                    height={144}
-                    className="w-full h-full object-contain rounded-md shadow-sm"
-                    unoptimized
-                  />
-                ) : (
-                  <div className="w-full h-full bg-gray-200 rounded-md flex items-center justify-center">
-                    <span className="text-gray-400 text-sm">No cover</span>
-                  </div>
-                )}
+                <a 
+                  href={`/bookdetail/${book.cid}`}
+                  onClick={() => handleBookClick(book.cid)}
+                  className="block w-full h-full cursor-pointer transition-transform hover:scale-105"
+                  aria-label={`View details for ${book.title}`}
+                >
+                  {book.coverimage && book.coverimage.trim() !== "" ? (
+                    <Image
+                      src={
+                        book.coverimage.includes('http')
+                          ? book.coverimage
+                          : `https://bexeexbozsosdtatunld.supabase.co/storage/v1/object/public/book-covers/${book.coverimage}`
+                      }
+                      alt={book.title}
+                      width={96}
+                      height={144}
+                      className="w-full h-full object-contain rounded-md shadow-sm"
+                      unoptimized
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gray-200 rounded-md flex items-center justify-center">
+                      <span className="text-gray-400 text-sm">No cover</span>
+                    </div>
+                  )}
+                </a>
               </div>
 
               <div className="flex-grow">
@@ -355,7 +377,8 @@ function SearchResults({ query }: { query: string }) {
           ))}
         </div>
       ) : (
-        <div className="text-center py-8">{error || 'No results found'}</div>
+        // No results after search completed
+        <div className="text-center py-8">No results found for &quot;{query}&quot;</div>
       )}
     </>
   );
