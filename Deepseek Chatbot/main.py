@@ -232,16 +232,25 @@ def get_content_by_genre_and_format(question, uaid_child):
         normalized_question = re.sub(r'[^\w\s]', '', question).strip().lower()
         detected_genre = next((genre for genre in genres if genre in normalized_question), None)
 
-        # Improved format detection - check for any format keyword in the normalized question
+        # Improved format detection for mixed content requests
         detected_format = None
         cfid = None
-        for keyword, format_id in format_keywords.items():
-            if keyword in normalized_question:
-                detected_format = keyword
-                cfid = format_id
-                # If we specifically find "book" or "video" words, prioritize them
-                if keyword in ["book", "books", "video", "videos"]:
-                    break
+        has_book_keyword = any(keyword in normalized_question for keyword in ["book", "books", "read", "story", "stories"])
+        has_video_keyword = any(keyword in normalized_question for keyword in ["video", "videos", "watch", "movie", "movies"])
+
+        # If both types are mentioned, don't set a specific format
+        if has_book_keyword and has_video_keyword:
+            detected_format = "both"
+            cfid = None  # No specific format ID when requesting both
+        else:
+            # Original single format detection logic
+            for keyword, format_id in format_keywords.items():
+                if keyword in normalized_question:
+                    detected_format = keyword
+                    cfid = format_id
+                    # If we specifically find "book" or "video" words, prioritize them
+                    if keyword in ["book", "books", "video", "videos"]:
+                        break
                 
         logging.info(f"[{request_id}] Detected genre: {detected_genre}, format: {detected_format}, cfid: {cfid}")
 
@@ -286,8 +295,8 @@ def get_content_by_genre_and_format(question, uaid_child):
             query = query.eq("temp_content.cfid", cfid)
             logging.info(f"[{request_id}] Added format filter: cfid={cfid}")
         else:
-            # Log when no format filter is applied
-            logging.info(f"[{request_id}] No format filter applied to query")
+            # Log when no format filter is applied, either because none was detected or "both" was requested
+            logging.info(f"[{request_id}] No format filter applied - including all content types")
 
         # Execute the query and log results
         response = query.execute()
@@ -403,37 +412,42 @@ def chat():
     child_age = get_child_age(uaid_child)
     
         # Process this BEFORE any other logic
-    if "recommend" in normalized_question and any(word in normalized_question for word in ["book", "books", "stories", "story"]):
-        # Get all available genres
-        genres_query = supabase.from_("temp_genre").select("genrename").execute()
-        if genres_query.data:
-            genres = [genre["genrename"].lower() for genre in genres_query.data]
+    genres_query = supabase.from_("temp_genre").select("genrename").execute()
+    if genres_query.data:
+        genres = [genre["genrename"].lower() for genre in genres_query.data]
+        
+        # Check if any genre is mentioned
+        detected_genre = None
+        for genre in genres:
+            if genre.lower() in normalized_question:
+                detected_genre = genre
+                logging.info(f"HIGH PRIORITY: Detected genre request for '{detected_genre}'")
+                break
+        
+        if detected_genre:
+            # Try the simple content retrieval first - highest chance of success
+            content_response = get_content_by_genre_and_format(question, uaid_child)
             
-            # Check if any genre is mentioned
-            book_genre = None
-            for genre in genres:
-                if genre.lower() in normalized_question:
-                    book_genre = genre
-                    logging.info(f"HIGH PRIORITY: Detected book recommendation for genre '{book_genre}'")
-                    break
-            
-            if book_genre:
-                # Try the simple content retrieval first - highest chance of success
-                content_response = get_content_by_genre_and_format(question, uaid_child)
+            # If we found database content, return it immediately
+            if content_response and "genre" in content_response and "error" not in content_response:
+                # Store genre in context without forcing content type
+                conversation_manager.update_context(uaid_child, 'genre', detected_genre)
                 
-                # If we found database content, return it immediately
-                if content_response and "genre" in content_response and "error" not in content_response:
-                    # Store content type in context
-                    conversation_manager.update_context(uaid_child, 'content_type', "books")
-                    conversation_manager.update_context(uaid_child, 'genre', book_genre)
-                    
-                    # Save and return the response
-                    save_chat_to_database(
-                        context=f"Found {book_genre} books content", 
-                        is_chatbot=True, 
-                        uaid_child=uaid_child
-                    )
-                    return jsonify(content_response)
+                # Save and return the response - note the improved message
+                content_types = []
+                if content_response.get("books"):
+                    content_types.append("books")
+                if content_response.get("videos"):
+                    content_types.append("videos")
+                
+                content_type_message = " and ".join(content_types) if content_types else "content"
+                
+                save_chat_to_database(
+                    context=f"Found {detected_genre} {content_type_message}", 
+                    is_chatbot=True, 
+                    uaid_child=uaid_child
+                )
+                return jsonify(content_response)
     
     # Get recent conversation history
     recent_history = get_recent_conversation_history(uaid_child, supabase, limit=5)

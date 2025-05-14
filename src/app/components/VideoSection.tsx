@@ -17,8 +17,7 @@ const VideoSection = ({
 }: VideoSectionProps) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   
-  // Calculate how many videos to show per page based on screen size
-  const videosPerPage = 4; // This can be adjusted based on your layout
+  const videosPerPage = 4;
   
   // Handle navigation
   const navigateLeft = () => {
