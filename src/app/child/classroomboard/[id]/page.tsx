@@ -31,7 +31,7 @@ export default function ClassroomBoardPage() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [userAccountId, setUserAccountId] = useState<string | null>(null); 
+  const [, setUserAccountId] = useState<string | null>(null); 
   const [hasAccess, setHasAccess] = useState<boolean | null>(null);
   const [activeTab, setActiveTab] = useState<'book' | 'video'>('book');
   const { id } = useParams(); 
@@ -300,26 +300,6 @@ export default function ClassroomBoardPage() {
             className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
             Go Back
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // Check if user is authenticated
-  if (!userAccountId) {
-    return (
-      <div className="flex flex-col h-screen bg-yellow-100">
-        <Navbar />
-        <div className="flex justify-center items-center h-full">
-          <div className="text-2xl text-yellow-600">You must be logged in to view this classroom.</div>
-        </div>
-        <div className="flex justify-center mt-4">
-          <button
-            onClick={() => router.push('/login')}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            Go to Login
           </button>
         </div>
       </div>
