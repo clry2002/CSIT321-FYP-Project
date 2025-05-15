@@ -49,11 +49,11 @@ export default function Navbar() {
       </Link>
 
       <Link
-        href="/search"
+        href="/child/search"
         className={`group flex flex-col items-center px-1 py-1 rounded-md transition-transform duration-200 hover:scale-105 ${
-          activeLink === '/search' ? 'bg-green-100 text-green-700' : 'hover:bg-green-50 text-gray-700'
+          activeLink === '/child/search' ? 'bg-green-100 text-green-700' : 'hover:bg-green-50 text-gray-700'
         }`}
-        onClick={() => handleLinkClick('/search')}
+        onClick={() => handleLinkClick('/child/search')}
       >
         <Image
           src={exploreIcon}
@@ -61,11 +61,11 @@ export default function Navbar() {
           width={28}
           height={28}
           className={`mb-0.5 transition-colors duration-300 ${
-            activeLink === '/search' ? 'hover:filter brightness-110 saturate-120 animate-pulse' : 'hover:filter brightness-110 saturate-120'
+            activeLink === '/child/search' ? 'hover:filter brightness-110 saturate-120 animate-pulse' : 'hover:filter brightness-110 saturate-120'
           }`}
           unoptimized
         />
-        <b className={`text-xs transition-colors duration-200 ${activeLink === '/search' ? 'text-green-700 animate-pulse' : 'text-white group-hover:text-green-600'}`}>Search</b>
+        <b className={`text-xs transition-colors duration-200 ${activeLink === '/child/search' ? 'text-green-700 animate-pulse' : 'text-white group-hover:text-green-600'}`}>Search</b>
       </Link>
 
       <Link

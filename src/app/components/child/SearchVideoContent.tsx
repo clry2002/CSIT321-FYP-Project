@@ -39,7 +39,7 @@ export default function SearchVideoContent() {
 
   const handleSearch = (searchQuery: string, type: 'books' | 'videos') => {
     if (!searchQuery.trim()) return;
-    const path = type === 'books' ? '/searchbooks' : '/searchvideos';
+    const path = type === 'books' ? '/child/searchbooks' : '/child/searchvideos';
     router.push(`${path}?q=${encodeURIComponent(searchQuery.trim())}`);
   };
 
@@ -394,7 +394,7 @@ useEffect(() => {
                     </div>
                     <div className="p-4 relative">
                       <Link 
-                        href={`/videodetail/${video.cid}`}
+                        href={`/child/videodetail/${video.cid}`}
                         onClick={() => handleVideoClick(video.cid)}
                       >
                         <h3 className="font-medium text-lg text-white cursor-pointer pr-12" style={{ fontFamily: 'Quicksand, Nunito, Arial Rounded MT Bold, Arial, sans-serif' }}>{video.title}</h3>

@@ -1,10 +1,11 @@
 'use client';
 
+import React from 'react';
 import { useState, useEffect } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
-import Navbar from '../../components/Navbar';
-import ChatBot from '../../components/ChatBot';
+import Navbar from '@/app/components/Navbar';
+import ChatBot from '@/app/components/ChatBot';
 import { supabase } from '@/lib/supabase';
 import type { Book } from '@/types/database.types';
 import { format } from 'date-fns';

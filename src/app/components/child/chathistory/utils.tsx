@@ -80,7 +80,7 @@ export const getVideoId = (contentUrl: string | null): string | null => {
 export const handleViewDetails = (book: Book, router: ReturnType<typeof useRouter>) => {
   if (book.cid !== undefined) {
     const bookId = typeof book.cid === 'string' ? parseInt(book.cid, 10) : book.cid;
-    router.push(`/bookdetail/${bookId}`);
+    router.push(`/child/bookdetail/${bookId}`);
   } else {
     handleSearch(book.title, 'books', router);
   }
@@ -92,7 +92,7 @@ export const handleWatchVideo = (video: Video, router: ReturnType<typeof useRout
   if (video.cid !== undefined && video.cid !== null) {
     const videoId = typeof video.cid === 'string' ? parseInt(video.cid, 10) : video.cid;
     if (!isNaN(videoId)) {
-      router.push(`/videodetail/${videoId}`);
+      router.push(`/child/videodetail/${videoId}`);
       return;
     }
   }
@@ -102,7 +102,7 @@ export const handleWatchVideo = (video: Video, router: ReturnType<typeof useRout
 
 export const handleSearch = (query: string, type: 'books' | 'videos', router: ReturnType<typeof useRouter>) => {
   if (!query.trim()) return;
-  const path = type === 'books' ? '/searchbooks' : '/searchvideos';
+  const path = type === 'books' ? '/child/searchbooks' : '/child/searchvideos';
   router.push(`${path}?q=${encodeURIComponent(query.trim())}`);
 };
 

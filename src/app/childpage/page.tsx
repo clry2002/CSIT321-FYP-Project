@@ -18,6 +18,7 @@ import { getTrendingBooks, getPopularBooks } from '@/services/trendingPopularSer
 import { useScreenTime } from '@/hooks/useScreenTime';
 import { useRouter } from 'next/navigation';
 import VideoSection from '@/app/components/VideoSection';
+import Link from 'next/link';
 
 export default function ChildPage() {
   // Use refs to maintain stable references
@@ -476,12 +477,9 @@ export default function ChildPage() {
 
           {/* Single "Explore more books" link */}
           <div className="mt-2 mb-16 text-right">
-            <a
-              href="/search"
-              className="text-blue-600 hover:underline text-sm font-medium"
-            >
-              Explore more books →
-            </a>
+            <Link href="/child/search" className="text-blue-600 hover:underline text-sm font-medium">
+              Search Books
+            </Link>
           </div>
 
           {/* Video Sections */}
@@ -509,12 +507,9 @@ export default function ChildPage() {
             
             {/* Explore More Videos */}
             <div className="mt-2 text-right">
-              <a
-                href="/searchvideos"
-                className="text-blue-600 hover:underline text-sm font-medium"
-              >
-                Explore more videos →
-              </a>
+              <Link href="/child/searchvideos" className="text-blue-600 hover:underline text-sm font-medium">
+                Search Videos
+              </Link>
             </div>
           </div>
 

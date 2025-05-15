@@ -31,9 +31,9 @@ export default function SearchPage() {
     
     const encodedQuery = encodeURIComponent(searchQuery.trim());
     if (type === 'books') {
-      router.push(`/searchbooks?q=${encodedQuery}`);
+      router.push(`/child/searchbooks?q=${encodedQuery}`);
     } else {
-      router.push(`/searchvideos?q=${encodedQuery}`);
+      router.push(`/child/searchvideos?q=${encodedQuery}`);
     }
   };
 

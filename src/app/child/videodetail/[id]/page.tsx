@@ -1,11 +1,12 @@
 'use client';
 
+import React from 'react';
 import { useState, useEffect } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import Navbar from '../../components/Navbar';
+import Navbar from '@/app/components/Navbar';
 import { supabase } from '@/lib/supabase';
 import type { Video } from '@/types/database.types';
-import ChatBot from '../../components/ChatBot';
+import ChatBot from '@/app/components/ChatBot';
 
 interface GenreData {
   temp_genre: {
