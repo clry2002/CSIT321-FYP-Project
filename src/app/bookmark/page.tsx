@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Navbar from '../components/Navbar';
+import Navbar from '@/app/components/Navbar';
 import { supabase } from '@/lib/supabase';
 import Image from 'next/image';
 import type { Book as BaseBook, Video as BaseVideo } from '@/types/database.types';

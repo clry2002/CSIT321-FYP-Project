@@ -41,7 +41,7 @@ export default function BookDetailComponent({ id }: { id: string }) {
   }, [id]);
 
   const handleBack = () => {
-    router.push('/childpage'); // Navigate directly to childpage
+    router.push('/child/childpage'); // Navigate directly to childpage
   };
 
   const handleViewBook = () => {

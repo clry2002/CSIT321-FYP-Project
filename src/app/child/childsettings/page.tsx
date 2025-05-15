@@ -1,9 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import Navbar from '../components/Navbar';
+import Navbar from '@/app/components/Navbar';
 import { User, MessageSquare, Settings } from 'lucide-react';
-import ChatBot from "../components/ChatBot";
+import ChatBot from "@/app/components/ChatBot";
 
 export default function SettingsPage() {
   return (
@@ -16,7 +16,7 @@ export default function SettingsPage() {
       {/* Main Content (Directly containing buttons) */}
       <div className="flex flex-col items-center pt-20 px-6 space-y-6 m-4">
         <h2 className="text-3xl font-bold text-center text-yellow-400 mb-8"><span role="img" aria-label="gear">⚙️</span>Settings</h2>
-        <Link href="/childviewprofile" className="block max-w-md w-full">
+        <Link href="/child/childviewprofile" className="block max-w-md w-full">
           <div className="p-6 bg-gradient-to-r from-purple-900 to-indigo-900 rounded-xl shadow-md hover:shadow-xl transition duration-200 group flex items-center space-x-4">
             <div className="p-2 rounded-md bg-indigo-800 transition-transform duration-200 group-hover:scale-110">
               <User className="w-8 h-8 text-indigo-400" />
@@ -28,7 +28,7 @@ export default function SettingsPage() {
           </div>
         </Link>
 
-        <Link href="/childaccountsettings" className="block max-w-md w-full">
+        <Link href="/child/childaccountsettings" className="block max-w-md w-full">
           <div className="p-6 bg-gradient-to-r from-blue-900 to-cyan-900 rounded-xl shadow-md hover:shadow-xl transition duration-200 group flex items-center space-x-4">
             <div className="p-2 rounded-md bg-cyan-800 transition-transform duration-200 group-hover:scale-110">
               <Settings className="w-8 h-8 text-cyan-400" />

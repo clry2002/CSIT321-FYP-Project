@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { RefreshCw, Settings, LogOut, PlusCircle, User, Clock, Shield, Edit, Trash2 } from 'lucide-react';
-import { deleteChildAccount } from '../components/parent/ChildDeletion'
+import { deleteChildAccount } from '@/app/components/parent/ChildDeletion';
 
 interface Child {
   id: string;

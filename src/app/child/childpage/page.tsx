@@ -1,23 +1,23 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import Navbar from '../components/Navbar';
-import BookCard from '../components/BookCard';
-import ChatBot from '../components/ChatBot';
-import ScreenTimeIndicator from '../components/child/ScreenTimeIndicator';
-import TimeLimitModal from '../components/child/TimeLimitModal';
-import { useBooks } from '../../hooks/useBooks';
-import { useVideos } from '../../hooks/useVideos';
+import Navbar from '@/app/components/Navbar';
+import BookCard from '@/app/components/BookCard';
+import ChatBot from '@/app/components/ChatBot';
+import ScreenTimeIndicator from '@/app/components/child/ScreenTimeIndicator';
+import TimeLimitModal from '@/app/components/child/TimeLimitModal';
+import { useBooks } from '@/hooks/useBooks';
+import { useVideos } from '@/hooks/useVideos';
 import { supabase } from '@/lib/supabase';
-import { Book } from '../../types/database.types';
-import ScoreDebugger from '../components/ScoreDebugger';
-import { useInteractions } from '../../hooks/useInteractions';
-import { debugUserInteractions } from '../../services/userInteractionsService';
-import { getRecommendedBooks } from '../../services/recommendationService';
-import { getTrendingBooks, getPopularBooks } from '../../services/trendingPopularService';
-import { useScreenTime } from '../../hooks/useScreenTime';
+import { Book } from '@/types/database.types';
+import ScoreDebugger from '@/app/components/ScoreDebugger';
+import { useInteractions } from '@/hooks/useInteractions';
+import { debugUserInteractions } from '@/services/userInteractionsService';
+import { getRecommendedBooks } from '@/services/recommendationService';
+import { getTrendingBooks, getPopularBooks } from '@/services/trendingPopularService';
+import { useScreenTime } from '@/hooks/useScreenTime';
 import { useRouter } from 'next/navigation';
-import VideoSection from '../components/VideoSection';
+import VideoSection from '@/app/components/VideoSection';
 
 export default function ChildPage() {
   // Use refs to maintain stable references
@@ -93,7 +93,7 @@ export default function ChildPage() {
 
   // Combine genre component display with recommended books
   const recommendedBooksWithGenre = recommendedBooks.map((book) => {
-    const matchingBook = availableBooks.find((b) => b.cid === book.cid);
+    const matchingBook = availableBooks.find((b: Book) => b.cid === book.cid);
     return {
       ...book,
       genre: matchingBook?.genre || [],
@@ -102,7 +102,7 @@ export default function ChildPage() {
   
   // Combine genre for trending books
   const trendingBooksWithGenre = trendingBooks.map((book) => {
-    const matchingBook = availableBooks.find((b) => b.cid === book.cid);
+    const matchingBook = availableBooks.find((b: Book) => b.cid === book.cid);
     return {
       ...book,
       genre: matchingBook?.genre || [],
@@ -111,7 +111,7 @@ export default function ChildPage() {
   
   // Combine genre for popular books
   const popularBooksWithGenre = popularBooks.map((book) => {
-    const matchingBook = availableBooks.find((b) => b.cid === book.cid);
+    const matchingBook = availableBooks.find((b: Book) => b.cid === book.cid);
     return {
       ...book,
       genre: matchingBook?.genre || [],

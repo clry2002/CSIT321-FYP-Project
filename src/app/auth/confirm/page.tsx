@@ -47,7 +47,7 @@ function ConfirmPageContent() {
         if (!profile) {
           router.push('/setup');
         } else {
-          router.push('/childpage');
+          router.push('/child/childpage');
         }
       } catch (err) {
         console.error('Error verifying email:', err);

@@ -1,13 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import Navbar from '../components/Navbar';
+import Navbar from '@/app/components/Navbar';
 import { useRouter } from 'next/navigation';
-import ChatBot from "../components/ChatBot";
-import ClickableGenreNavigation from '../components/ClickableGenreNavigation';
-import { useBooks } from '../../hooks/useBooks';
-import { useAllVideos } from '../../hooks/useAllVideos';
-import { Video } from "../../types/database.types";
+import ChatBot from "@/app/components/ChatBot";
+import ClickableGenreNavigation from '@/app/components/ClickableGenreNavigation';
+import { useBooks } from '@/hooks/useBooks';
+import { useAllVideos } from '@/hooks/useAllVideos';
+import { Video } from "@/types/database.types";
 
 export default function SearchPage() {
   const [searchQuery, setSearchQuery] = useState('');

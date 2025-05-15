@@ -2,9 +2,9 @@
 
 import { Suspense } from 'react';
 import { useRouter } from 'next/navigation';
-import Navbar from '../components/Navbar';
-import ChatBot from '../components/ChatBot';
-import SearchVideoContent from '../components/child/SearchVideoContent';
+import Navbar from '@/app/components/Navbar';
+import ChatBot from '@/app/components/ChatBot';
+import SearchVideoContent from '@/app/components/child/SearchVideoContent';
 
 export default function SearchVideosPage() {
   const router = useRouter();

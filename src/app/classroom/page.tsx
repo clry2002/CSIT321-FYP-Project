@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import Navbar from '../components/Navbar';
-import ChatBot from '../components/ChatBot';
+import Navbar from '@/app/components/Navbar';
+import ChatBot from '@/app/components/ChatBot';
 import { useRouter } from 'next/navigation';
 
 type Classroom = {

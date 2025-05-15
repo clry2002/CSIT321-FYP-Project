@@ -200,7 +200,7 @@ export default function LoginPage() {
             childDetailsArray[0].favourite_genres.length > 0) {
             console.log("Syncing favorite genres on login");
             await syncFavoriteGenres(userData.id.toString());
-            router.push('/childpage');
+            router.push('/child/childpage');
           } else {
             if (!childDetailsArray || childDetailsArray.length === 0) {
               console.log("Creating new child_details record");

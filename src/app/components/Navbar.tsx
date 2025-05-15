@@ -29,11 +29,11 @@ export default function Navbar() {
       style={{ minWidth: 'fit-content', boxShadow: '0 2px 12px 0 rgba(0,0,0,0.04)' }}
     >
       <Link
-        href="/childpage"
+        href="/child/childpage"
         className={`group flex flex-col items-center px-1 py-1 rounded-md transition-transform duration-200 hover:scale-105 ${
-          activeLink === '/childpage' ? 'bg-blue-100 text-blue-700' : 'hover:bg-blue-50 text-gray-700'
+          activeLink === '/child/childpage' ? 'bg-blue-100 text-blue-700' : 'hover:bg-blue-50 text-gray-700'
         }`}
-        onClick={() => handleLinkClick('/childpage')}
+        onClick={() => handleLinkClick('/child/childpage')}
       >
         <Image
           src={homeIcon}
@@ -41,11 +41,11 @@ export default function Navbar() {
           width={28}
           height={28}
           className={`mb-0.5 transition-colors duration-300 ${
-            activeLink === '/childpage' ? 'animate-bounce' : 'hover:filter brightness-110 saturate-120'
+            activeLink === '/child/childpage' ? 'animate-bounce' : 'hover:filter brightness-110 saturate-120'
           }`}
           unoptimized
         />
-        <b className={`text-xs transition-colors duration-200 ${activeLink === '/childpage' ? 'text-blue-700' : 'text-white group-hover:text-blue-600'}`}>Home</b>
+        <b className={`text-xs transition-colors duration-200 ${activeLink === '/child/childpage' ? 'text-blue-700' : 'text-white group-hover:text-blue-600'}`}>Home</b>
       </Link>
 
       <Link
@@ -109,11 +109,11 @@ export default function Navbar() {
       </Link>
 
       <Link
-        href="/childsettings"
+        href="/child/childsettings"
         className={`group flex flex-col items-center px-1 py-1 rounded-md transition-transform duration-200 hover:scale-105 ${
-          activeLink === '/childsettings' ? 'bg-orange-100 text-orange-700' : 'hover:bg-orange-50 text-gray-700'
+          activeLink === '/child/childsettings' ? 'bg-orange-100 text-orange-700' : 'hover:bg-orange-50 text-gray-700'
         }`}
-        onClick={() => handleLinkClick('/childsettings')}
+        onClick={() => handleLinkClick('/child/childsettings')}
       >
         <Image
           src={settingsIcon}
@@ -121,11 +121,11 @@ export default function Navbar() {
           width={28}
           height={28}
           className={`mb-0.5 transition-colors duration-300 ${
-            activeLink === '/childsettings' ? 'hover:filter brightness-110 saturate-120 animate-pulse' : 'hover:filter brightness-110 saturate-120'
+            activeLink === '/child/childsettings' ? 'hover:filter brightness-110 saturate-120 animate-pulse' : 'hover:filter brightness-110 saturate-120'
           }`}
           unoptimized
         />
-        <b className={`text-xs transition-colors duration-200 ${activeLink === '/childsettings' ? 'text-orange-700 animate-pulse' : 'text-white group-hover:text-orange-600'}`}>Settings</b>
+        <b className={`text-xs transition-colors duration-200 ${activeLink === '/child/childsettings' ? 'text-orange-700 animate-pulse' : 'text-white group-hover:text-orange-600'}`}>Settings</b>
       </Link>
 
       {/* Logout link */}

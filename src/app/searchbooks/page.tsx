@@ -2,9 +2,9 @@
 
 import { Suspense } from 'react';
 import { useRouter } from 'next/navigation';
-import Navbar from '../components/Navbar';
-import ChatBot from '../components/ChatBot';
-import SearchContent from '../components/child/SearchBookContent';
+import Navbar from '@/app/components/Navbar';
+import ChatBot from '@/app/components/ChatBot';
+import SearchContent from '@/app/components/child/SearchBookContent';
 
 export default function SearchBooksPage() {
   const router = useRouter();

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Navbar from '../components/Navbar';
+import Navbar from '@/app/components/Navbar';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
@@ -121,7 +121,7 @@ export default function AccountSettings() {
   };
 
   const handleBackToSettings = () => {
-    router.push('/childsettings');
+    router.push('/child/childsettings');
   };
 
   if (loading) {

@@ -2,11 +2,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Navbar from '../components/Navbar';
+import Navbar from '@/app/components/Navbar';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
-import { syncFavoriteGenres } from '../../services/userInteractionsService';
+import { syncFavoriteGenres } from '@/services/userInteractionsService';
 
 function ErrorBoundary({ children }: { children: React.ReactNode }) {
   const [hasError, setHasError] = useState(false);
@@ -489,7 +489,7 @@ export default function ChildViewProfile() {
         <Navbar />
         <div className="flex-1 overflow-y-auto pt-12 pb-8 px-6 sm:px-8 lg:px-16">
           <Link
-            href="/childsettings"
+            href="/child/childsettings"
             className="inline-flex items-center text-sm font-semibold text-yellow-400 hover:text-indigo-600 transition-colors duration-200 mb-6 mt-12"
           >
             <svg className="w-4 h-4 mr-1 -ml-0.5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
