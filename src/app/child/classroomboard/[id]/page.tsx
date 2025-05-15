@@ -268,7 +268,7 @@ export default function ClassroomBoardPage() {
   };
 
   const handleBack = () => {
-    router.back();
+    router.push('/child/classroom');
   };
 
   // Display loading state when page is loading
