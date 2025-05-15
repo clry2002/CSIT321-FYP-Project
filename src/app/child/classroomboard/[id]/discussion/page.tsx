@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import Navbar from '../../../components/Navbar';
+import Navbar from '@/app/components/Navbar';
 import { ArrowLeft } from 'lucide-react';
 
 type DiscussionEntry = {
@@ -274,7 +274,7 @@ export default function DiscussionBoardPage() {
   };
 
   const handleBackToClassroom = () => {
-    router.push(`/classroomboard/${id}`);
+    router.push(`/child/classroomboard/${id}`);
   };
 
   if (loading) {
@@ -425,4 +425,4 @@ export default function DiscussionBoardPage() {
       </div>
     </main>
   );
-}
+} 

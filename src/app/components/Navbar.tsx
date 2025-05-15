@@ -89,11 +89,11 @@ export default function Navbar() {
       </Link>
 
       <Link
-        href="/classroom"
+        href="/child/classroom"
         className={`group flex flex-col items-center px-1 py-1 rounded-md transition-transform duration-200 hover:scale-105 ${
-          activeLink === '/classroom' ? 'bg-purple-100 text-purple-700' : 'hover:bg-purple-50 text-gray-700'
+          activeLink === '/child/classroom' ? 'bg-purple-100 text-purple-700' : 'hover:bg-purple-50 text-gray-700'
         }`}
-        onClick={() => handleLinkClick('/classroom')}
+        onClick={() => handleLinkClick('/child/classroom')}
       >
         <Image
           src={classroomIcon}
@@ -101,11 +101,11 @@ export default function Navbar() {
           width={28}
           height={28}
           className={`mb-0.5 transition-colors duration-300 ${
-            activeLink === '/classroom' ? 'hover:filter brightness-110 saturate-120 animate-pulse' : 'hover:filter brightness-110 saturate-120'
+            activeLink === '/child/classroom' ? 'hover:filter brightness-110 saturate-120 animate-pulse' : 'hover:filter brightness-110 saturate-120'
           }`}
           unoptimized
         />
-        <b className={`text-xs transition-colors duration-200 ${activeLink === '/classroom' ? 'text-purple-700 animate-pulse' : 'text-white group-hover:text-purple-600'}`}>Classroom</b>
+        <b className={`text-xs transition-colors duration-200 ${activeLink === '/child/classroom' ? 'text-purple-700 animate-pulse' : 'text-white group-hover:text-purple-600'}`}>Classroom</b>
       </Link>
 
       <Link

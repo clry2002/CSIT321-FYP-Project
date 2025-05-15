@@ -190,7 +190,7 @@ export default function ClassroomPage() {
   };
 
   const handleClassroomClick = (crid: number) => {
-    router.push(`/classroomboard/${crid}`);
+    router.push(`/child/classroomboard/${crid}`);
   };
 
   // Custom loading spinner component
