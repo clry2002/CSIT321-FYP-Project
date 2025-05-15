@@ -40,7 +40,7 @@ export default function SettingsPage() {
           </div>
         </Link>
 
-        <Link href="/chathistory" className="block max-w-md w-full">
+        <Link href="/child/chathistory" className="block max-w-md w-full">
           <div className="p-6 bg-gradient-to-r from-yellow-900 to-orange-900 rounded-xl shadow-md hover:shadow-xl transition duration-200 group flex items-center space-x-4">
             <div className="p-2 rounded-md bg-orange-800 transition-transform duration-200 group-hover:scale-110">
               <MessageSquare className="w-8 h-8 text-orange-400" />
