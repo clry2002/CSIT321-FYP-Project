@@ -567,7 +567,7 @@ def getRecommendedBooks(uaid_child):
             .from_("userInteractions")
             .select("gid, score")
             .eq("uaid", uaid_child)
-            .order("score.desc") 
+            .order("score", desc=True) 
             .limit(5)
         ).execute()
         
@@ -647,7 +647,7 @@ def getTrendingBooks(uaid_child):
             .eq("status", CONTENT_STATUS["APPROVED"])
             .gte("decisiondate", seven_days_ago)
             .lte("minimumage", child_age)
-            .order("viewCount.desc")
+            .order("viewCount", desc=True)
             .limit(20)
         ).execute()
         
@@ -660,7 +660,7 @@ def getTrendingBooks(uaid_child):
                 .eq("cfid", 2)  # Books only
                 .eq("status", CONTENT_STATUS["APPROVED"])
                 .lte("minimumage", child_age)
-                .order("decisiondate.desc")
+                .order("decisiondate", desc=True)
                 .limit(20)
             ).execute()
             return filter_blocked_genres(recent.data, uaid_child)
@@ -685,7 +685,7 @@ def getPopularBooks(uaid_child):
             .eq("cfid", 2)
             .eq("status", CONTENT_STATUS["APPROVED"])
             .lte("minimumage", child_age)
-            .order("viewCount.desc")
+            .order("viewCount", desc=True)
             .limit(20)
         ).execute()
         
@@ -710,7 +710,7 @@ def getRecommendedVideos(uaid_child):
             .from_("userInteractions")
             .select("gid, score")
             .eq("uaid", uaid_child)
-            .order("score.desc") 
+            .order("score", desc=True) 
             .limit(5)
         ).execute()
         
@@ -790,7 +790,7 @@ def getTrendingVideos(uaid_child):
             .eq("status", CONTENT_STATUS["APPROVED"])
             .gte("decisiondate", thirty_days_ago)
             .lte("minimumage", child_age)
-            .order("viewCount.desc")
+            .order("viewCount", desc=True)
             .limit(20)
         ).execute()
         
@@ -817,7 +817,7 @@ def getPopularVideos(uaid_child):
             .eq("cfid", 1)  # Videos only
             .eq("status", CONTENT_STATUS["APPROVED"])
             .lte("minimumage", child_age)
-            .order("viewCount.desc") 
+            .order("viewCount", desc=True) 
             .limit(20)
         ).execute()
         
