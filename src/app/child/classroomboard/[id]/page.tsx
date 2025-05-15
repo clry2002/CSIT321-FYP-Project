@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase'; 
-import Navbar from '../../components/Navbar'; 
+import Navbar from '@/app/components/Navbar'; 
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Clock, Video as VideoIcon, Book } from 'lucide-react';
@@ -226,9 +226,9 @@ export default function ClassroomBoardPage() {
 
   const handleRedirectToDetail = (cid: number, contentType: 'book' | 'video', videoId?: number) => {
     if (contentType === 'video') {
-      router.push(`/videodetail/${videoId || cid}`);
+      router.push(`/child/videodetail/${videoId || cid}`);
     } else {
-      router.push(`/bookdetail/${cid}`);
+      router.push(`/child/bookdetail/${cid}`);
     }
   };
 
@@ -292,7 +292,7 @@ export default function ClassroomBoardPage() {
         </div>
         <div className="flex justify-center mt-4">
           <button
-            onClick={() => router.push('/classroom')}
+            onClick={() => router.push('/child/classroom')}
             className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
             Go Back
@@ -332,7 +332,7 @@ export default function ClassroomBoardPage() {
         </div>
         <div className="flex justify-center mt-4">
           <button
-            onClick={() => router.push('/classroom')}
+            onClick={() => router.push('/child/classroom')}
             className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
             Go Back
@@ -352,7 +352,7 @@ export default function ClassroomBoardPage() {
         </div>
         <div className="flex justify-center mt-4">
           <button
-            onClick={() => router.push('/classroom')}
+            onClick={() => router.push('/child/classroom')}
             className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
             Go Back
@@ -400,7 +400,7 @@ export default function ClassroomBoardPage() {
           <div className="mt-10 text-center">
             <h4 className="text-xl font-semibold text-gray-700 mb-4">Want to discuss with your classmates?</h4>
             <button
-              onClick={() => router.push(`/classroomboard/${id}/discussion`)}
+              onClick={() => router.push(`/child/classroomboard/${id}/discussion`)}
               className="px-6 py-3 bg-purple-600 text-white rounded-xl text-lg hover:bg-purple-700 transition duration-200"
             >
               View Discussion Board 💬
@@ -531,4 +531,4 @@ export default function ClassroomBoardPage() {
       </div>
     </div>
   );
-}
+} 

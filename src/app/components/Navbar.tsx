@@ -29,11 +29,11 @@ export default function Navbar() {
       style={{ minWidth: 'fit-content', boxShadow: '0 2px 12px 0 rgba(0,0,0,0.04)' }}
     >
       <Link
-        href="/child/childpage"
+        href="/childpage"
         className={`group flex flex-col items-center px-1 py-1 rounded-md transition-transform duration-200 hover:scale-105 ${
-          activeLink === '/child/childpage' ? 'bg-blue-100 text-blue-700' : 'hover:bg-blue-50 text-gray-700'
+          activeLink === '/childpage' ? 'bg-blue-100 text-blue-700' : 'hover:bg-blue-50 text-gray-700'
         }`}
-        onClick={() => handleLinkClick('/child/childpage')}
+        onClick={() => handleLinkClick('/childpage')}
       >
         <Image
           src={homeIcon}
@@ -41,19 +41,19 @@ export default function Navbar() {
           width={28}
           height={28}
           className={`mb-0.5 transition-colors duration-300 ${
-            activeLink === '/child/childpage' ? 'animate-bounce' : 'hover:filter brightness-110 saturate-120'
+            activeLink === '/childpage' ? 'animate-bounce' : 'hover:filter brightness-110 saturate-120'
           }`}
           unoptimized
         />
-        <b className={`text-xs transition-colors duration-200 ${activeLink === '/child/childpage' ? 'text-blue-700' : 'text-white group-hover:text-blue-600'}`}>Home</b>
+        <b className={`text-xs transition-colors duration-200 ${activeLink === '/childpage' ? 'text-blue-700' : 'text-white group-hover:text-blue-600'}`}>Home</b>
       </Link>
 
       <Link
-        href="/search"
+        href="/child/search"
         className={`group flex flex-col items-center px-1 py-1 rounded-md transition-transform duration-200 hover:scale-105 ${
-          activeLink === '/search' ? 'bg-green-100 text-green-700' : 'hover:bg-green-50 text-gray-700'
+          activeLink === '/child/search' ? 'bg-green-100 text-green-700' : 'hover:bg-green-50 text-gray-700'
         }`}
-        onClick={() => handleLinkClick('/search')}
+        onClick={() => handleLinkClick('/child/search')}
       >
         <Image
           src={exploreIcon}
@@ -61,19 +61,19 @@ export default function Navbar() {
           width={28}
           height={28}
           className={`mb-0.5 transition-colors duration-300 ${
-            activeLink === '/search' ? 'hover:filter brightness-110 saturate-120 animate-pulse' : 'hover:filter brightness-110 saturate-120'
+            activeLink === '/child/search' ? 'hover:filter brightness-110 saturate-120 animate-pulse' : 'hover:filter brightness-110 saturate-120'
           }`}
           unoptimized
         />
-        <b className={`text-xs transition-colors duration-200 ${activeLink === '/search' ? 'text-green-700 animate-pulse' : 'text-white group-hover:text-green-600'}`}>Search</b>
+        <b className={`text-xs transition-colors duration-200 ${activeLink === '/child/search' ? 'text-green-700 animate-pulse' : 'text-white group-hover:text-green-600'}`}>Search</b>
       </Link>
 
       <Link
-        href="/bookmark"
+        href="/child/bookmark"
         className={`group flex flex-col items-center px-1 py-1 rounded-md transition-transform duration-200 hover:scale-105 ${
-          activeLink === '/bookmark' ? 'bg-yellow-100 text-yellow-700' : 'hover:bg-yellow-50 text-gray-700'
+          activeLink === '/child/bookmark' ? 'bg-yellow-100 text-yellow-700' : 'hover:bg-yellow-50 text-gray-700'
         }`}
-        onClick={() => handleLinkClick('/bookmark')}
+        onClick={() => handleLinkClick('/child/bookmark')}
       >
         <Image
           src={booksIcon}
@@ -81,19 +81,19 @@ export default function Navbar() {
           width={28}
           height={28}
           className={`mb-0.5 transition-colors duration-300 ${
-            activeLink === '/bookmark' ? 'hover:filter brightness-110 saturate-120 animate-pulse' : 'hover:filter brightness-110 saturate-120'
+            activeLink === '/child/bookmark' ? 'hover:filter brightness-110 saturate-120 animate-pulse' : 'hover:filter brightness-110 saturate-120'
           }`}
           unoptimized
         />
-        <b className={`text-xs transition-colors duration-200 ${activeLink === '/bookmark' ? 'text-yellow-700 animate-pulse' : 'text-white group-hover:text-yellow-600'}`}>Bookmarks</b>
+        <b className={`text-xs transition-colors duration-200 ${activeLink === '/child/bookmark' ? 'text-yellow-700 animate-pulse' : 'text-white group-hover:text-yellow-600'}`}>Bookmarks</b>
       </Link>
 
       <Link
-        href="/classroom"
+        href="/child/classroom"
         className={`group flex flex-col items-center px-1 py-1 rounded-md transition-transform duration-200 hover:scale-105 ${
-          activeLink === '/classroom' ? 'bg-purple-100 text-purple-700' : 'hover:bg-purple-50 text-gray-700'
+          activeLink === '/child/classroom' ? 'bg-purple-100 text-purple-700' : 'hover:bg-purple-50 text-gray-700'
         }`}
-        onClick={() => handleLinkClick('/classroom')}
+        onClick={() => handleLinkClick('/child/classroom')}
       >
         <Image
           src={classroomIcon}
@@ -101,11 +101,11 @@ export default function Navbar() {
           width={28}
           height={28}
           className={`mb-0.5 transition-colors duration-300 ${
-            activeLink === '/classroom' ? 'hover:filter brightness-110 saturate-120 animate-pulse' : 'hover:filter brightness-110 saturate-120'
+            activeLink === '/child/classroom' ? 'hover:filter brightness-110 saturate-120 animate-pulse' : 'hover:filter brightness-110 saturate-120'
           }`}
           unoptimized
         />
-        <b className={`text-xs transition-colors duration-200 ${activeLink === '/classroom' ? 'text-purple-700 animate-pulse' : 'text-white group-hover:text-purple-600'}`}>Classroom</b>
+        <b className={`text-xs transition-colors duration-200 ${activeLink === '/child/classroom' ? 'text-purple-700 animate-pulse' : 'text-white group-hover:text-purple-600'}`}>Classroom</b>
       </Link>
 
       <Link

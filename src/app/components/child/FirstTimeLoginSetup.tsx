@@ -59,7 +59,7 @@ export default function FirstTimeLoginSetup() {
         if (!childDetailsError && childDetails && childDetails?.favourite_genres 
           && childDetails.favourite_genres.length > 0) {
           // User already has genres set up, redirect to main page
-          router.push('/child/childpage');
+          router.push('/childpage');
           return;
         }
 
@@ -159,7 +159,7 @@ export default function FirstTimeLoginSetup() {
   
       // Redirect to child home page after a short delay to ensure sync completes
       setTimeout(() => {
-        router.push('/child/childpage');
+        router.push('/childpage');
       }, 500);
       
     } catch (err) {

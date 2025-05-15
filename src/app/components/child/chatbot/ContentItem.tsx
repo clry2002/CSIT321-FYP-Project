@@ -95,7 +95,7 @@ const ContentItem: React.FC<ContentItemProps> = ({
             {item.cid && item.cid !== 0 ? (
               <>
                 <a
-                  href={`/bookdetail/${item.cid}`}
+                  href={`/child/bookdetail/${item.cid}`}
                   className="chatbot-button-style view-details-link"
                 >
                   View Details

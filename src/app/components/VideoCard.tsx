@@ -143,7 +143,7 @@ const VideoCard: React.FC<VideoCardProps> = ({
         className={`border rounded-lg overflow-hidden hover:shadow-md transition-shadow duration-300 relative ${!isEducator ? 'h-full flex flex-col bg-gray-700' : ''}`}
       >
         <Link 
-          href={`/${isEducator ? 'educator/videodetail' : 'videodetail'}/${cid}`}
+          href={`/${isEducator ? 'educator/videodetail' : 'child/videodetail'}/${cid}`}
           onClick={handleClick}
         >
           {isYoutubeVideo && (

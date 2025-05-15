@@ -36,7 +36,7 @@ export default function SearchContent() {
 
   const handleSearch = (query: string, type: 'books' | 'videos') => {
     if (!query.trim()) return;
-    const path = type === 'books' ? '/searchbooks' : '/searchvideos';
+    const path = type === 'books' ? '/child/searchbooks' : '/child/searchvideos';
     router.push(`${path}?q=${encodeURIComponent(query.trim())}`);
   };
 
@@ -319,7 +319,7 @@ function SearchResults({ query }: { query: string }) {
             <div key={book.cid} className="flex items-start space-x-4 p-4 bg-white/20 backdrop-blur-md rounded-lg shadow-lg">
               <div className="flex-shrink-0 w-24 h-36 relative">
                 <a 
-                  href={`/bookdetail/${book.cid}`}
+                  href={`/child/bookdetail/${book.cid}`}
                   onClick={() => handleBookClick(book.cid)}
                   className="block w-full h-full cursor-pointer transition-transform hover:scale-105"
                   aria-label={`View details for ${book.title}`}
@@ -348,7 +348,7 @@ function SearchResults({ query }: { query: string }) {
               <div className="flex-grow">
                 <h3 className="text-lg font-semibold text-white" style={{ fontFamily: 'Quicksand, Nunito, Arial Rounded MT Bold, Arial, sans-serif' }}>
                   <a 
-                    href={`/bookdetail/${book.cid}`} 
+                    href={`/child/bookdetail/${book.cid}`} 
                     className="hover:text-rose-500 transition-colors"
                     onClick={() => handleBookClick(book.cid)}
                   >

@@ -152,7 +152,7 @@ const BookCard: React.FC<BookCardProps> = ({
     if (isEducator) {
       router.push(`/educator/bookdetail/${contentId}`);
     } else {
-      router.push(`/bookdetail/${contentId}`);
+      router.push(`/child/bookdetail/${contentId}`);
     }
   }, [contentId, handleClick, isEducator, router]);
 
