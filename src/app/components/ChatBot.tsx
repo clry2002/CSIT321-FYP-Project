@@ -25,7 +25,7 @@ const HANDLE_DIRECTIONS = [
 type HandleDirection = typeof HANDLE_DIRECTIONS[number];
 
 const ChatBot: React.FC = () => {
-  const { messages, isLoading, sendMessage, userFullName } = useChatbot();
+  const { messages, isLoading, sendMessage } = useChatbot();
   const { speakingItemId, isPaused, toggleSpeech, stopAllSpeech } = useSpeech();
   const { favoriteGenres } = useFavoriteGenres();
   const { 
@@ -411,17 +411,32 @@ const ChatBot: React.FC = () => {
         </div>
 
         <div ref={chatContainerRef} className="chat-container">
-          {/* Welcome message with the child's name */}
-          {messages.length === 1 && userFullName && (
-            <div className="welcome-message">
-              <p>Hello {userFullName}! I&apos;m here to help you discover amazing books and videos.</p>
-            </div>
-          )}
+
+          {/* Predefined questions */}
+          {/* <div className="predefined-questions">
+            <h3>Try asking:</h3>
+            
+            {["Can you recommend the latest books?", "Can you recommend the latest videos?", "I'm not sure what to look for", "Recommend other genres"].map((question, index) => (
+              <button 
+                key={index} 
+                onClick={() => handleQuestionClick(question)} 
+                className="question-button"
+              >
+                {question}
+              </button>
+            ))}
+          </div> */}
 
           {/* Predefined questions */}
           <div className="predefined-questions">
             <h3>Try asking:</h3>
-            {["Can you recommend the latest books?", "Can you recommend the latest videos?", "I'm not sure what to look for", "Recommend other genres"].map((question, index) => (
+            {[
+              "Show me popular content",
+              "What's trending now?", 
+              "Recommend books for me",
+              "Explore different genres",
+              "I'm not sure what to look for", "Recommend other genres"
+            ].map((question, index) => (
               <button 
                 key={index} 
                 onClick={() => handleQuestionClick(question)} 

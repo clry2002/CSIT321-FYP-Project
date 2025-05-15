@@ -473,9 +473,28 @@ def chat():
         )
         
         if "error" not in title_content:
+        # Add a friendly message for the title search
+            if "title" in locals() and title:  # Make sure title is defined
+                # Create friendly message based on content found
+                has_books = title_content.get("books") and len(title_content.get("books", [])) > 0
+                has_videos = title_content.get("videos") and len(title_content.get("videos", [])) > 0
+                
+                if has_books and has_videos:
+                    message = f"I found '{title}' in our collection! Here are some books and videos you might enjoy."
+                elif has_books:
+                    message = f"Great choice! I found '{title}' for you to read. Hope you enjoy it!"
+                elif has_videos:
+                    message = f"Perfect timing! I found '{title}' for you to watch. Enjoy the show!"
+                else:
+                    message = f"Found content matching '{title}'"
+                    
+                # Add message to the response
+                title_content["message"] = message
+            
             # Save the title search response to chat history
+            chat_message = title_content.get("message", f"Found content for: {title}")
             save_chat_to_database(
-                context=f"Found content for: {title}", 
+                context=chat_message, 
                 is_chatbot=True, 
                 uaid_child=uaid_child
             )
@@ -511,17 +530,37 @@ def chat():
                 # Store genre in context without forcing content type
                 conversation_manager.update_context(uaid_child, 'genre', detected_genre)
                 
-                # Save and return the response
-                content_types = []
-                if content_response.get("books"):
-                    content_types.append("books")
-                if content_response.get("videos"):
-                    content_types.append("videos")
+                # Add a friendly message
+                has_books = content_response.get("books") and len(content_response.get("books", [])) > 0
+                has_videos = content_response.get("videos") and len(content_response.get("videos", [])) > 0
                 
-                content_type_message = " and ".join(content_types) if content_types else "content"
+                # Count content items
+                book_count = len(content_response.get("books", []))
+                video_count = len(content_response.get("videos", []))
                 
+                # Create content description
+                content_desc = []
+                if book_count > 0:
+                    content_desc.append(f"{book_count} book{'s' if book_count != 1 else ''}")
+                if video_count > 0:
+                    content_desc.append(f"{video_count} video{'s' if video_count != 1 else ''}")
+                
+                content_desc_text = " and ".join(content_desc)
+                
+                # Generate friendly messages
+                messages = [
+                    f"I found some great {detected_genre} content for you! Here's {content_desc_text} that I think you'll enjoy.",
+                    f"Looking for {detected_genre}? You've come to the right place! I found {content_desc_text} for you.",
+                    f"Here are {content_desc_text} in the {detected_genre} category just for you!",
+                    f"I love {detected_genre} too! Here are {content_desc_text} that I think you'll really enjoy."
+                ]
+                
+                # Select a random message for variety
+                content_response["message"] = random.choice(messages)
+                
+                # Save and return the response with the message
                 save_chat_to_database(
-                    context=f"Found {detected_genre} {content_type_message}", 
+                    context=content_response["message"], 
                     is_chatbot=True, 
                     uaid_child=uaid_child
                 )
@@ -624,8 +663,32 @@ def chat():
         
         # If we found actual content, respond with it
         if db_content and (db_content.get("books") or db_content.get("videos")):
+            # Add a friendly message
+            character = character_query
+            has_books = db_content.get("books") and len(db_content.get("books", [])) > 0
+            has_videos = db_content.get("videos") and len(db_content.get("videos", [])) > 0
+            
+            # Count content items
+            book_count = len(db_content.get("books", []))
+            video_count = len(db_content.get("videos", []))
+            
+            # Create content description
+            content_desc = []
+            if book_count > 0:
+                content_desc.append(f"{book_count} book{'s' if book_count != 1 else ''}")
+            if video_count > 0:
+                content_desc.append(f"{video_count} video{'s' if video_count != 1 else ''}")
+            
+            content_desc_text = " and ".join(content_desc)
+            
+            # Generate a friendly message
+            if character:
+                db_content["message"] = f"Here are {content_desc_text} featuring {character}! Enjoy!"
+            else:
+                db_content["message"] = f"I found {content_desc_text} that I think you'll enjoy!"
+            
             save_chat_to_database(
-                context=f"Found {combined_query if combined_query else character_query} content", 
+                context=db_content["message"], 
                 is_chatbot=True, 
                 uaid_child=uaid_child
             )

@@ -111,6 +111,18 @@ export const useChatbot = () => {
     fetchUser();
   }, [fetchChildData]);
 
+  // Update welcome message when user's name is available
+  useEffect(() => {
+    if (userFullName) {
+      setMessages([
+        {
+          role: 'assistant',
+          content: `Hello ${userFullName}! I can help you find books and videos based on your interests. What are you looking for today?`
+        }
+      ]);
+    }
+  }, [userFullName]);
+
   const sendMessage = useCallback(async (message: string) => {
     if (!uaid_child) {
       console.error('User ID (uaid_child) is not available');
@@ -123,7 +135,7 @@ export const useChatbot = () => {
 
       const response = await axios.post(
         `${API_URL}/api/chat`,
-        //'http://127.0.0.1:5000/api/chat',
+        // 'http://127.0.0.1:5000/api/chat',
         JSON.stringify({
           question: message,
           uaid_child: uaid_child,
@@ -137,6 +149,10 @@ export const useChatbot = () => {
 
       console.log("API Response:", response.data);
 
+      // Debug the response structure
+      console.log("Response has message:", Boolean(response.data.message));
+      if (response.data.message) console.log("Message content:", response.data.message);
+
       if (response.data.books || response.data.videos) {
         const content: Content[] = [];
 
@@ -147,6 +163,7 @@ export const useChatbot = () => {
               coverimage: book.coverimage || '',
               cfid: book.cfid || 2,
               cid: book.cid || 0,
+              minimumage: 0, // Add a default value
             }))
           );
         }
@@ -158,15 +175,37 @@ export const useChatbot = () => {
               coverimage: video.coverimage || '',
               cfid: video.cfid || 1,
               cid: video.cid || 0,
+              minimumage: 0, // Add a default value
             }))
           );
         }
 
         console.log("Combined content:", content);
 
-        setMessages((prev) => [...prev, { role: 'assistant', content }]);
+        // If there's a message in the response, show it first
+        if (response.data.message) {
+          // Add the text message first
+          setMessages((prev) => [
+            ...prev, 
+            { role: 'assistant', content: response.data.message }
+          ]);
+          
+          // Then add the content items
+          setTimeout(() => {
+            setMessages((prev) => [
+              ...prev, 
+              { role: 'assistant', content }
+            ]);
+          }, 50); // Small delay to ensure messages appear in correct order
+        } else {
+          // If no message, just show the content
+          setMessages((prev) => [...prev, { role: 'assistant', content }]);
+        }
       } else {
-        setMessages((prev) => [...prev, { role: 'assistant', content: response.data.answer }]);
+        setMessages((prev) => [
+          ...prev, 
+          { role: 'assistant', content: response.data.answer || 'I don\'t have an answer for that.' }
+        ]);
       }
     } catch (error) {
       console.error('Error calling API:', error);
