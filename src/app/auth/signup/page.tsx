@@ -72,7 +72,6 @@ export default function SignUpPage() {
 
       if (data.user) {
         setSuccess(true);
-        router.push('/setup');
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred during sign up');
