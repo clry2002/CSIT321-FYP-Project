@@ -552,7 +552,7 @@ export default function BookmarksPage() {
                     </div>
                     <div className="flex-grow">
                       <h3 className="text-lg font-semibold text-gray-100 mb-2">
-                        <a href={`/bookdetail/${book.cid}`} className="hover:text-indigo-400">
+                        <a href={`/child/bookdetail/${book.cid}`} className="hover:text-indigo-400">
                           {book.title}
                         </a>
                       </h3>
@@ -611,7 +611,7 @@ export default function BookmarksPage() {
                     </div>
                     <div className="flex-grow">
                       <h3 className="text-lg font-semibold text-gray-100 mb-2">
-                        <a href={`/videodetail/${video.cid}`} className="hover:text-indigo-400">
+                        <a href={`/child/videodetail/${video.cid}`} className="hover:text-indigo-400">
                           {video.title}
                         </a>
                       </h3>

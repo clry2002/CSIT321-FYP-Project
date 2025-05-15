@@ -69,11 +69,11 @@ export default function Navbar() {
       </Link>
 
       <Link
-        href="/bookmark"
+        href="/child/bookmark"
         className={`group flex flex-col items-center px-1 py-1 rounded-md transition-transform duration-200 hover:scale-105 ${
-          activeLink === '/bookmark' ? 'bg-yellow-100 text-yellow-700' : 'hover:bg-yellow-50 text-gray-700'
+          activeLink === '/child/bookmark' ? 'bg-yellow-100 text-yellow-700' : 'hover:bg-yellow-50 text-gray-700'
         }`}
-        onClick={() => handleLinkClick('/bookmark')}
+        onClick={() => handleLinkClick('/child/bookmark')}
       >
         <Image
           src={booksIcon}
@@ -81,11 +81,11 @@ export default function Navbar() {
           width={28}
           height={28}
           className={`mb-0.5 transition-colors duration-300 ${
-            activeLink === '/bookmark' ? 'hover:filter brightness-110 saturate-120 animate-pulse' : 'hover:filter brightness-110 saturate-120'
+            activeLink === '/child/bookmark' ? 'hover:filter brightness-110 saturate-120 animate-pulse' : 'hover:filter brightness-110 saturate-120'
           }`}
           unoptimized
         />
-        <b className={`text-xs transition-colors duration-200 ${activeLink === '/bookmark' ? 'text-yellow-700 animate-pulse' : 'text-white group-hover:text-yellow-600'}`}>Bookmarks</b>
+        <b className={`text-xs transition-colors duration-200 ${activeLink === '/child/bookmark' ? 'text-yellow-700 animate-pulse' : 'text-white group-hover:text-yellow-600'}`}>Bookmarks</b>
       </Link>
 
       <Link
