@@ -43,6 +43,8 @@ from kid_friendly_responses import make_kid_friendly
 from title_search import check_title_query
 from fts_search import initialize_search_engine, search_for_title as fts_search_for_title
 
+from recommendation_handler import handle_recommendation_request
+
 # Load environment variables
 load_dotenv()
 
@@ -411,7 +413,75 @@ def chat():
     # Get the child's age
     child_age = get_child_age(uaid_child)
     
-        # Process this BEFORE any other logic
+    # Get recent conversation history
+    recent_history = get_recent_conversation_history(uaid_child, supabase, limit=5)
+    logging.info(f"Retrieved {len(recent_history)} recent messages for context")
+    
+    # Get existing conversation context
+    existing_context = conversation_manager.get_context(uaid_child)
+    logging.info(f"Retrieved existing context: {existing_context}")
+    
+    # STEP 1: Check if it's a recommendation handler request (trending, popular, personalized)
+    recommendation_response = handle_recommendation_request(
+        question=question, 
+        uaid_child=uaid_child, 
+        conversation_manager=conversation_manager
+    )
+    
+    if recommendation_response and "error" not in recommendation_response:
+        # Save chatbot response to history
+        save_chat_to_database(
+            context=recommendation_response.get("message", "Here are some recommendations for you!"), 
+            is_chatbot=True, 
+            uaid_child=uaid_child
+        )
+        logging.info(f"Returning recommendation results with {len(recommendation_response.get('books', []))} books and {len(recommendation_response.get('videos', []))} videos")
+        return jsonify(recommendation_response)
+    
+    # STEP 2: Check if it's a title search
+    is_title_query, title = check_title_query(question)
+    if is_title_query and title:
+        # Store the title in conversation context
+        conversation_manager.update_context(uaid_child, 'title', title)
+        
+        # Check for popular characters to maintain character context
+        character_list = [
+            "spongebob", "peppa pig", "harry potter", "dora", "superman", 
+            "batman", "elsa", "mickey mouse", "paw patrol", "tom and jerry"
+        ]
+        
+        # If title mentions a new character, update character context
+        for character in character_list:
+            if character.lower() in title.lower():
+                # If it's a different character than what we have in context, update it
+                if existing_context and 'character' in existing_context and character != existing_context['character']:
+                    logging.info(f"Switching character context from '{existing_context['character']}' to '{character}' based on title request")
+                
+                conversation_manager.update_context(uaid_child, 'character', character)
+                character_query = character
+                logging.info(f"Updated character context to '{character}' from title '{title}'")
+                break
+        
+        # Search for the specified title
+        title_content = search_for_title(
+            title=title, 
+            uaid_child=uaid_child, 
+            supabase_client=supabase, 
+            get_child_age=get_child_age, 
+            is_genre_blocked=is_genre_blocked, 
+            content_status=CONTENT_STATUS
+        )
+        
+        if "error" not in title_content:
+            # Save the title search response to chat history
+            save_chat_to_database(
+                context=f"Found content for: {title}", 
+                is_chatbot=True, 
+                uaid_child=uaid_child
+            )
+            return jsonify(title_content)
+    
+    # STEP 3: Process genre detection
     genres_query = supabase.from_("temp_genre").select("genrename").execute()
     if genres_query.data:
         genres = [genre["genrename"].lower() for genre in genres_query.data]
@@ -425,7 +495,6 @@ def chat():
                 break
         
         if detected_genre:
-            # Try the simple content retrieval first - highest chance of success
             content_response = get_content_by_genre_and_format(question, uaid_child)
             
             # If we found database content, return it immediately
@@ -433,7 +502,7 @@ def chat():
                 # Store genre in context without forcing content type
                 conversation_manager.update_context(uaid_child, 'genre', detected_genre)
                 
-                # Save and return the response - note the improved message
+                # Save and return the response
                 content_types = []
                 if content_response.get("books"):
                     content_types.append("books")
@@ -449,14 +518,7 @@ def chat():
                 )
                 return jsonify(content_response)
     
-    # Get recent conversation history
-    recent_history = get_recent_conversation_history(uaid_child, supabase, limit=5)
-    logging.info(f"Retrieved {len(recent_history)} recent messages for context")
-    
-    # Get existing conversation context
-    existing_context = conversation_manager.get_context(uaid_child)
-    logging.info(f"Retrieved existing context: {existing_context}")
-    
+    # STEP 4: Process character and context detection
     # Check if this is a short/affirmative response
     short_response = is_short_response(normalized_question)
     
@@ -561,7 +623,7 @@ def chat():
             logging.info(f"Returning direct database content for {combined_query if combined_query else character_query}")
             return jsonify(db_content)
     
-   # If it's a short response or we have character context but no direct content match,
+   # STEP 5: If it's a short response or we have character context but no direct content match,
     # use LLM with conversation context
     if short_response or has_location_reference or character_query:
         # Helper function to safely add to templates
@@ -880,7 +942,6 @@ def chat():
     save_chat_to_database(context=str(content_response), is_chatbot=True, uaid_child=uaid_child)
     return jsonify(content_response)
 
-# Add this function to handle specific cases like "Recommend other genres"
 
 def handle_genre_recommendation(question, child_age, existing_context, uaid_child):
     """
