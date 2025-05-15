@@ -22,26 +22,6 @@ interface Star {
   delay: number;
 }
 
-interface UserProfile {
-  upid: number;
-  name?: string;
-  suspended?: boolean;
-}
-
-interface UserData {
-  id: string;
-  user_id: string;
-  userprofile: UserProfile;
-  suspended: boolean;
-  comments: string;
-  fullname?: string;
-}
-
-interface ErrorData {
-  message: string;
-  code?: number;
-}
-
 interface TimeLimitState {
   isExceeded: boolean;
   timeUsed: number;
@@ -97,146 +77,179 @@ export default function LoginPage() {
     setShowPassword(!showPassword);
   };
 
- // Direct approach using error messaging
- const handleLogin = async (e: React.FormEvent) => {
-  e.preventDefault();
-  setError(null);
-  setShowSignUpLink(false);
-  setLoading(true);
+  // Modified login handler with improved error handling
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setShowSignUpLink(false);
+    setLoading(true);
 
-  try {
-    // Attempt to sign in with the provided credentials
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      // Attempt to sign in with the provided credentials
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    // Handle auth errors
-    if (error) {
-      console.error('Auth error:', error);
-      
-      if (error.message.includes('Invalid login credentials')) {
-        setError('No user found');
-        setShowSignUpLink(true);
-      } else {
-        // Other auth errors (rate limiting, network issues, etc)
-        setError(error.message);
-      }
-      
-      setLoading(false);
-      return;
-    }
-
-    // Continue with successful login flow...
-    if (data.user) {
-      // Continue with user profile checking
-      const { data: userData, error: userError } = await supabase
-        .from('user_account')
-        .select(`
-          id,
-          user_id,
-          upid,
-          suspended,
-          comments,
-          fullname,
-          userprofile!inner (
-            upid
-          )
-        `)
-        .eq('user_id', data.user.id)
-        .single() as { data: UserData | null, error: ErrorData | null };
-
-      if (userError) {
-        console.error('Error fetching user type:', userError.message);
-        throw new Error('Failed to fetch user profile');
-      }
-
-      // Rest of your existing login flow
-      if (userData?.suspended) {
-        router.push('/suspended');
+      // Handle auth errors
+      if (error) {
+        console.error('Auth error:', error);
+        
+        if (error.message.includes('Invalid login credentials')) {
+          setError('No user found');
+          setShowSignUpLink(true);
+        } else {
+          setError(error.message);
+        }
+        
+        setLoading(false);
         return;
       }
 
-      // Your routing logic based on user type
-      if (userData?.userprofile?.upid === 1) {
-        router.push('/publisherpage');
-      } else if (userData?.userprofile?.upid === 2) {
-        router.push('/parentpage');
-      } else if (userData?.userprofile?.upid === 3) {
+      // User authenticated successfully
+      if (data.user) {
+        // First, check if user_account record exists
+        const { data: basicUserData, error: basicUserError } = await supabase
+          .from('user_account')
+          .select('id, user_id, upid, fullname, suspended, comments')
+          .eq('user_id', data.user.id)
+          .single();
+        
+        if (basicUserError) {
+          console.error('Error fetching basic user data:', basicUserError);
+          
+          // If no user_account record exists, send to setup
+          if (basicUserError.code === 'PGRST116') { // "Results contain 0 rows"
+            console.log('User authenticated but no profile exists, redirecting to setup');
+            router.push('/setup');
+            return;
+          }
+          
+          setError('Error loading your profile. Please try again.');
+          setLoading(false);
+          return;
+        }
+        
+        // Check if user has a role assigned (upid)
+        if (!basicUserData.upid) {
+          console.log('User has no role assigned, redirecting to setup');
+          router.push('/setup');
+          return;
+        }
+        
+        // Check if account is suspended
+        if (basicUserData.suspended) {
+          router.push('/suspended');
+          return;
+        }
+        
+        // Fetch the userprofile info
         try {
-          // Check time limit for child accounts
-          const timeLimitCheck = await timeLimitCheckService.checkUserTimeLimit(userData.id);
+          const { data: profileData, error: profileError } = await supabase
+            .from('userprofile')
+            .select('upid, name, suspended')
+            .eq('upid', basicUserData.upid)
+            .single();
           
-          // If time limit is exceeded, show time limit exceeded page
-          if (timeLimitCheck.isExceeded && timeLimitCheck.timeLimit !== null) {
-            console.log("Time limit exceeded, preventing login");
-            setTimeLimitState({
-              isExceeded: true,
-              timeUsed: timeLimitCheck.timeUsed,
-              timeLimit: timeLimitCheck.timeLimit,
-              username: userData.fullname || "there"
-            });
-            setLoading(false);
-            return;
-          }
-          
-          // Child account logic...
-          const { data: childDetailsArray, error: childDetailsError } = await supabase
-            .from('child_details')
-            .select('favourite_genres')
-            .eq('child_id', userData.id);
-
-          console.log("Child details check:", { childDetailsArray, error: childDetailsError });
-
-          if (childDetailsError) {
-            console.error('Error checking child details:', childDetailsError);
-            setError('Error checking account details. Please try again.');
-            setLoading(false);
-            return;
-          }
-
-          if (childDetailsArray && childDetailsArray.length > 0 &&
-            childDetailsArray[0].favourite_genres &&
-            childDetailsArray[0].favourite_genres.length > 0) {
-            console.log("Syncing favorite genres on login");
-            await syncFavoriteGenres(userData.id.toString());
-            router.push('/childpage');
+          if (profileError) {
+            console.error('Error fetching user profile type:', profileError);
           } else {
-            if (!childDetailsArray || childDetailsArray.length === 0) {
-              console.log("Creating new child_details record");
-              const { error: insertError } = await supabase
-                .from('child_details')
-                .insert({
-                  child_id: userData.id,
-                  favourite_genres: []
-                });
-
-              if (insertError) {
-                console.error("Error creating child_details:", insertError);
-                setError('Error setting up your account. Please try again.');
-                setLoading(false);
-                return;
-              }
+            // Check profile suspension status
+            if (profileData.suspended) {
+              router.push('/suspended');
+              return;
             }
-            router.push('/first-time-setup');
           }
-        } catch (err) {
-          console.error('Error in child flow:', err);
-          setError('An unexpected error occurred. Please try again.');
+        } catch (profileErr) {
+          console.error('Error in profile lookup:', profileErr);
+          // Continue with what we have
+        }
+        
+        // Route based on upid (user role)
+        const userType = basicUserData.upid;
+        
+        if (userType === 1) {
+          router.push('/publisherpage');
+        } else if (userType === 2) {
+          router.push('/parentpage');
+        } else if (userType === 3) {
+          // Child account flow - with time limit checks
+          try {
+            // Check time limit for child accounts
+            const timeLimitCheck = await timeLimitCheckService.checkUserTimeLimit(basicUserData.id);
+            
+            // If time limit is exceeded, show time limit exceeded page
+            if (timeLimitCheck.isExceeded && timeLimitCheck.timeLimit !== null) {
+              console.log("Time limit exceeded, preventing login");
+              setTimeLimitState({
+                isExceeded: true,
+                timeUsed: timeLimitCheck.timeUsed,
+                timeLimit: timeLimitCheck.timeLimit,
+                username: basicUserData.fullname || "there"
+              });
+              setLoading(false);
+              return;
+            }
+            
+            // Child account logic...
+            const { data: childDetailsArray, error: childDetailsError } = await supabase
+              .from('child_details')
+              .select('favourite_genres')
+              .eq('child_id', basicUserData.id);
+
+            console.log("Child details check:", { childDetailsArray, error: childDetailsError });
+
+            if (childDetailsError) {
+              console.error('Error checking child details:', childDetailsError);
+              setError('Error checking account details. Please try again.');
+              setLoading(false);
+              return;
+            }
+
+            if (childDetailsArray && childDetailsArray.length > 0 &&
+              childDetailsArray[0].favourite_genres &&
+              childDetailsArray[0].favourite_genres.length > 0) {
+              console.log("Syncing favorite genres on login");
+              await syncFavoriteGenres(basicUserData.id.toString());
+              router.push('/childpage');
+            } else {
+              if (!childDetailsArray || childDetailsArray.length === 0) {
+                console.log("Creating new child_details record");
+                const { error: insertError } = await supabase
+                  .from('child_details')
+                  .insert({
+                    child_id: basicUserData.id,
+                    favourite_genres: []
+                  });
+
+                if (insertError) {
+                  console.error("Error creating child_details:", insertError);
+                  setError('Error setting up your account. Please try again.');
+                  setLoading(false);
+                  return;
+                }
+              }
+              router.push('/first-time-setup');
+            }
+          } catch (err) {
+            console.error('Error in child flow:', err);
+            setError('An unexpected error occurred. Please try again.');
+            setLoading(false);
+          }
+        } else if (userType === 5) {
+          router.push('/educatorpage');
+        } else {
+          console.log('Unknown user type:', userType);
+          setError('Unknown user type. Please contact support.');
           setLoading(false);
         }
-      } else if (userData?.userprofile?.upid === 5) {
-        router.push('/educatorpage');
-      } else {
-        throw new Error('Invalid user type');
       }
+    } catch (err) {
+      console.error('Login error:', err);
+      setError(err instanceof Error ? err.message : 'An error occurred during login');
+      setLoading(false);
     }
-  } catch (err) {
-    console.error('Login error:', err);
-    setError(err instanceof Error ? err.message : 'An error occurred during login');
-    setLoading(false);
-  }
-};
+  };
 
   const handleGoogleLogin = async () => {
     try {
@@ -379,7 +392,7 @@ export default function LoginPage() {
             <p className="mt-2 text-sm text-gray-600">
               Don&apos;t have an account?{' '}
               <Link href="/auth/signup" className="text-purple-700 hover:text-purple-800 font-medium">
-                Sign up
+                Sign Up
               </Link>
             </p>
           </div>

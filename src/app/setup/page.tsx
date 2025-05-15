@@ -2,14 +2,9 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/contexts/SessionContext';
-
-// const GENRES = [
-//   'Fantasy', 'Science Fiction', 'Mystery', 'Romance', 'Thriller',
-//   'Horror', 'Historical Fiction', 'Literary Fiction', 'Young Adult',
-//   'Biography', 'Self-Help', 'Business', 'Poetry', 'Drama'
-// ];
 
 const USER_TYPES = ['Parent', 'Publisher', 'Educator'];
 
@@ -20,9 +15,6 @@ export default function SetupPage() {
   const [username, setUsername] = useState('');
   const [age, setAge] = useState('');
   const [userType, setUserType] = useState('');
-  // const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
-  // const [setSelectedGenres] = useState<string[]>([]);
-  // const [parentEmail, setParentEmail] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
@@ -33,17 +25,6 @@ export default function SetupPage() {
     age: number;
   }>>([]);
   const [selectedChild, setSelectedChild] = useState<string>('');
-
-  // const handleGenreToggle = (genre: string) => {
-  //   setSelectedGenres(prev => {
-  //     if (prev.includes(genre)) {
-  //       return prev.filter(g => g !== genre);
-  //     } else if (prev.length < 3) {
-  //       return [...prev, genre];
-  //     }
-  //     return prev;
-  //   });
-  // };
 
   const checkUsername = async (username: string) => {
     if (!username) {
@@ -228,133 +209,173 @@ export default function SetupPage() {
     }
   };
 
+  // Handle back button click
+  const handleBack = () => {
+    router.back();
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-xl shadow-lg">
-        <div className="text-center">
-          <h2 className="text-3xl font-bold text-gray-900">Complete your profile</h2>
-          <p className="mt-2 text-sm text-gray-600">
-            Tell us a bit about yourself to get personalized recommendations
-          </p>
+    <div className="min-h-screen flex flex-col bg-gray-50">
+      {/* Header with back button */}
+      <header className="p-4 border-b bg-white shadow-md">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center">
+            <Image
+              src="/logo2.png"
+              alt="Logo"
+              width={40}
+              height={40}
+              className="mr-2"
+              unoptimized
+            />
+            <h1 className="text-2xl font-bold text-purple-700">CoReadability</h1>
+          </div>
+          <button
+            onClick={handleBack}
+            className="text-sm text-gray-600 hover:text-gray-800 font-medium flex items-center"
+          >
+            <svg 
+              xmlns="http://www.w3.org/2000/svg" 
+              className="h-4 w-4 mr-1" 
+              fill="none" 
+              viewBox="0 0 24 24" 
+              stroke="currentColor"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            Back
+          </button>
         </div>
+      </header>
 
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          {error && (
-            <div className="bg-red-50 text-red-500 p-3 rounded-lg text-sm">
-              {error}
-            </div>
-          )}
+      {/* Main content */}
+      <div className="flex-1 flex items-center justify-center p-4">
+        <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-xl shadow-lg">
+          <div className="text-center">
+            <h2 className="text-3xl font-bold text-gray-900">Complete your profile</h2>
+            <p className="mt-2 text-sm text-gray-600">
+              Tell us a bit about yourself to get personalized recommendations
+            </p>
+          </div>
 
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-                Full Name
-              </label>
-              <input
-                id="name"
-                type="text"
-                required
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent !text-black"
-              />
-            </div>
+          <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+            {error && (
+              <div className="bg-red-50 text-red-500 p-3 rounded-lg text-sm">
+                {error}
+              </div>
+            )}
 
-            <div>
-              <label htmlFor="username" className="block text-sm font-medium text-gray-700">
-                Username
-              </label>
-              <div className="mt-1 relative">
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+                  Full Name
+                </label>
                 <input
-                  id="username"
+                  id="name"
                   type="text"
                   required
-                  value={username}
-                  onChange={(e) => handleUsernameChange(e.target.value)}
-                  className={`block w-full px-3 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:border-transparent !text-black ${
-                    username && (
-                      usernameAvailable
-                        ? 'border-green-500 focus:ring-green-500'
-                        : 'border-red-500 focus:ring-red-500'
-                    )
-                  }`}
-                  pattern="[a-z0-9_]+"
-                  title="Username can only contain lowercase letters, numbers, and underscores"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent !text-black"
                 />
-                {username && (
-                  <div className={`mt-1 text-sm ${usernameAvailable ? 'text-green-600' : 'text-red-600'}`}>
-                    {usernameAvailable ? 'Username is available' : 'Username is taken'}
+              </div>
+
+              <div>
+                <label htmlFor="username" className="block text-sm font-medium text-gray-700">
+                  Username
+                </label>
+                <div className="mt-1 relative">
+                  <input
+                    id="username"
+                    type="text"
+                    required
+                    value={username}
+                    onChange={(e) => handleUsernameChange(e.target.value)}
+                    className={`block w-full px-3 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:border-transparent !text-black ${
+                      username && (
+                        usernameAvailable
+                          ? 'border-green-500 focus:ring-green-500'
+                          : 'border-red-500 focus:ring-red-500'
+                      )
+                    }`}
+                    pattern="[a-z0-9_]+"
+                    title="Username can only contain lowercase letters, numbers, and underscores"
+                  />
+                  {username && (
+                    <div className={`mt-1 text-sm ${usernameAvailable ? 'text-green-600' : 'text-red-600'}`}>
+                      {usernameAvailable ? 'Username is available' : 'Username is taken'}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="age" className="block text-sm font-medium text-gray-700">
+                  Age
+                </label>
+                <input
+                  id="age"
+                  type="number"
+                  required
+                  min="1"
+                  max="120"
+                  value={age}
+                  onChange={(e) => setAge(e.target.value)}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent !text-black"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="userType" className="block text-sm font-medium text-gray-700">
+                  I am a:
+                </label>
+                <select
+                  id="userType"
+                  value={userType}
+                  onChange={(e) => handleUserTypeChange(e.target.value)}
+                  required
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent !text-black"
+                >
+                  <option value="">Select your role</option>
+                  {USER_TYPES.map((type) => (
+                    <option key={type} value={type}>{type}</option>
+                  ))}
+                </select>
+
+                {userType === 'Parent' && children.length > 0 && (
+                  <div className="mt-4">
+                    <label htmlFor="childSelect" className="block text-sm font-medium text-gray-700">
+                      Select your child:
+                    </label>
+                    <select
+                      id="childSelect"
+                      value={selectedChild}
+                      onChange={(e) => setSelectedChild(e.target.value)}
+                      required
+                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent !text-black"
+                    >
+                      <option value="">Select a child</option>
+                      {children.map((child) => (
+                        <option key={child.user_id} value={child.user_id}>
+                          {child.fullname} ({child.username}) - {child.age} years old
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 )}
               </div>
             </div>
 
-            <div>
-              <label htmlFor="age" className="block text-sm font-medium text-gray-700">
-                Age
-              </label>
-              <input
-                id="age"
-                type="number"
-                required
-                min="1"
-                max="120"
-                value={age}
-                onChange={(e) => setAge(e.target.value)}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent !text-black"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="userType" className="block text-sm font-medium text-gray-700">
-                I am a:
-              </label>
-              <select
-                id="userType"
-                value={userType}
-                onChange={(e) => handleUserTypeChange(e.target.value)}
-                required
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent !text-black"
-              >
-                <option value="">Select your role</option>
-                {USER_TYPES.map((type) => (
-                  <option key={type} value={type}>{type}</option>
-                ))}
-              </select>
-
-              {userType === 'Parent' && children.length > 0 && (
-                <div className="mt-4">
-                  <label htmlFor="childSelect" className="block text-sm font-medium text-gray-700">
-                    Select your child:
-                  </label>
-                  <select
-                    id="childSelect"
-                    value={selectedChild}
-                    onChange={(e) => setSelectedChild(e.target.value)}
-                    required
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent !text-black"
-                  >
-                    <option value="">Select a child</option>
-                    {children.map((child) => (
-                      <option key={child.user_id} value={child.user_id}>
-                        {child.fullname} ({child.username}) - {child.age} years old
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading || !usernameAvailable}
-            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-rose-500 hover:bg-rose-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-rose-500 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? 'Saving...' : 'Finish setup'}
-          </button>
-        </form>
+            <button
+              type="submit"
+              disabled={loading || !usernameAvailable}
+              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-purple-700 hover:bg-purple-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? 'Saving...' : 'Finish setup'}
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   );
-} 
+}

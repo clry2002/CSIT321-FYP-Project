@@ -28,6 +28,8 @@ export default function SignUpPage() {
   const [success, setSuccess] = useState(false);
   const [stars, setStars] = useState<Star[]>([]);
   const [formVisible, setFormVisible] = useState(false);
+  // Password visibility state
+  const [showPassword, setShowPassword] = useState(false);
 
   const backgroundStyle: StyleObject = {
     backgroundImage: 'url("/spacemovement.gif")',
@@ -49,6 +51,11 @@ export default function SignUpPage() {
       setFormVisible(true);
     }, 100);
   }, []);
+
+  // Toggle password visibility
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
+  };
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -135,12 +142,20 @@ export default function SignUpPage() {
             <p className="text-sm text-gray-500 mt-4">
               After verifying your email, you&apos;ll be able to set up your account.
             </p>
-            <Link
-              href="/auth/login"
-              className="inline-block mt-4 text-purple-700 hover:text-purple-800 font-medium"
-            >
-              Return to login
-            </Link>
+            <div className="mt-6 space-y-4">
+              <button
+                onClick={() => router.push('/setup')}
+                className="w-full py-2 px-4 bg-purple-700 text-white rounded-lg hover:bg-purple-800 transition-colors"
+              >
+                Manually go to setup page
+              </button>
+              <Link
+                href="/auth/login"
+                className="inline-block text-purple-700 hover:text-purple-800 font-medium"
+              >
+                Return to login
+              </Link>
+            </div>
           </div>
         </main>
         {/* Star animation */}
@@ -221,7 +236,7 @@ export default function SignUpPage() {
             <p className="mt-2 text-sm text-gray-600">
               Already have an account?{' '}
               <Link href="/auth/login" className="text-purple-700 hover:text-purple-800 font-medium"> {/* Changed link color */}
-                Sign in
+                Sign In
               </Link>
             </p>
           </div>
@@ -252,21 +267,68 @@ export default function SignUpPage() {
                 <label htmlFor="password" className="block text-sm font-medium text-gray-700">
                   Password
                 </label>
-                <input
-                  id="password"
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-700 focus:border-transparent !text-black" // Changed focus ring color
-                />
+                <div className="relative">
+                  <input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-700 focus:border-transparent !text-black pr-10" // Added right padding for the icon
+                  />
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">
+                    {/* Password visibility toggle button */}
+                    <button
+                      type="button"
+                      onClick={togglePasswordVisibility}
+                      className="text-gray-400 hover:text-purple-700 mr-2"
+                      title={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? (
+                        // Eye-slash icon (for hiding password)
+                        <svg 
+                          xmlns="http://www.w3.org/2000/svg" 
+                          className="h-5 w-5" 
+                          viewBox="0 0 20 20" 
+                          fill="currentColor"
+                        >
+                          <path 
+                            fillRule="evenodd" 
+                            d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" 
+                            clipRule="evenodd" 
+                          />
+                          <path 
+                            d="M12.454 16.697L9.75 13.992a4 4 0 01-3.742-3.741L2.335 6.578A9.98 9.98 0 00.458 10c1.274 4.057 5.065 7 9.542 7 .847 0 1.669-.105 2.454-.303z" 
+                          />
+                        </svg>
+                      ) : (
+                        // Password icon (for showing password)
+                        <svg 
+                          xmlns="http://www.w3.org/2000/svg" 
+                          className="h-5 w-5" 
+                          viewBox="0 0 20 20" 
+                          fill="currentColor"
+                        >
+                          <path 
+                            d="M10 12a2 2 0 100-4 2 2 0 000 4z" 
+                          />
+                          <path 
+                            fillRule="evenodd" 
+                            d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" 
+                            clipRule="evenodd" 
+                          />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-purple-700 hover:bg-purple-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-700 disabled:opacity-50 disabled:cursor-not-allowed" // Changed button background and focus ring color
+              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-purple-700 hover:bg-purple-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-700 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 transition-transform duration-200" // Added hover effect
             >
               {loading ? 'Creating account...' : 'Create account'}
             </button>
