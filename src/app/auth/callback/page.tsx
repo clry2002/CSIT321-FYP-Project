@@ -67,7 +67,7 @@ export default function AuthCallbackPage() {
         } else if (userData?.userprofile?.upid === 2) {
           router.push('/parentpage');
         } else if (userData?.userprofile?.upid === 3) {
-          router.push('/childpage');
+          router.push('/child/childpage');
         } else if (userData?.userprofile?.upid === 5) {
           router.push('/educatorpage');
         } else {

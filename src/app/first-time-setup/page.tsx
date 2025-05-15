@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import FirstTimeLoginSetup from '../components/child/FirstTimeLoginSetup';
+import FirstTimeLoginSetup from '@/app/components/child/FirstTimeLoginSetup';
 
 export default function FirstTimeSetupPage() {
   const router = useRouter();

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
-import EduNavbar from '../components/eduNavbar';
+import EduNavbar from '@/app/components/eduNavbar';
 import Link from 'next/link';
 import { AcademicCapIcon, UserGroupIcon, ClockIcon } from '@heroicons/react/24/outline';
 

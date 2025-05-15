@@ -1,9 +1,9 @@
 'use client';
 
-import Navbar from '../components/Navbar';
-import ChatBot from '../components/ChatBot';
-import ChatHistory from '../components/child/chathistory/ChatHistory';
-import useChildData from '../../hooks/useChildData';
+import Navbar from '@/app/components/Navbar';
+import ChatBot from '@/app/components/ChatBot';
+import ChatHistory from '@/app/components/child/chathistory/ChatHistory';
+import useChildData from '@/hooks/useChildData';
 
 export default function ChatPage() {
   const { userFullName, uaidChild, isLoading } = useChildData();

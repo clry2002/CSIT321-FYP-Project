@@ -65,7 +65,7 @@ function AuthGuardInner({ children }: { children: ReactNode }) {
     '/adminpage': [4],             // admin only
     '/parentpage': [2],            // parent only
     '/publisherpage': [1],         // publisher only
-    '/childpage': [3],             // child only
+    '/child/childpage': [3],             // child only
     '/educatorpage': [5],          // educator only
     
     // Add profile sub-routes to the permissions
@@ -108,7 +108,7 @@ function AuthGuardInner({ children }: { children: ReactNode }) {
   const DEFAULT_REDIRECTS: Record<number, string> = {
     1: '/publisherpage',  // publisher goes to publisher dashboard
     2: '/parentpage',     // parent goes to parent dashboard
-    3: '/childpage',      // child goes to child dashboard 
+    3: '/child/childpage',      // child goes to child dashboard
     4: '/adminpage',      // admin goes to admin dashboard
     5: '/educatorpage',   // educator goes to educator dashboard
     0: '/dashboard',      // fallback for unknown roles
