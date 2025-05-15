@@ -111,7 +111,7 @@ function AuthGuardInner({ children }: { children: ReactNode }) {
     3: '/childpage',      // child goes to child dashboard
     4: '/adminpage',      // admin goes to admin dashboard
     5: '/educatorpage',   // educator goes to educator dashboard
-    0: '/dashboard',      // fallback for unknown roles
+    0: '/landing',      // fallback for unknown roles
   };
 
   // Handle redirect with a useCallback to avoid infinite loops
@@ -228,7 +228,7 @@ function AuthGuardInner({ children }: { children: ReactNode }) {
 
         // Special case for root page: redirect to appropriate dashboard
         if (pathname === '/' || pathname === '') {
-          const targetDashboard = DEFAULT_REDIRECTS[userData?.upid || 0] || '/dashboard';
+          const targetDashboard = DEFAULT_REDIRECTS[userData?.upid || 0] || '/landing';
           console.log('Root path detected, redirecting to dashboard:', targetDashboard);
           redirectTo(targetDashboard);
           return;
