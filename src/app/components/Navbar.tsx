@@ -29,11 +29,11 @@ export default function Navbar() {
       style={{ minWidth: 'fit-content', boxShadow: '0 2px 12px 0 rgba(0,0,0,0.04)' }}
     >
       <Link
-        href="/child/childpage"
+        href="/childpage"
         className={`group flex flex-col items-center px-1 py-1 rounded-md transition-transform duration-200 hover:scale-105 ${
-          activeLink === '/child/childpage' ? 'bg-blue-100 text-blue-700' : 'hover:bg-blue-50 text-gray-700'
+          activeLink === '/childpage' ? 'bg-blue-100 text-blue-700' : 'hover:bg-blue-50 text-gray-700'
         }`}
-        onClick={() => handleLinkClick('/child/childpage')}
+        onClick={() => handleLinkClick('/childpage')}
       >
         <Image
           src={homeIcon}
@@ -41,11 +41,11 @@ export default function Navbar() {
           width={28}
           height={28}
           className={`mb-0.5 transition-colors duration-300 ${
-            activeLink === '/child/childpage' ? 'animate-bounce' : 'hover:filter brightness-110 saturate-120'
+            activeLink === '/childpage' ? 'animate-bounce' : 'hover:filter brightness-110 saturate-120'
           }`}
           unoptimized
         />
-        <b className={`text-xs transition-colors duration-200 ${activeLink === '/child/childpage' ? 'text-blue-700' : 'text-white group-hover:text-blue-600'}`}>Home</b>
+        <b className={`text-xs transition-colors duration-200 ${activeLink === '/childpage' ? 'text-blue-700' : 'text-white group-hover:text-blue-600'}`}>Home</b>
       </Link>
 
       <Link
