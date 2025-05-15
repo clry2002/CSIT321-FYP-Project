@@ -146,13 +146,13 @@ export default function SignUpPage() {
                 onClick={() => router.push('/setup')}
                 className="w-full py-2 px-4 bg-purple-700 text-white rounded-lg hover:bg-purple-800 transition-colors"
               >
-                Manually go to setup page
+                Set Up Your Account
               </button>
               <Link
-                href="/auth/login"
+                href="/landing"
                 className="inline-block text-purple-700 hover:text-purple-800 font-medium"
               >
-                Return to login
+                Proceed to Main Page
               </Link>
             </div>
           </div>
@@ -231,7 +231,7 @@ export default function SignUpPage() {
       <main className="flex flex-1 items-center justify-center relative z-10">
         <div className={`max-w-md w-full space-y-8 p-8 bg-white rounded-xl shadow-lg ${formVisible ? 'animate-fly-in' : 'translate-y-full opacity-0'}`}>
           <div className="text-center">
-            <h2 className="text-3xl font-bold text-gray-900">Create your account</h2>
+            <h2 className="text-3xl font-bold text-gray-900">Create Your Account</h2>
             <p className="mt-2 text-sm text-gray-600">
               Already have an account?{' '}
               <Link href="/auth/login" className="text-purple-700 hover:text-purple-800 font-medium"> {/* Changed link color */}
@@ -250,7 +250,7 @@ export default function SignUpPage() {
             <div className="space-y-4">
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                  Email address
+                  Email Address
                 </label>
                 <input
                   id="email"
@@ -329,7 +329,7 @@ export default function SignUpPage() {
               disabled={loading}
               className="w-full flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-purple-700 hover:bg-purple-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-700 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 transition-transform duration-200" // Added hover effect
             >
-              {loading ? 'Creating account...' : 'Create account'}
+              {loading ? 'Creating account...' : 'Create Account'}
             </button>
           </form>
         </div>

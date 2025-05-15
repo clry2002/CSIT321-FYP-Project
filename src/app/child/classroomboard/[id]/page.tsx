@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 import Navbar from '@/app/components/Navbar'; 
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { Clock, Video as VideoIcon, Book } from 'lucide-react';
+import { Clock, Video as VideoIcon, Book, ArrowLeft } from 'lucide-react';
 
 type Classroom = {
   crid: number;
@@ -267,6 +267,10 @@ export default function ClassroomBoardPage() {
     );
   };
 
+  const handleBack = () => {
+    router.back();
+  };
+
   // Display loading state when page is loading
   if (isLoading) {
     return (
@@ -369,7 +373,7 @@ export default function ClassroomBoardPage() {
     <div
     className="flex flex-col h-screen overflow-hidden"
     style={{
-      backgroundImage: 'url("/spaceclassroom.jpg")', // Replace with the actual path
+      backgroundImage: 'url("/spaceclassroom.jpg")',
       backgroundSize: 'cover',
       backgroundRepeat: 'no-repeat',
       backgroundPosition: 'center',
@@ -378,9 +382,20 @@ export default function ClassroomBoardPage() {
   >
       <Navbar />
 
+      {/* Back button */}
       <div className="flex-1 overflow-y-auto pt-20 px-6 pb-6 mt-7">
         <div className="bg-white shadow-lg rounded-xl p-8 max-w-xl mx-auto mb-8">
-        <h2 className="text-4xl font-bold text-center text-blue-600 mb-6">Welcome to Your Classroom!</h2>
+          <div className="flex justify-between items-center mb-4">
+            <button
+              onClick={handleBack}
+              className="flex items-center px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm"
+            >
+              <ArrowLeft className="h-4 w-4 mr-1" />
+              Back
+            </button>
+          </div>
+
+          <h2 className="text-4xl font-bold text-center text-blue-600 mb-6">Welcome to Your Classroom!</h2>
           <div className="flex items-center mb-6">
             <span className="text-4xl text-yellow-500 mr-4">👨‍🏫</span>
             <h3 className="text-3xl font-semibold text-blue-600">{classroom.name}</h3>
@@ -531,4 +546,4 @@ export default function ClassroomBoardPage() {
       </div>
     </div>
   );
-} 
+}

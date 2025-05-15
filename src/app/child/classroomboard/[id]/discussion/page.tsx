@@ -306,7 +306,7 @@ export default function DiscussionBoardPage() {
           className="absolute left-6 top-6 flex items-center text-blue-600 hover:text-blue-800 transition-colors"
         >
           <ArrowLeft className="h-5 w-5 mr-1" />
-          <span>Back to Classroom</span>
+          <span>Back</span>
         </button>
         
         <h2 className="text-2xl font-bold text-blue-700 mb-2"> {classroomName}</h2>
