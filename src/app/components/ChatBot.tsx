@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useChatbot } from '@/hooks/useChatbot';
 import { useSpeech } from '@/hooks/useTextToSpeech';
 import { Send } from 'lucide-react';
@@ -57,6 +57,9 @@ const ChatBot: React.FC = () => {
 
   // State for input field
   const [input, setInput] = React.useState('');
+  
+  // State for mascot hover effect
+  const [isMascotHovered, setIsMascotHovered] = useState(false);
   
   // Ref for chat container scrolling
   const chatContainerRef = useRef<HTMLDivElement | null>(null);
@@ -236,23 +239,8 @@ const ChatBot: React.FC = () => {
     closeChat(stopAllSpeech);
   };
 
-  // Handle resize start
-  const handleResizeStart = (e: React.MouseEvent, direction: HandleDirection) => {
-    e.preventDefault();
-    setIsResizing(true);
-    setResizeDirection(direction);
-    startPosRef.current = { x: e.clientX, y: e.clientY };
-    const rect = containerRef.current?.getBoundingClientRect();
-    startDimRef.current = {
-      width: dimensions.width,
-      height: dimensions.height,
-      left: rect?.left || 0,
-      top: rect?.top || 0
-    };
-  };
-
-  // Handle resize move
-  const handleResizeMove = (e: MouseEvent) => {
+  // Using useCallback to fix the dependency warning for handleResizeMove
+  const handleResizeMove = useCallback((e: MouseEvent) => {
     if (!isResizing || !resizeDirection) return;
     const deltaX = e.clientX - startPosRef.current.x;
     const deltaY = e.clientY - startPosRef.current.y;
@@ -272,13 +260,28 @@ const ChatBot: React.FC = () => {
         break;
     }
     setDimensions({ width: newWidth, height: newHeight });
+  }, [isResizing, resizeDirection]);
+
+  // Handle resize start
+  const handleResizeStart = (e: React.MouseEvent, direction: HandleDirection) => {
+    e.preventDefault();
+    setIsResizing(true);
+    setResizeDirection(direction);
+    startPosRef.current = { x: e.clientX, y: e.clientY };
+    const rect = containerRef.current?.getBoundingClientRect();
+    startDimRef.current = {
+      width: dimensions.width,
+      height: dimensions.height,
+      left: rect?.left || 0,
+      top: rect?.top || 0
+    };
   };
 
   // Handle resize end
-  const handleResizeEnd = () => {
+  const handleResizeEnd = useCallback(() => {
     setIsResizing(false);
     setResizeDirection(null);
-  };
+  }, []);
 
   // Add and remove resize event listeners
   useEffect(() => {
@@ -290,7 +293,7 @@ const ChatBot: React.FC = () => {
       window.removeEventListener('mousemove', handleResizeMove);
       window.removeEventListener('mouseup', handleResizeEnd);
     };
-  }, [isResizing, resizeDirection]);
+  }, [isResizing, resizeDirection, handleResizeMove, handleResizeEnd]);
 
   // Handle mascot click
   const handleMascotClick = () => {
@@ -311,21 +314,34 @@ const ChatBot: React.FC = () => {
     <div className="chatbot-wrapper">
       {/* Show mascot to the left of the popup when open */}
       {isChatOpen && (
-        <Image 
-          src="/mascotnew.png" 
-          alt="Mascot" 
-          className="chatbot-mascot-image"
-          width={160}
-          height={160}
-          onClick={handleMascotClick}
-          style={{ cursor: 'pointer' }}
-          unoptimized
-        />
+        <div 
+          className="mascot-container"
+          onMouseEnter={() => setIsMascotHovered(true)}
+          onMouseLeave={() => setIsMascotHovered(false)}
+        >
+          <Image 
+            src="/mascotnew.png" 
+            alt="Mascot" 
+            className={`chatbot-mascot-image ${isMascotHovered ? 'mascot-wobble' : ''}`}
+            width={160}
+            height={160}
+            onClick={handleMascotClick}
+            style={{ cursor: 'pointer' }}
+            unoptimized
+          />
+          {isMascotHovered && (
+            <div className="mascot-speech-bubble">
+              <p>Click me to close the chat!</p>
+            </div>
+          )}
+        </div>
       )}
+      
       {/* Blur background when chatbot popup is open */}
       {isChatOpen && (
         <div className="chatbot-popup-backdrop visible" />
       )}
+      
       <div className="flex flex-col items-end space-y-2">
         <div className="relative">
           <button onClick={toggleCalendar} className="calendar-button">
@@ -337,9 +353,31 @@ const ChatBot: React.FC = () => {
             </span>
           )}
         </div>
-        <button onClick={handleMascotClick} className="chatbot-button">
-          <Image src="/mascotnew.png" alt="Chatbot" width={64} height={64} className="object-contain" unoptimized />
-        </button>
+        <div 
+          className="mascot-button-container"
+          onMouseEnter={() => setIsMascotHovered(true)}
+          onMouseLeave={() => setIsMascotHovered(false)}
+        >
+          <button 
+            onClick={handleMascotClick} 
+            className={`chatbot-button ${isMascotHovered ? 'mascot-bounce' : ''}`}
+          >
+            <Image 
+              src="/mascotnew.png" 
+              alt="Chatbot" 
+              width={64} 
+              height={64} 
+              className="object-contain" 
+              unoptimized 
+            />
+          </button>
+          {isMascotHovered && !isChatOpen && (
+            <div className="mascot-tooltip">
+              <p>Click me to chat!</p>
+              <div className="tooltip-arrow"></div>
+            </div>
+          )}
+        </div>
       </div>
 
       {isCalendarOpen && (

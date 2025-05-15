@@ -1648,3 +1648,121 @@ input:checked + .toggle-slider:before {
     font-size: 2rem;
   }
 }
+
+
+
+/* Chatbot - Mascot */
+/* Mascot container positioning */
+.mascot-container {
+  position: relative;
+  display: inline-block;
+  z-index: 1055;
+}
+
+.mascot-button-container {
+  position: relative;
+  display: inline-block;
+}
+
+/* Mascot animations */
+@keyframes wobble {
+  0% { transform: rotate(0deg); }
+  25% { transform: rotate(-5deg); }
+  50% { transform: rotate(0deg); }
+  75% { transform: rotate(5deg); }
+  100% { transform: rotate(0deg); }
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes pop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+
+.mascot-wobble {
+  animation: wobble 0.8s ease-in-out infinite;
+}
+
+.mascot-bounce {
+  animation: bounce 0.8s ease-in-out infinite;
+}
+
+.mascot-pop {
+  animation: pop 0.4s ease-out;
+}
+
+.mascot-speech-bubble {
+  position: absolute;
+  top: 40px;
+  right: 40px;
+  left: auto;
+  transform: none;
+  background-color: white;
+  border: 2px solid #8a2be2;
+  border-radius: 12px;
+  padding: 10px 15px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  width: 120px;
+  z-index: 1060;
+  animation: pop 0.3s ease-out;
+}
+
+.mascot-speech-bubble::after {
+  content: '';
+  position: absolute;
+  top: 40%;
+  right: -10px;
+  left: auto;
+  transform: translateY(-50%);
+  border-width: 10px 0 10px 10px;
+  border-style: solid;
+  border-color: transparent transparent transparent white;
+}
+
+.mascot-tooltip {
+  position: absolute;
+  right: 70px;
+  top: 50%;
+  transform: translateY(-50%);
+  background-color: white;
+  border: 2px solid #8a2be2;
+  border-radius: 12px;
+  padding: 8px 12px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  width: 150px;
+  z-index: 50;
+  animation: pop 0.3s ease-out;
+}
+
+.mascot-tooltip p {
+  margin: 0;
+  text-align: center;
+  font-size: 14px;
+  font-weight: bold;
+  color: #8a2be2;
+}
+
+.mascot-speech-bubble p {
+  margin: 0;
+  text-align: center;
+  font-size: 14px;
+  font-weight: bold;
+  color: #8a2be2;
+}
+
+.tooltip-arrow {
+  position: absolute;
+  right: -10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0;
+  height: 0;
+  border-top: 10px solid transparent;
+  border-bottom: 10px solid transparent;
+  border-left: 10px solid white;
+}
