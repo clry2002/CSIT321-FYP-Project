@@ -428,7 +428,7 @@ def chat():
         conversation_manager=conversation_manager
     )
     
-    if recommendation_response and "error" not in recommendation_response:
+    if recommendation_response and "processed_by_recommendation_handler" in recommendation_response:
         # Save chatbot response to history
         save_chat_to_database(
             context=recommendation_response.get("message", "Here are some recommendations for you!"), 
@@ -494,7 +494,16 @@ def chat():
                 logging.info(f"HIGH PRIORITY: Detected genre request for '{detected_genre}'")
                 break
         
-        if detected_genre:
+        # Check if we have a processing flag from recommendation handler
+        skip_genre_processing = False
+        if existing_context and 'last_processed_by' in existing_context:
+            if existing_context['last_processed_by'] == 'recommendation_handler' and detected_genre:
+                logging.info(f"Skipping standard genre processing for '{detected_genre}' - already handled by recommendation handler")
+                skip_genre_processing = True
+                # Clear the flag for next time
+                conversation_manager.clear_context(uaid_child, 'last_processed_by')
+        
+        if detected_genre and not skip_genre_processing:
             content_response = get_content_by_genre_and_format(question, uaid_child)
             
             # If we found database content, return it immediately

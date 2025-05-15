@@ -5,6 +5,7 @@ import os
 from dotenv import load_dotenv
 import datetime
 import re
+import logging
 
 # Load environment variables
 load_dotenv()
@@ -98,14 +99,15 @@ def filter_blocked_genres(books, uaid_child):
 
 def detect_recommendation_request_with_priority(question, available_genres=None):
     """
-    Enhanced detection function that can handle combined recommendation + genre requests.
+    Enhanced detection that properly handles genre+recommendation+content type combinations.
+    Fixes the issue with 'show popular horror books' detection.
     
     Args:
         question: The user's question (string)
         available_genres: List of available genres to check against
         
     Returns:
-        dict: Detection results with recommendation type, content type, and genre
+        dict: Detection results
     """
     normalized_question = question.lower().strip()
     
@@ -122,72 +124,247 @@ def detect_recommendation_request_with_priority(question, available_genres=None)
         'videos': ['video', 'videos', 'watch', 'movie', 'movies', 'film']
     }
     
-    # Generic recommendation request pattern (will be used if no specific pattern matches)
+    # List of popular characters to check for
+    characters = [
+        "spongebob", "peppa pig", "paw patrol", "harry potter", "tom and jerry",
+        "dora", "mickey mouse", "lego", "superhero", "princess", "frozen", "elsa",
+        "pokemon", "barbie", "marvel", "batman", "spiderman", "disney"
+    ]
+    
+    # Generic recommendation request pattern (for show, find, recommend)
     generic_recommendation_pattern = r'\b(recommend|show|get|find|suggest)\b'
     
-    # Check if this includes a genre-specific request
-    detected_genre = None
+    # Debug logs to help trace the detection process
+    logging.info(f"Running detection on: '{normalized_question}'")
     
+    # FIRST PRIORITY: Check for specific genre mentioned in the query
+    detected_genre = None
     if available_genres:
-        # First, look for a genre mentioned in the question
         for genre in available_genres:
             genre_lower = genre.lower()
             if genre_lower in normalized_question:
                 detected_genre = genre_lower
+                logging.info(f"Detected genre: {detected_genre}")
                 break
-                
-    # Determine if this is a recommendation request by looking for recommendation type keywords
+    
+    # SECOND PRIORITY: Check for specific character mentioned in the query
+    detected_character = None
+    for character in characters:
+        if character in normalized_question:
+            detected_character = character
+            logging.info(f"Detected character: {detected_character}")
+            break
+    
+    # THIRD PRIORITY: Determine recommendation type 
     recommendation_type = None
     for rtype, keywords in recommendation_types.items():
         if any(keyword in normalized_question for keyword in keywords):
             recommendation_type = rtype
+            logging.info(f"Detected recommendation type: {recommendation_type}")
             break
     
-    # If no recommendation type was found, check for generic recommendation words
-    has_generic_recommendation = recommendation_type is None and re.search(generic_recommendation_pattern, normalized_question)
+    # FOURTH PRIORITY: Check for generic recommendation patterns
+    has_generic_recommendation = re.search(generic_recommendation_pattern, normalized_question)
+    if has_generic_recommendation:
+        logging.info(f"Detected generic recommendation pattern: {has_generic_recommendation.group(0)}")
     
-    # If we found either a specific recommendation type or a generic one
+    # Determine if this is a recommendation request
     is_recommendation_request = recommendation_type is not None or has_generic_recommendation
     
-    # If this is a recommendation request with a genre
-    if is_recommendation_request and detected_genre:
+    # FIFTH PRIORITY: Determine content type (books/videos/both)
+    content_type = 'both'  # Default
+    explicit_content_type = False
+    
+    for ctype, keywords in content_types.items():
+        if any(keyword in normalized_question for keyword in keywords):
+            content_type = ctype
+            explicit_content_type = True
+            logging.info(f"Detected content type: {content_type}")
+            break
+    
+    # SPECIAL CASE DETECTION:
+    # Check for specific patterns like "popular horror books" - this should be a combined request
+    if detected_genre and is_recommendation_request:
+        # This pattern matches: [recommendation-type] [genre] [content-type]
+        # e.g., "popular horror books" or "trending adventure videos"
+        genre_rec_pattern = False
+        
+        # Check if recommendation type appears before genre
+        for rtype, keywords in recommendation_types.items():
+            for keyword in keywords:
+                if keyword in normalized_question:
+                    genre_pos = normalized_question.find(detected_genre)
+                    keyword_pos = normalized_question.find(keyword)
+                    
+                    # If recommendation keyword appears before genre
+                    if keyword_pos < genre_pos and keyword_pos >= 0:
+                        genre_rec_pattern = True
+                        recommendation_type = rtype
+                        logging.info(f"Detected combined pattern: {keyword} {detected_genre}")
+                        break
+        
+        # Also check if recommendation word appears right after "show", "find", etc.
+        if not genre_rec_pattern and has_generic_recommendation:
+            for match in re.finditer(generic_recommendation_pattern, normalized_question):
+                end_pos = match.end()
+                # Check if there's a recommendation keyword right after
+                for rtype, keywords in recommendation_types.items():
+                    for keyword in keywords:
+                        if normalized_question[end_pos:].strip().startswith(keyword):
+                            genre_rec_pattern = True
+                            recommendation_type = rtype
+                            logging.info(f"Detected pattern: {match.group(0)} {keyword} {detected_genre}")
+                            break
+        
+        # If we found the pattern, this is definitely a combined request
+        if genre_rec_pattern:
+            logging.info(f"Identified as combined genre+recommendation request")
+            return {
+                "is_recommendation_request": True,
+                "recommendation_type": recommendation_type or 'recommended',
+                "content_type": content_type,
+                "genre": detected_genre,
+                "high_priority": True,
+                "explicit_content_type": explicit_content_type,
+                "combined_request": True,
+                "combined_with": "genre"
+            }
+    
+    # NEW: Check for patterns that clearly indicate a recommendation request vs a simple availability query
+    availability_patterns = [
+        r'what\s+(?:are|is)\s+(?:some|any|available)',
+        r'do\s+you\s+have',
+        r'can\s+i\s+(?:see|find|get)',
+        r'is\s+there\s+any',
+        r'are\s+there\s+any',
+        r'available\b'
+    ]
+    
+    # If this looks like an availability query for a genre (without explicit recommendation keywords)
+    is_availability_query = any(re.search(pattern, normalized_question) for pattern in availability_patterns)
+    if detected_genre and is_availability_query and not recommendation_type:
+        logging.info(f"Detected availability query for genre '{detected_genre}', not a recommendation request")
+        return {
+            "is_recommendation_request": False,
+            "is_genre_request": True,
+            "genre": detected_genre
+        }
+    
+    # Exact pattern matching for common combined requests
+    combined_patterns = [
+        (r'(?:show|get|find)\s+(?:me\s+)?(?:popular|trending|recommended)\s+(\w+)\s+(?:books|videos)', "genre"),
+        (r'(?:popular|trending|recommended)\s+(\w+)\s+(?:books|videos)', "genre"),
+        (r'(?:show|get|find)\s+(?:me\s+)?(?:popular|trending|recommended)\s+(\w+)', "genre"),
+        (r'(?:show|get|find)\s+(?:me\s+)?(\w+)\s+(?:books|videos)', "genre"),
+        (r'(?:show|get|find)\s+(?:me\s+)?(?:popular|trending|recommended)\s+(?:books|videos)\s+(?:about|with|for)\s+(\w+)', "character"),
+        (r'(?:popular|trending|recommended)\s+(?:books|videos)\s+(?:about|with|for)\s+(\w+)', "character")
+    ]
+    
+    for pattern, combine_type in combined_patterns:
+        match = re.search(pattern, normalized_question)
+        if match:
+            entity = match.group(1).lower()
+            if combine_type == "genre" and detected_genre:
+                logging.info(f"Pattern matched for genre+recommendation: {pattern}")
+                # We already detected this above, but this is a double-check
+                return {
+                    "is_recommendation_request": True,
+                    "recommendation_type": recommendation_type or 'recommended',
+                    "content_type": content_type,
+                    "genre": detected_genre,
+                    "high_priority": True,
+                    "explicit_content_type": explicit_content_type,
+                    "combined_request": True,
+                    "combined_with": "genre",
+                    "pattern_matched": pattern
+                }
+            elif combine_type == "character" and detected_character:
+                logging.info(f"Pattern matched for character+recommendation: {pattern}")
+                return {
+                    "is_recommendation_request": True,
+                    "recommendation_type": recommendation_type or 'recommended',
+                    "content_type": content_type,
+                    "character": detected_character,
+                    "high_priority": True,
+                    "explicit_content_type": explicit_content_type,
+                    "combined_request": True,
+                    "combined_with": "character",
+                    "pattern_matched": pattern
+                }
+    
+    # EXPLICIT PATTERN CHECK FOR "show popular horror books"
+    # This is a special case that we need to handle explicitly
+    horror_books_pattern = r'(?:show|get|find)\s+(?:popular|trending|recommended)\s+(\w+)\s+(?:books|videos)'
+    match = re.search(horror_books_pattern, normalized_question)
+    if match and detected_genre:
+        entity = match.group(1).lower()
+        if entity == detected_genre:
+            logging.info(f"EXPLICIT PATTERN MATCH: 'show popular {detected_genre} {content_type}'")
+            return {
+                "is_recommendation_request": True,
+                "recommendation_type": recommendation_type or 'recommended',
+                "content_type": content_type,
+                "genre": detected_genre,
+                "high_priority": True,
+                "explicit_content_type": explicit_content_type,
+                "combined_request": True,
+                "combined_with": "genre",
+                "force_combined": True  # Extra flag to force combined handling
+            }
+    
+    # Now handle standard cases
+    
+    # If it's a recommendation request with a character
+    if is_recommendation_request and detected_character:
         # Default to 'recommended' type if not specified
         if recommendation_type is None:
             recommendation_type = 'recommended'
-            
-        # Determine content type (books/videos/both)
-        content_type = 'both'  # Default
-        for ctype, keywords in content_types.items():
-            if any(keyword in normalized_question for keyword in keywords):
-                content_type = ctype
-                break
+        
+        return {
+            "is_recommendation_request": True,
+            "recommendation_type": recommendation_type,
+            "content_type": content_type,
+            "character": detected_character,
+            "high_priority": True,
+            "explicit_content_type": explicit_content_type,
+            "combined_request": True,
+            "combined_with": "character"
+        }
+    
+    # If it's a recommendation request with a genre
+    elif is_recommendation_request and detected_genre:
+        # Default to 'recommended' type if not specified
+        if recommendation_type is None:
+            recommendation_type = 'recommended'
         
         # Check if this is actually a genre-only request (not a recommendation request)
-        # If it's just "show me horror books" without recommendation keywords, 
-        # let the main chat function handle it as a genre request
         if has_generic_recommendation and not any(word in normalized_question for word in 
-                                               sum(recommendation_types.values(), [])):
+                                              sum(recommendation_types.values(), [])):
             return {
                 "is_recommendation_request": False,
                 "is_genre_request": True,
                 "genre": detected_genre
             }
-            
+        
         # Otherwise, it's a combined recommendation + genre request
         return {
             "is_recommendation_request": True,
             "recommendation_type": recommendation_type,
             "content_type": content_type,
-            "genre": detected_genre,  # Include the detected genre
+            "genre": detected_genre,
             "high_priority": True,
-            "explicit_content_type": content_type != 'both',
-            "combined_request": True  # Flag that this is a combined request
+            "explicit_content_type": explicit_content_type,
+            "combined_request": True,
+            "combined_with": "genre"
         }
     
-    # If we reach here, we either have:
-    # 1. A pure genre request (no recommendation keywords)
-    # 2. A pure recommendation request (no genre)
-    # 3. Neither
+    # If it's just a character request, let the main chat function handle it
+    if detected_character and not is_recommendation_request:
+        return {
+            "is_recommendation_request": False,
+            "is_character_request": True,
+            "character": detected_character
+        }
     
     # If it's just a genre request, let the main chat function handle it
     if detected_genre and not is_recommendation_request:
@@ -197,20 +374,11 @@ def detect_recommendation_request_with_priority(question, available_genres=None)
             "genre": detected_genre
         }
     
-    # If it's a recommendation request without a specific genre, use the previous detection logic
+    # If it's a recommendation request without a specific genre or character, use the previous detection logic
     if is_recommendation_request:
         # Default to 'recommended' if generic
         if recommendation_type is None:
             recommendation_type = 'recommended'
-            
-        # Determine content type
-        content_type = 'both'  # Default
-        explicit_content_type = False
-        for ctype, keywords in content_types.items():
-            if any(keyword in normalized_question for keyword in keywords):
-                content_type = ctype
-                explicit_content_type = True
-                break
         
         # Check if this is a very generic query like "what's popular?"
         very_generic_patterns = [
@@ -234,6 +402,158 @@ def detect_recommendation_request_with_priority(question, available_genres=None)
     return {
         "is_recommendation_request": False
     }
+    
+def get_genre_specific_recommendations(genre, recommendation_type, content_type, uaid_child):
+    """
+    Get recommendations for a specific genre, filtered by recommendation type.
+    
+    Args:
+        genre: The specific genre to get recommendations for
+        recommendation_type: 'trending', 'popular', or 'recommended'
+        content_type: 'books' or 'videos'
+        uaid_child: Child's user ID
+        
+    Returns:
+        List of content items
+    """
+    try:
+        # Get child's age
+        child_age = get_child_age(uaid_child)
+        logging.info(f"Getting {recommendation_type} {content_type} for genre '{genre}', child age: {child_age}")
+        
+        # Get genre ID
+        try:
+            genre_id_query = supabase.from_("temp_genre").select("gid").ilike("genrename", f"%{genre}%").execute()
+            if not genre_id_query.data:
+                logging.warning(f"Genre '{genre}' not found in database")
+                return []
+                
+            genre_id = genre_id_query.data[0]["gid"]
+        except Exception as e:
+            logging.error(f"Error retrieving genre ID: {e}")
+            genre_id = None
+            
+        # First, check if the genre is blocked
+        if genre_id and is_genre_blocked(genre_id, uaid_child):
+            logging.info(f"Genre '{genre}' is blocked for user {uaid_child}")
+            return []
+        
+        # Determine content format ID
+        cfid = 2 if content_type == 'books' else 1
+        
+        # Build base query for genre content
+        query = (
+            supabase
+            .from_("temp_contentgenres")
+            .select(
+                "cid, temp_genre!inner(genrename), "
+                "temp_content(cid, title, description, minimumage, contenturl, status, coverimage, cfid, viewCount, decisiondate)"
+            )
+            .ilike("temp_genre.genrename", f"%{genre}%")
+            .eq("temp_content.status", CONTENT_STATUS["APPROVED"])
+            .eq("temp_content.cfid", cfid)
+        )
+        
+        # Execute the query
+        response = query.execute()
+        
+        if not response.data:
+            logging.info(f"No {content_type} found for genre '{genre}'")
+            return []
+        
+        # Filter by age appropriateness and extract content
+        filtered_content = []
+        for item in response.data:
+            if "temp_content" in item and item["temp_content"]:
+                content = item["temp_content"]
+                
+                # Skip content that's not age-appropriate
+                if "minimumage" in content and content["minimumage"] is not None:
+                    if int(content["minimumage"]) > child_age:
+                        continue
+                
+                filtered_content.append(content)
+        
+        # Apply recommendation type filtering
+        if recommendation_type == 'trending':
+            # For trending, sort by newest first with good view counts
+            # Calculate date 30 days ago for trending content
+            thirty_days_ago = (datetime.datetime.now() - datetime.timedelta(days=30)).isoformat()
+            
+            # First try to get recent trending content
+            trending_content = [c for c in filtered_content if c.get("decisiondate", "") >= thirty_days_ago]
+            
+            # If we have enough recent items, sort by views and return
+            if len(trending_content) >= 3:
+                trending_content.sort(key=lambda x: x.get("viewCount", 0), reverse=True)
+                return trending_content[:10]
+            
+            # Otherwise sort all content by date (newest first)
+            filtered_content.sort(key=lambda x: x.get("decisiondate", ""), reverse=True)
+            return filtered_content[:10]
+            
+        elif recommendation_type == 'popular':
+            # For popular, sort strictly by view count (all-time popular)
+            # Log what we're trying to sort
+            logging.info("Sorting by viewCount (popular)")
+            
+            # Debug: Log view counts before sorting
+            for i, item in enumerate(filtered_content[:5]):
+                logging.info(f"Before sort - Item {i}: title='{item.get('title')}', viewCount={item.get('viewCount')}")
+            
+            # Sort by viewCount, handling None/null values properly
+            filtered_content.sort(key=lambda x: int(x.get("viewCount") or 0), reverse=True)
+            
+            # Debug: Log view counts after sorting to verify
+            for i, item in enumerate(filtered_content[:5]):
+                logging.info(f"After sort - Item {i}: title='{item.get('title')}', viewCount={item.get('viewCount')}")
+            
+            return filtered_content[:3]
+            
+        else:
+            # For recommended, use personalization logic
+            try:
+                # Get user's interaction score for this genre if available
+                if genre_id:
+                    interaction = supabase.from_("userInteractions").select("score").eq("uaid", uaid_child).eq("gid", genre_id).execute()
+                    
+                    if interaction.data and len(interaction.data) > 0:
+                        # We have an interaction score for this genre - use it to personalize
+                        # (In a real system, we might use collaborative filtering here)
+                        pass
+            except Exception as e:
+                logging.error(f"Error getting user interaction data: {e}")
+            
+            # For now, just combine view count and recency with some randomness for variety
+            import random
+            
+            # First get top viewed items
+            filtered_content.sort(key=lambda x: x.get("viewCount", 0), reverse=True)
+            top_by_views = filtered_content[:min(5, len(filtered_content))]
+            
+            # Get some recent items
+            filtered_content.sort(key=lambda x: x.get("decisiondate", ""), reverse=True)
+            top_by_recency = filtered_content[:min(5, len(filtered_content))]
+            
+            # Combine and remove duplicates
+            combined = []
+            seen_cids = set()
+            
+            for item in top_by_views + top_by_recency:
+                if item["cid"] not in seen_cids:
+                    combined.append(item)
+                    seen_cids.add(item["cid"])
+            
+            # Shuffle for variety
+            random.shuffle(combined)
+            
+            # Return the combined list (limit to 10)
+            return combined[:10]
+        
+    except Exception as e:
+        logging.error(f"Error getting genre-specific recommendations: {e}", exc_info=True)
+        return []
+    
     
 def getRecommendedBooks(uaid_child):
     """Get personalized book recommendations based on user interactions"""
@@ -513,8 +833,7 @@ def getPopularVideos(uaid_child):
 def handle_recommendation_request(question, uaid_child, conversation_manager=None):
     """
     Handle requests for recommendations, trending, or popular content.
-    Clears genre context when processing general recommendation requests.
-    Respects explicit content type requests over context.
+    Now supports genre-specific recommendations.
     
     Args:
         question: The user's question
@@ -534,8 +853,14 @@ def handle_recommendation_request(question, uaid_child, conversation_manager=Non
     # Use the improved detection function with available genres
     detection = detect_recommendation_request_with_priority(question, available_genres)
     
-    # If this is a genre-specific request, return None to let the main chat function handle it
-    if detection.get("is_genre_request", False):
+    # Add a marker to the response to tell the main app this is explicitly handled by the recommendation handler
+    # This will help prevent double-processing
+    if detection.get("is_recommendation_request", False) and detection.get("high_priority", False):
+        detection["handled_by_recommendation_handler"] = True
+    
+    # If this is a genre-specific request (without recommendation keywords), 
+    # return None to let the main chat function handle it
+    if detection.get("is_genre_request", False) and not detection.get("is_recommendation_request", False):
         logging.info(f"Detected genre-specific request for '{detection.get('genre')}'. Skipping recommendation handler.")
         return None
     
@@ -547,9 +872,18 @@ def handle_recommendation_request(question, uaid_child, conversation_manager=Non
     content_type = detection["content_type"]
     explicit_content_type = detection.get("explicit_content_type", False)
     very_generic_query = detection.get("very_generic_query", False)
+    combined_request = detection.get("combined_request", False)
+    specific_genre = detection.get("genre")
     
-    logging.info(f"Handling {recommendation_type} request for {content_type} (high_priority: {detection.get('high_priority', False)}, " +
-                 f"explicit_content_type: {explicit_content_type}, very_generic_query: {very_generic_query})")
+    # Log the detection details
+    log_message = f"Handling {recommendation_type} request for {content_type}"
+    if specific_genre:
+        log_message += f" in '{specific_genre}' genre"
+    log_message += f" (high_priority: {detection.get('high_priority', False)}, " 
+    log_message += f"explicit_content_type: {explicit_content_type}, "
+    log_message += f"very_generic_query: {very_generic_query}, "
+    log_message += f"combined_request: {combined_request})"
+    logging.info(log_message)
     
     # Get existing conversation context
     existing_context = None
@@ -557,8 +891,8 @@ def handle_recommendation_request(question, uaid_child, conversation_manager=Non
         existing_context = conversation_manager.get_context(uaid_child)
         logging.info(f"Current context before processing: {existing_context}")
         
-        # Clear genre context when processing general recommendation requests
-        if existing_context and 'genre' in existing_context:
+        # Only clear genre context for non-genre-specific recommendations
+        if not specific_genre and existing_context and 'genre' in existing_context:
             conversation_manager.clear_context(uaid_child, 'genre')
             logging.info(f"Cleared genre context for general recommendation request")
         
@@ -578,31 +912,70 @@ def handle_recommendation_request(question, uaid_child, conversation_manager=Non
         
         # Get books if requested
         if content_type == 'books' or content_type == 'both':
-            if recommendation_type == 'trending':
-                books = getTrendingBooks(uaid_child)
-            elif recommendation_type == 'popular':
-                books = getPopularBooks(uaid_child)
-            else:  # Personalized recommendations
-                books = getRecommendedBooks(uaid_child)
+            # For genre-specific recommendations
+            if specific_genre:
+                logging.info(f"Getting {recommendation_type} books for genre: {specific_genre}")
+                
+                # Query books with the specific genre and recommendation type
+                genre_books = get_genre_specific_recommendations(
+                    genre=specific_genre,
+                    recommendation_type=recommendation_type,
+                    content_type='books',
+                    uaid_child=uaid_child
+                )
+                
+                if genre_books:
+                    books = genre_books
+            else:
+                # Standard recommendation flow without genre specificity
+                if recommendation_type == 'trending':
+                    books = getTrendingBooks(uaid_child)
+                elif recommendation_type == 'popular':
+                    books = getPopularBooks(uaid_child)
+                else:  # Personalized recommendations
+                    books = getRecommendedBooks(uaid_child)
         
         # Get videos if requested
         if content_type == 'videos' or content_type == 'both':
-            if recommendation_type == 'trending':
-                videos = getTrendingVideos(uaid_child)
-            elif recommendation_type == 'popular':
-                videos = getPopularVideos(uaid_child)
-            else:  # Personalized recommendations
-                videos = getRecommendedVideos(uaid_child)
+            # For genre-specific recommendations
+            if specific_genre:
+                logging.info(f"Getting {recommendation_type} videos for genre: {specific_genre}")
+                
+                # Query videos with the specific genre and recommendation type
+                genre_videos = get_genre_specific_recommendations(
+                    genre=specific_genre,
+                    recommendation_type=recommendation_type,
+                    content_type='videos',
+                    uaid_child=uaid_child
+                )
+                
+                if genre_videos:
+                    videos = genre_videos
+            else:
+                # Standard recommendation flow without genre specificity
+                if recommendation_type == 'trending':
+                    videos = getTrendingVideos(uaid_child)
+                elif recommendation_type == 'popular':
+                    videos = getPopularVideos(uaid_child)
+                else:  # Personalized recommendations
+                    videos = getRecommendedVideos(uaid_child)
         
         # Create a descriptive message based on what was requested
         content_type_str = content_type
         if content_type == 'both':
             content_type_str = 'books and videos'
             
-        message = f"Here are some {recommendation_type} {content_type_str} just for you!"
+        message = f"Here are some {recommendation_type} {content_type_str}"
+        if specific_genre:
+            message += f" in the {specific_genre} genre"
+        message += " just for you!"
         
         # Update conversation context if manager is provided
         if conversation_manager:
+            # Add a special flag to mark this as processed by the recommendation handler
+            # This will prevent the main handler from processing the same request
+            conversation_manager.update_context(uaid_child, 'last_processed_by', 'recommendation_handler')
+            
             # For very generic queries like "whats popular" - don't update content_type
             # to keep user's previous content preference for subsequent queries
             if not very_generic_query:
@@ -610,6 +983,11 @@ def handle_recommendation_request(question, uaid_child, conversation_manager=Non
                 if explicit_content_type:
                     conversation_manager.update_context(uaid_child, 'content_type', content_type)
                     logging.info(f"Updated content_type context to '{content_type}' based on explicit request")
+            
+            # For genre-specific requests, update the genre context
+            if specific_genre:
+                conversation_manager.update_context(uaid_child, 'genre', specific_genre)
+                logging.info(f"Updated genre context to '{specific_genre}' for combined request")
                 
             # IMPORTANT: For high priority matches, also clear the "title" context
             # This prevents future confusion with title searches
@@ -623,7 +1001,8 @@ def handle_recommendation_request(question, uaid_child, conversation_manager=Non
             "books": books,
             "videos": videos,
             "recommendation_type": recommendation_type,
-            "genre": None  # No specific genre for these recommendations
+            "genre": specific_genre,  # Include the genre in the response
+            "processed_by_recommendation_handler": True  # Add flag to prevent double processing
         }
         
     except Exception as e:
