@@ -409,11 +409,11 @@ export default function SetupPage() {
                 </button>
                 
                 <button
-                  onClick={() => router.push('/auth/login')}
+                  onClick={() => router.push('/landing')}
                   className="w-full py-2 px-4 bg-gray-600 hover:bg-gray-700 text-white rounded-lg text-sm font-medium transition-colors"
                   type="button"
                 >
-                  Return to Login
+                  Return to Home Page
                 </button>
               </div>
             </div>
@@ -509,7 +509,7 @@ export default function SetupPage() {
                 disabled={loading || !usernameAvailable}
                 className="w-full flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-purple-700 hover:bg-purple-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 transition-transform duration-200"
               >
-                {loading ? 'Saving...' : 'Finish setup'}
+                {loading ? 'Saving...' : 'Finish Setup'}
               </button>
             </form>
           )}

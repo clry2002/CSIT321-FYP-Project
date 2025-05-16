@@ -507,21 +507,31 @@ export default function ParentReauth() {
             </div>
           </div>
 
-          <div className="flex space-x-4 pt-4">
-            <button
-              type="button"
-              onClick={handleCancel}
-              className="flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex-1 px-4 py-2 bg-indigo-500 text-white rounded-md hover:bg-indigo-600"
-            >
-              {loading ? 'Verifying...' : 'Confirm Account'}
-            </button>
+          <div className="space-y-4">
+            {action === 'createChild' && (
+              <div className="p-4 rounded-lg bg-red-50 text-red-600 text-sm">
+                <p className="font-medium">Important:</p>
+                <p>After clicking confirm, a verification email will be sent to your child&apos;s email address. 
+                Please make sure they check their inbox and verify their account.</p>
+              </div>
+            )}
+            
+            <div className="flex space-x-4">
+              <button
+                type="button"
+                onClick={handleCancel}
+                className="flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={loading}
+                className="flex-1 px-4 py-2 bg-indigo-500 text-white rounded-md hover:bg-indigo-600"
+              >
+                {loading ? 'Verifying...' : 'Confirm Account'}
+              </button>
+            </div>
           </div>
         </form>
         
