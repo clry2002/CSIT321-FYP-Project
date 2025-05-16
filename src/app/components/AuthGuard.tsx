@@ -96,6 +96,7 @@ function AuthGuardInner({ children }: { children: ReactNode }) {
     '/auth/confirm',
     '/auth/update-password',
     '/logout',
+     '/setup',
   ];
 
   // Define paths that should be exempt from role checking (for reauthentication flows)
