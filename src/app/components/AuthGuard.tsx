@@ -19,7 +19,7 @@ function AuthGuardInner({ children }: { children: ReactNode }) {
   // Add inactivity timer
   useEffect(() => {
     let inactivityTimer: NodeJS.Timeout;
-    const INACTIVITY_TIMEOUT = 10 * 60 * 1000; // 5 minutes in milliseconds
+    const INACTIVITY_TIMEOUT = 10 * 60 * 1000; // 10 minutes in milliseconds
 
     const resetTimer = () => {
       if (inactivityTimer) clearTimeout(inactivityTimer);
@@ -242,7 +242,6 @@ function AuthGuardInner({ children }: { children: ReactNode }) {
           return;
         }
 
-        // Improved path matching - check for the most specific path first, then less specific
         // Get all possible base paths for the current pathname
         const pathParts = pathname?.split('/').filter(part => part) || [];
         const possiblePaths: string[] = [];
