@@ -1,16 +1,5 @@
 # # Example schema for simple movie review app
 
-# # User table is keyed by Firebase Auth UID.
-# type User @table {
-#   # `@default(expr: "auth.uid")` sets it to Firebase Auth UID during insert and upsert.
-#   id: String! @default(expr: "auth.uid")
-#   username: String! @col(dataType: "varchar(50)")
-#   # The `user: User!` field in the Review table generates the following one-to-many query field.
-#   #  reviews_on_user: [Review!]!
-#   # The `Review` join table the following many-to-many query field.
-#   #  movies_via_Review: [Movie!]!
-# }
-
 # # Movie is keyed by a randomly generated UUID.
 # type Movie @table {
 #   # If you do not pass a 'key' to `@table`, Data Connect automatically adds the following 'id' column.
