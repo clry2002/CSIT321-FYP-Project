@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useChatbot } from '@/hooks/useChatbot';
 import { useSpeech } from '@/hooks/useTextToSpeech';
-import { Send } from 'lucide-react';
+import { Sparkles, Send } from 'lucide-react';
 import Image from 'next/image';
 import ReadingCalendar from './ReadingCalendar';
 import './styles.css';
@@ -24,8 +24,9 @@ const HANDLE_DIRECTIONS = [
 ] as const;
 type HandleDirection = typeof HANDLE_DIRECTIONS[number];
 
+
 const ChatBot: React.FC = () => {
-  const { messages, isLoading, sendMessage } = useChatbot();
+  const { messages, isLoading, sendMessage, sendSurpriseRequest } = useChatbot();
   const { speakingItemId, isPaused, toggleSpeech, stopAllSpeech } = useSpeech();
   const { favoriteGenres } = useFavoriteGenres();
   const { 
@@ -57,6 +58,9 @@ const ChatBot: React.FC = () => {
 
   // State for input field
   const [input, setInput] = React.useState('');
+
+  const [isLoadingSurprise, setIsLoadingSurprise] = useState(false);
+  const [showSurpriseAnimation, setShowSurpriseAnimation] = useState(false);
   
   // State for mascot hover effect
   const [isMascotHovered, setIsMascotHovered] = useState(false);
@@ -239,6 +243,28 @@ const ChatBot: React.FC = () => {
     closeChat(stopAllSpeech);
   };
 
+  // Handle the "Surprise Me!" button click
+  const handleSurpriseMe = async () => {
+    if (isLoadingSurprise || isLoading) return;
+    
+    setIsLoadingSurprise(true);
+    setShowSurpriseAnimation(true);
+    
+    try {
+      // Start surprise animation
+      setTimeout(() => {
+        setShowSurpriseAnimation(false);
+      }, 2500); // Animation duration
+      
+      // Call sendSurpriseRequest function from your useChatbot hook
+      await sendSurpriseRequest();
+    } catch (error) {
+      console.error('Error getting surprise content:', error);
+    } finally {
+      setIsLoadingSurprise(false);
+    }
+  };
+
   // Using useCallback to fix the dependency warning for handleResizeMove
   const handleResizeMove = useCallback((e: MouseEvent) => {
     if (!isResizing || !resizeDirection) return;
@@ -413,21 +439,6 @@ const ChatBot: React.FC = () => {
         <div ref={chatContainerRef} className="chat-container">
 
           {/* Predefined questions */}
-          {/* <div className="predefined-questions">
-            <h3>Try asking:</h3>
-            
-            {["Can you recommend the latest books?", "Can you recommend the latest videos?", "I'm not sure what to look for", "Recommend other genres"].map((question, index) => (
-              <button 
-                key={index} 
-                onClick={() => handleQuestionClick(question)} 
-                className="question-button"
-              >
-                {question}
-              </button>
-            ))}
-          </div> */}
-
-          {/* Predefined questions */}
           <div className="predefined-questions">
             <h3>Try asking:</h3>
             {[
@@ -435,7 +446,8 @@ const ChatBot: React.FC = () => {
               "What's trending now?", 
               "Recommend books for me",
               "Explore different genres",
-              "I'm not sure what to look for", "Recommend other genres"
+              "I'm not sure what to look for", 
+              "Recommend other genres"
             ].map((question, index) => (
               <button 
                 key={index} 
@@ -447,6 +459,16 @@ const ChatBot: React.FC = () => {
             ))}
           </div>
 
+          {/* Add surprise animation overlay */}
+          {showSurpriseAnimation && (
+            <div className="surprise-animation-overlay">
+              <div className="surprise-animation">
+                <Sparkles size={48} color="#FFD700" />
+                <h2>Finding a magical surprise for you!</h2>
+              </div>
+            </div>
+          )}
+
           {messages.map((message, msgIndex) => (
             <div key={msgIndex} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} mb-4`}>
               <div className={message.role === 'user' ? 'user-message' : 'bot-message'}>
@@ -456,6 +478,19 @@ const ChatBot: React.FC = () => {
                       // Create a unique ID for this item
                       const itemId = `item-${msgIndex}-${idx}`;
                       const index = msgIndex * 100 + idx;
+                      
+                      // Check if this is from a surprise request
+                      const isSurpriseItem = (
+                      // Either check previous message for surprise phrases
+                      (message.content.length === 1 && 
+                        messages[msgIndex - 1]?.content && (
+                        messages[msgIndex - 1]?.content?.toString().includes("Surprise!") || 
+                         messages[msgIndex - 1]?.content?.toString().includes("Ta-da!") || 
+                         messages[msgIndex - 1]?.content?.toString().includes("Magic time!") )
+                        ) || 
+                        // OR check for explicit theme property 
+                        item.theme === 'surprise'
+                      );
                       
                       return (
                         <ContentItem
@@ -469,6 +504,7 @@ const ChatBot: React.FC = () => {
                           index={index}
                           addIframeRef={addIframeRef}
                           onAddToSchedule={item.cid && item.title ? () => handleAddToSchedule({ cid: item.cid, title: item.title }) : undefined}
+                          isSurprise={isSurpriseItem} // Pass the surprise flag
                         />
                       );
                     })}
@@ -508,15 +544,24 @@ const ChatBot: React.FC = () => {
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask for book recommendations..."
+            placeholder="✨ What awesome books or videos do you want to discover? ✨"
             className="input-field"
           />
+          <button 
+            type="button" 
+            onClick={handleSurpriseMe} 
+            disabled={isLoadingSurprise || isLoading}
+            className="surprise-button"
+            aria-label="Get a surprise recommendation"
+          >
+            <Sparkles size={18} />
+            <span>Surprise Me!</span>
+          </button>
           <button type="submit" disabled={isLoading} className="send-button">
             <Send size={20} />
           </button>
         </form>
 
-        {/* Add only left and top resize handles */}
         {HANDLE_DIRECTIONS.map((dir) => (
           <div
             key={dir}

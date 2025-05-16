@@ -1124,6 +1124,214 @@ def get_standard_responses():
         }
     })
 
+# Add this to your main Flask application file
+
+@app.route('/api/surprise', methods=['POST'])
+def get_surprise():
+    data = request.json
+    uaid_child = data.get("uaid_child")
+    
+    if not uaid_child:
+        return jsonify({"error": "No user ID provided"}), 400
+    
+    # Get child's age for age-appropriate content
+    child_age = get_child_age(uaid_child)
+    
+    # Step 1: Try to identify favorite genres based on user interactions
+    try:
+        # Get user's top genres based on interaction scores
+        interactions = (
+            supabase
+            .from_("userInteractions")
+            .select("gid, score")
+            .eq("uaid", uaid_child)
+            .order("score", desc=True)  # Fixed ordering syntax
+            .limit(5)
+            .execute()
+        )
+        
+        favorite_genre_ids = []
+        
+        if interactions.data and len(interactions.data) > 0:
+            # User has interaction data, use their favorites
+            favorite_genre_ids = [g["gid"] for g in interactions.data]
+            logging.info(f"Found {len(favorite_genre_ids)} favorite genres for user based on interactions")
+        else:
+            # Fallback: Get all non-blocked genres
+            all_genres = supabase.from_("temp_genre").select("gid, genrename").execute()
+            
+            if all_genres.data:
+                # Filter out blocked genres
+                for genre in all_genres.data:
+                    if not is_genre_blocked(genre["genrename"], uaid_child):
+                        favorite_genre_ids.append(genre["gid"])
+                
+                logging.info(f"No interaction data found, using {len(favorite_genre_ids)} non-blocked genres")
+                
+        if not favorite_genre_ids:
+            return jsonify({
+                "message": "I'd like to surprise you with something fun, but I need to know more about what you like first!",
+                "answer": "I'd like to surprise you with something fun, but I need to know more about what you like first! Try asking me about some books or videos you enjoy."
+            })
+        
+        # Step 2: Get content from favorite genres
+        # Pick a random favorite genre
+        random_genre_id = random.choice(favorite_genre_ids)
+        
+        # Get the genre name for messages
+        genre_info = supabase.from_("temp_genre").select("genrename").eq("gid", random_genre_id).execute()
+        genre_name = genre_info.data[0]["genrename"] if genre_info.data else "interesting"
+        
+        # Choose book or video randomly (50/50 chance)
+        content_type = random.choice(["book", "video"])
+        cfid = 2 if content_type == "book" else 1
+        
+        # Query for content in the selected genre and content type
+        content_query = (
+            supabase
+            .from_("temp_contentgenres")
+            .select(
+                "cid, temp_genre!inner(genrename), "
+                "temp_content(cid, title, description, minimumage, contenturl, status, coverimage, cfid)"
+            )
+            .eq("gid", random_genre_id)
+            # Filter by content type
+            .eq("temp_content.cfid", cfid)
+            # Filter by approved status
+            .eq("temp_content.status", CONTENT_STATUS["APPROVED"])
+            # Filter by age appropriateness
+            .lte("temp_content.minimumage", child_age)
+            .execute()
+        )
+        
+        suitable_content = []
+        
+        if content_query.data:
+            for item in content_query.data:
+                if "temp_content" in item and item["temp_content"]:
+                    content = item["temp_content"]
+                    # Double-check age-appropriateness
+                    if content.get("minimumage") is None or int(content.get("minimumage")) <= child_age:
+                        suitable_content.append(content)
+        
+        # If no content found, try the other content type
+        if not suitable_content:
+            logging.info(f"No suitable {content_type} content found in genre {genre_name}, trying other content type")
+            
+            # Switch content type
+            content_type = "video" if content_type == "book" else "book"
+            cfid = 2 if content_type == "book" else 1
+            
+            # Try again with the other content type
+            content_query = (
+                supabase
+                .from_("temp_contentgenres")
+                .select(
+                    "cid, temp_genre!inner(genrename), "
+                    "temp_content(cid, title, description, minimumage, contenturl, status, coverimage, cfid)"
+                )
+                .eq("gid", random_genre_id)
+                .eq("temp_content.cfid", cfid)
+                .eq("temp_content.status", CONTENT_STATUS["APPROVED"])
+                .lte("temp_content.minimumage", child_age)
+                .execute()
+            )
+            
+            if content_query.data:
+                for item in content_query.data:
+                    if "temp_content" in item and item["temp_content"]:
+                        content = item["temp_content"]
+                        if content.get("minimumage") is None or int(content.get("minimumage")) <= child_age:
+                            suitable_content.append(content)
+        
+        # If still no content, try a different genre
+        if not suitable_content and len(favorite_genre_ids) > 1:
+            logging.info(f"No suitable content found in genre {genre_name}, trying a different genre")
+            
+            # Remove current genre from options
+            favorite_genre_ids.remove(random_genre_id)
+            
+            # Pick another random genre
+            random_genre_id = random.choice(favorite_genre_ids)
+            
+            # Get the new genre name
+            genre_info = supabase.from_("temp_genre").select("genrename").eq("gid", random_genre_id).execute()
+            genre_name = genre_info.data[0]["genrename"] if genre_info.data else "interesting"
+            
+            # Reset content type to random again
+            content_type = random.choice(["book", "video"])
+            cfid = 2 if content_type == "book" else 1
+            
+            # Try with the new genre
+            content_query = (
+                supabase
+                .from_("temp_contentgenres")
+                .select(
+                    "cid, temp_genre!inner(genrename), "
+                    "temp_content(cid, title, description, minimumage, contenturl, status, coverimage, cfid)"
+                )
+                .eq("gid", random_genre_id)
+                .eq("temp_content.cfid", cfid)
+                .eq("temp_content.status", CONTENT_STATUS["APPROVED"])
+                .lte("temp_content.minimumage", child_age)
+                .execute()
+            )
+            
+            if content_query.data:
+                for item in content_query.data:
+                    if "temp_content" in item and item["temp_content"]:
+                        content = item["temp_content"]
+                        if content.get("minimumage") is None or int(content.get("minimumage")) <= child_age:
+                            suitable_content.append(content)
+        
+        # If we found suitable content, return a random one
+        if suitable_content:
+            selected_content = random.choice(suitable_content)
+            
+            # Create a fun message based on content type
+            if content_type == "book":
+                messages = [
+                    f"Surprise! I found a magical {genre_name} story just for you!",
+                    f"Ta-da! Here's a special {genre_name} book I think you'll love!",
+                    f"Look what I found! A wonderful {genre_name} book picked just for you!",
+                    f"Magic time! I've discovered a fantastic {genre_name} story for you!"
+                ]
+            else:  # video
+                messages = [
+                    f"Surprise! I found an amazing {genre_name} video just for you!",
+                    f"Ta-da! Here's a special {genre_name} video I think you'll love!",
+                    f"Look what I found! A wonderful {genre_name} video picked just for you!",
+                    f"Magic time! I've discovered a fantastic {genre_name} video for you!"
+                ]
+            
+            # Save surprise interaction to history
+            surprise_message = random.choice(messages)
+            save_chat_to_database(
+                context=surprise_message,
+                is_chatbot=True,
+                uaid_child=uaid_child
+            )
+            
+            return jsonify({
+                "message": surprise_message,
+                "content": selected_content,
+                "genre": genre_name
+            })
+        else:
+            # No suitable content found
+            return jsonify({
+                "message": "I tried to find a surprise for you, but couldn't find something perfect right now.",
+                "answer": "I tried to find a surprise for you, but couldn't find something perfect right now. Would you like to try asking for something specific instead?"
+            })
+            
+    except Exception as e:
+        logging.error(f"Error in surprise endpoint: {e}", exc_info=True)
+        return jsonify({
+            "message": "Oops! My magic surprise finder is taking a little break.",
+            "answer": "Oops! My magic surprise finder is taking a little break. Let's try something else fun instead!"
+        })
+
+
 # Run the Flask app
 if __name__ == '__main__':
     # Start the Flask app
