@@ -1,30 +1,56 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/contexts/SessionContext';
 
-const USER_TYPES = ['Parent', 'Publisher', 'Educator'];
+// Define types for better type safety
+type UserType = 'Parent' | 'Publisher' | 'Educator' | '';
+
+interface UserData {
+  user_id: string;
+  username: string;
+  fullname: string;
+  age: number;
+  upid: number;
+  updated_at: string;
+  created_at?: string;
+}
+
+const USER_TYPES: UserType[] = ['Parent', 'Publisher', 'Educator'];
 
 export default function SetupPage() {
   const router = useRouter();
   const { refreshProfile } = useSession();
-  const [name, setName] = useState('');
-  const [username, setUsername] = useState('');
-  const [age, setAge] = useState('');
-  const [userType, setUserType] = useState('');
+  const [name, setName] = useState<string>('');
+  const [username, setUsername] = useState<string>('');
+  const [age, setAge] = useState<string>('');
+  const [userType, setUserType] = useState<UserType>('');
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState<boolean>(false);
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
-  const [children, setChildren] = useState<Array<{
-    user_id: string;
-    fullname: string;
-    username: string;
-    age: number;
-  }>>([]);
-  const [selectedChild, setSelectedChild] = useState<string>('');
+  const [isSessionReady, setIsSessionReady] = useState<boolean>(false);
+
+  // Check if session is available
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data, error } = await supabase.auth.getSession();
+      if (error) {
+        console.error('Session error:', error);
+        setError('Authentication session missing. Please verify your email and try again.');
+        return;
+      }
+      if (data.session) {
+        setIsSessionReady(true);
+      } else {
+        setError('Authentication session missing. Please verify your email and try again.');
+      }
+    };
+    
+    checkSession();
+  }, []);
 
   const checkUsername = async (username: string) => {
     if (!username) {
@@ -56,53 +82,14 @@ export default function SetupPage() {
     checkUsername(sanitizedUsername);
   };
 
-  const fetchChildrenForParent = async (email: string) => {
-    try {
-      // First get child profiles that match the parent email
-      const { data: childProfiles, error: childProfileError } = await supabase
-        .from('child_profile')
-        .select('child_id, parent_email')
-        .eq('parent_email', email);
-
-      if (childProfileError) throw childProfileError;
-      if (!childProfiles?.length) return;
-
-      // Get the user details for each child
-      const { data: childUsers, error: childUsersError } = await supabase
-        .from('user_account')
-        .select('user_id, fullname, username, age')
-        .in('user_id', childProfiles.map(profile => profile.child_id));
-
-      if (childUsersError) throw childUsersError;
-      if (childUsers) {
-        setChildren(childUsers);
-      }
-    } catch (error) {
-      console.error('Error fetching children:', error);
-    }
-  };
-
-  const handleUserTypeChange = async (value: string) => {
-    setUserType(value);
-    if (value === 'Parent') {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user?.email) {
-        await fetchChildrenForParent(user.email);
-      }
-    } else {
-      setChildren([]);
-      setSelectedChild('');
-    }
+  const handleUserTypeChange = (value: string) => {
+    setUserType(value as UserType);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!userType) {
       setError('Please select your role');
-      return;
-    }
-    if (userType === 'Parent' && children.length > 0 && !selectedChild) {
-      setError('Please select your child');
       return;
     }
     if (!usernameAvailable) {
@@ -134,7 +121,7 @@ export default function SetupPage() {
         throw new Error('Invalid user type');
       }
 
-      const userData = {
+      const userData: UserData = {
         user_id: user.id,
         username,
         fullname: name,
@@ -183,13 +170,10 @@ export default function SetupPage() {
 
       // Handle profile creation based on user type
       if (upid === 1) { // Publisher
-        // Publisher role is already set via upid in user_account table
         router.push('/publisherpage');
       } else if (upid === 2) { // Parent
-        // Parent role is already set via upid in user_account table
         router.push('/parentpage');
       } else if (upid === 5) { // Educator
-        // Educator role is already set via upid in user_account table
         router.push('/educatorpage');
       }
 
@@ -200,7 +184,7 @@ export default function SetupPage() {
       if (err instanceof Error) {
         setError(err.message);
       } else if (typeof err === 'object' && err !== null && 'message' in err) {
-        setError(err.message as string);
+        setError((err as { message: string }).message);
       } else {
         setError('An error occurred while saving your preferences');
       }
@@ -233,6 +217,7 @@ export default function SetupPage() {
           <button
             onClick={handleBack}
             className="text-sm text-gray-600 hover:text-gray-800 font-medium flex items-center"
+            type="button"
           >
             <svg 
               xmlns="http://www.w3.org/2000/svg" 
@@ -258,122 +243,106 @@ export default function SetupPage() {
             </p>
           </div>
 
-          <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-            {error && (
-              <div className="bg-red-50 text-red-500 p-3 rounded-lg text-sm">
-                {error}
-              </div>
-            )}
+          {!isSessionReady ? (
+            <div className="bg-yellow-50 text-yellow-700 p-4 rounded-lg text-center">
+              <p>Verifying your session. If this message persists, please make sure you&apos;ve verified your email.</p>
+            </div>
+          ) : (
+            <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+              {error && (
+                <div className="bg-red-50 text-red-500 p-3 rounded-lg text-sm">
+                  {error}
+                </div>
+              )}
 
-            <div className="space-y-4">
-              <div>
-                <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-                  Full Name
-                </label>
-                <input
-                  id="name"
-                  type="text"
-                  required
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent !text-black"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="username" className="block text-sm font-medium text-gray-700">
-                  Username
-                </label>
-                <div className="mt-1 relative">
+              <div className="space-y-4">
+                <div>
+                  <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+                    Full Name
+                  </label>
                   <input
-                    id="username"
+                    id="name"
                     type="text"
                     required
-                    value={username}
-                    onChange={(e) => handleUsernameChange(e.target.value)}
-                    className={`block w-full px-3 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:border-transparent !text-black ${
-                      username && (
-                        usernameAvailable
-                          ? 'border-green-500 focus:ring-green-500'
-                          : 'border-red-500 focus:ring-red-500'
-                      )
-                    }`}
-                    pattern="[a-z0-9_]+"
-                    title="Username can only contain lowercase letters, numbers, and underscores"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent !text-black"
                   />
-                  {username && (
-                    <div className={`mt-1 text-sm ${usernameAvailable ? 'text-green-600' : 'text-red-600'}`}>
-                      {usernameAvailable ? 'Username is available' : 'Username is taken'}
-                    </div>
-                  )}
+                </div>
+
+                <div>
+                  <label htmlFor="username" className="block text-sm font-medium text-gray-700">
+                    Username
+                  </label>
+                  <div className="mt-1 relative">
+                    <input
+                      id="username"
+                      type="text"
+                      required
+                      value={username}
+                      onChange={(e) => handleUsernameChange(e.target.value)}
+                      className={`block w-full px-3 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:border-transparent !text-black ${
+                        username && (
+                          usernameAvailable
+                            ? 'border-green-500 focus:ring-green-500'
+                            : 'border-red-500 focus:ring-red-500'
+                        )
+                      }`}
+                      pattern="[a-z0-9_]+"
+                      title="Username can only contain lowercase letters, numbers, and underscores"
+                    />
+                    {username && (
+                      <div className={`mt-1 text-sm ${usernameAvailable ? 'text-green-600' : 'text-red-600'}`}>
+                        {usernameAvailable ? 'Username is available' : 'Username is taken'}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <label htmlFor="age" className="block text-sm font-medium text-gray-700">
+                    Age
+                  </label>
+                  <input
+                    id="age"
+                    type="number"
+                    required
+                    min="1"
+                    max="120"
+                    value={age}
+                    onChange={(e) => setAge(e.target.value)}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent !text-black"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="userType" className="block text-sm font-medium text-gray-700">
+                    I am a:
+                  </label>
+                  <select
+                    id="userType"
+                    value={userType}
+                    onChange={(e) => handleUserTypeChange(e.target.value)}
+                    required
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent !text-black"
+                  >
+                    <option value="">Select your role</option>
+                    {USER_TYPES.map((type) => (
+                      <option key={type} value={type}>{type}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
-              <div>
-                <label htmlFor="age" className="block text-sm font-medium text-gray-700">
-                  Age
-                </label>
-                <input
-                  id="age"
-                  type="number"
-                  required
-                  min="1"
-                  max="120"
-                  value={age}
-                  onChange={(e) => setAge(e.target.value)}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent !text-black"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="userType" className="block text-sm font-medium text-gray-700">
-                  I am a:
-                </label>
-                <select
-                  id="userType"
-                  value={userType}
-                  onChange={(e) => handleUserTypeChange(e.target.value)}
-                  required
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent !text-black"
-                >
-                  <option value="">Select your role</option>
-                  {USER_TYPES.map((type) => (
-                    <option key={type} value={type}>{type}</option>
-                  ))}
-                </select>
-
-                {userType === 'Parent' && children.length > 0 && (
-                  <div className="mt-4">
-                    <label htmlFor="childSelect" className="block text-sm font-medium text-gray-700">
-                      Select your child:
-                    </label>
-                    <select
-                      id="childSelect"
-                      value={selectedChild}
-                      onChange={(e) => setSelectedChild(e.target.value)}
-                      required
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent !text-black"
-                    >
-                      <option value="">Select a child</option>
-                      {children.map((child) => (
-                        <option key={child.user_id} value={child.user_id}>
-                          {child.fullname} ({child.username}) - {child.age} years old
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading || !usernameAvailable}
-              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-purple-700 hover:bg-purple-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? 'Saving...' : 'Finish setup'}
-            </button>
-          </form>
+              <button
+                type="submit"
+                disabled={loading || !usernameAvailable}
+                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-purple-700 hover:bg-purple-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? 'Saving...' : 'Finish setup'}
+              </button>
+            </form>
+          )}
         </div>
       </div>
     </div>
