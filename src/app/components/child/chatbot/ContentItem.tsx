@@ -3,6 +3,7 @@ import Image from 'next/image';
 import AudioButton from './audioButton';
 import VideoRenderer from './VideoRenderer';
 import AgeBadge from './AgeBadge';
+import { Sparkles } from 'lucide-react';
 
 interface ContentItem {
     title: string;
@@ -12,9 +13,10 @@ interface ContentItem {
     cid?: number;
     cfid: number;
     minimumage?: number | null;
-  }
+    theme?: string;
+}
   
-  interface ContentItemProps {
+interface ContentItemProps {
     item: ContentItem;
     itemId: string;
     speakingItemId: string;
@@ -24,7 +26,8 @@ interface ContentItem {
     index: number;
     addIframeRef: (index: number, ref: HTMLIFrameElement | null) => void;
     onAddToSchedule?: () => void;
-  }
+    isSurprise?: boolean;
+}
 
 const ContentItem: React.FC<ContentItemProps> = ({
   item,
@@ -35,7 +38,8 @@ const ContentItem: React.FC<ContentItemProps> = ({
   handleImageClick,
   index,
   addIframeRef,
-  onAddToSchedule
+  onAddToSchedule,
+  isSurprise = false
 }) => {
   const isSpeaking = speakingItemId === itemId;
   
@@ -45,35 +49,73 @@ const ContentItem: React.FC<ContentItemProps> = ({
   };
   
   return (
-    <li className="book-item">
+    <li 
+      className={`book-item ${isSurprise ? 'surprise-content' : ''}`}
+      data-cfid={item.cfid}
+    >
+      {/* Add surprise indicator if it's a surprise item */}
+      {isSurprise && (
+        <div className="surprise-indicator">
+          <Sparkles size={20} color="#FFD700" />
+          <span>Surprise Pick!</span>
+        </div>
+      )}
+      
       <div className="content-header">
         <strong>{item.title}</strong>
         <AgeBadge minimumAge={item.minimumage} />
       </div>
+      
       <div className="content-description">
         {item.description}
       </div>
+      
       <br />
+      
+      {/* Group image and "Read Description" button for books */}
       {item.coverimage && item.cfid !== 1 && (
-        <Image
-          src={item.coverimage}
-          alt={`Cover of ${item.title}`}
-          width={100}
-          height={150}
-          className="book-cover-image"
-          onClick={() => item.coverimage && handleImageClick(item.coverimage)}
-          unoptimized
+        <div className="image-button-group">
+          <div className={`cover-image-container ${isSurprise ? 'surprise-image' : ''}`}>
+            <Image
+              src={item.coverimage}
+              alt={`Cover of ${item.title}`}
+              width={100}
+              height={150}
+              className="book-cover-image"
+              onClick={() => item.coverimage && handleImageClick(item.coverimage)}
+              unoptimized
+            />
+            {isSurprise && (
+              <div className="surprise-sparkles">
+                <Sparkles size={24} color="#FFD700" />
+              </div>
+            )}
+          </div>
+          
+          <div className="audio-button-wrapper">
+            <AudioButton 
+              title={item.title}
+              description={item.description}
+              itemId={itemId}
+              isSpeaking={isSpeaking}
+              isPaused={isPaused}
+              onToggle={toggleSpeech}
+            />
+          </div>
+        </div>
+      )}
+      
+      {/* For videos or items without covers, show AudioButton normally */}
+      {(!item.coverimage || item.cfid === 1) && (
+        <AudioButton 
+          title={item.title}
+          description={item.description}
+          itemId={itemId}
+          isSpeaking={isSpeaking}
+          isPaused={isPaused}
+          onToggle={toggleSpeech}
         />
       )}
-
-      <AudioButton 
-        title={item.title}
-        description={item.description}
-        itemId={itemId}
-        isSpeaking={isSpeaking}
-        isPaused={isPaused}
-        onToggle={toggleSpeech}
-      />
       
       <div className="content-actions">
         {item.cfid === 1 ? (

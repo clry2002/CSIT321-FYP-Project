@@ -1766,3 +1766,185 @@ input:checked + .toggle-slider:before {
   border-bottom: 10px solid transparent;
   border-left: 10px solid white;
 }
+
+
+
+/* Chatbot - Surprise */
+/* Styling for surprise content */
+.surprise-content {
+  animation: surpriseReveal 0.8s ease-out forwards;
+  border: 2px dashed #FFD700; /* Gold dashed border */
+  background-color: rgba(255, 215, 0, 0.05); /* Very light gold background */
+  box-shadow: 0 0 15px rgba(255, 215, 0, 0.3); /* Subtle gold glow */
+  border-radius: 12px;
+  padding: 16px;
+  position: relative;
+  overflow: hidden;
+}
+
+.surprise-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+  background-color: #fff8e1;
+  border-radius: 16px;
+  padding: 4px 10px;
+  width: fit-content;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.surprise-indicator span {
+  color: #b58800;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.cover-image-container {
+  position: relative;
+  display: inline-block;
+  margin-bottom: 20px !important;
+}
+
+.surprise-image {
+  transform: rotate(-3deg);
+  transition: transform 0.3s ease;
+}
+
+.surprise-image:hover {
+  transform: rotate(0deg) scale(1.05);
+}
+
+.surprise-sparkles {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  animation: twinkle 1.5s infinite alternate;
+}
+
+/* Surprise button styling */
+.surprise-button {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background-color: #a64cf9;
+  color: white;
+  border: none;
+  border-radius: 20px;
+  padding: 6px 12px;
+  margin-left: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  height: 36px;
+}
+
+.surprise-button:hover {
+  background-color: #8a30e8;
+  transform: scale(1.05);
+}
+
+.surprise-button:disabled {
+  background-color: #ccaaee;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Surprise Animation Overlay */
+.surprise-animation-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease;
+}
+
+.surprise-animation {
+  background-color: white;
+  border-radius: 16px;
+  padding: 30px;
+  text-align: center;
+  box-shadow: 0px 0px 30px rgba(166, 76, 249, 0.5);
+  animation: bounce 0.5s ease infinite alternate;
+}
+
+.surprise-animation h2 {
+  margin-top: 15px;
+  color: #a64cf9;
+  font-size: 24px;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes bounce {
+  from { transform: translateY(0); }
+  to { transform: translateY(-10px); }
+}
+
+@keyframes surpriseReveal {
+  0% { opacity: 0; transform: scale(0.8) rotate(-5deg); }
+  50% { opacity: 1; transform: scale(1.1) rotate(3deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0); }
+}
+
+@keyframes twinkle {
+  0% { opacity: 0.7; transform: scale(0.9); }
+  100% { opacity: 1; transform: scale(1.1); }
+}
+
+
+/* Specific CSS fixes for book surprise styling */
+
+/* Target book items (cfid=2) with surprise styling specifically */
+.book-item[data-cfid="2"].surprise-content {
+  animation: surpriseReveal 0.8s ease-out forwards !important;
+  border: 2px dashed #FFD700 !important;
+  background-color: rgba(255, 215, 0, 0.05) !important;
+  box-shadow: 0 0 15px rgba(255, 215, 0, 0.3) !important;
+  border-radius: 12px !important;
+  padding: 16px !important;
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+/* Fix for surprise-image rotation on book covers */
+.book-item[data-cfid="2"].surprise-content .cover-image-container {
+  transform: rotate(-3deg) !important;
+  transition: transform 0.3s ease !important;
+}
+
+.book-item[data-cfid="2"].surprise-content .cover-image-container:hover {
+  transform: rotate(0deg) scale(1.05) !important;
+}
+
+/* Make sure surprise indicator appears for books */
+.book-item[data-cfid="2"].surprise-content .surprise-indicator {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* Make sure sparkles show properly on books */
+.book-item[data-cfid="2"].surprise-content .surprise-sparkles {
+  position: absolute !important;
+  top: -10px !important;
+  right: -10px !important;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  z-index: 5 !important;
+}
+
+/* Fix for the sparkle animation */
+.book-item[data-cfid="2"].surprise-content .surprise-sparkles svg {
+  animation: twinkle 1.5s infinite alternate !important;
+}

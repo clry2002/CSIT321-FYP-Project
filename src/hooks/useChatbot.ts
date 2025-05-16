@@ -14,6 +14,7 @@ export interface Content {
   cfid: number; // 1 = video, 2 = book
   cid: number;
   minimumage: number;
+  theme?: string;
 }
 
 // Define the Message interface
@@ -135,7 +136,7 @@ export const useChatbot = () => {
 
       const response = await axios.post(
         `${API_URL}/api/chat`,
-        // 'http://127.0.0.1:5000/api/chat',
+        //'http://127.0.0.1:5000/api/chat',
         JSON.stringify({
           question: message,
           uaid_child: uaid_child,
@@ -221,6 +222,79 @@ export const useChatbot = () => {
     }
   }, [uaid_child]);
 
+  const sendSurpriseRequest = useCallback(async () => {
+  if (!uaid_child) {
+    console.error('User ID (uaid_child) is not available');
+    return;
+  }
+
+  try {
+    setIsLoading(true);
+
+    const response = await axios.post(
+      `${API_URL}/api/surprise`,
+      //'http://127.0.0.1:5000/api/surprise',
+      JSON.stringify({
+        uaid_child: uaid_child,
+      }),
+      {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    console.log("Surprise API Response:", response.data);
+
+    // If there's content in the response
+    if (response.data.content) {
+      // Create a Content object from the surprise content
+      const surpriseContent: Content[] = [{
+        ...response.data.content,
+        coverimage: response.data.content.coverimage || '',
+        cfid: response.data.content.cfid || 2,
+        cid: response.data.content.cid || 0,
+        minimumage: response.data.content.minimumage || 0,
+       theme: 'surprise'
+      }];
+
+      // Add surprise message
+      const surpriseMessage = response.data.message || "Surprise! Here's a magical story picked just for you!";
+      
+      // First add the text message
+      setMessages((prev) => [
+        ...prev, 
+        { role: 'assistant', content: surpriseMessage }
+      ]);
+
+      // Then add the content with a slight delay
+      setTimeout(() => {
+        setMessages((prev) => [
+          ...prev,
+          { role: 'assistant', content: surpriseContent }
+        ]);
+      }, 100);
+    } else if (response.data.answer) {
+      // Fallback if no content is found
+      setMessages((prev) => [
+        ...prev,
+        { role: 'assistant', content: response.data.answer }
+      ]);
+    }
+  } catch (error) {
+    console.error('Error calling surprise API:', error);
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: 'assistant',
+        content: 'Sorry, I couldn\'t find a surprise for you right now. Please try again!',
+      },
+    ]);
+  } finally {
+    setIsLoading(false);
+  }
+}, [uaid_child, setMessages, setIsLoading]);
+
   // Auto-scroll to the bottom on new messages
   useEffect(() => {
     if (chatContainerRef.current) {
@@ -241,6 +315,7 @@ export const useChatbot = () => {
     messages,
     isLoading,
     sendMessage,
+    sendSurpriseRequest,
     chatContainerRef,
     userFullName, 
   };
