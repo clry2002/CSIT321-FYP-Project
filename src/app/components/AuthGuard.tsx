@@ -19,7 +19,7 @@ function AuthGuardInner({ children }: { children: ReactNode }) {
   // Add inactivity timer
   useEffect(() => {
     let inactivityTimer: NodeJS.Timeout;
-    const INACTIVITY_TIMEOUT = 5 * 60 * 1000; // 5 minutes in milliseconds
+    const INACTIVITY_TIMEOUT = 10 * 60 * 1000; // 5 minutes in milliseconds
 
     const resetTimer = () => {
       if (inactivityTimer) clearTimeout(inactivityTimer);
