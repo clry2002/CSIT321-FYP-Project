@@ -205,6 +205,8 @@ def is_genre_blocked(genre_name, uaid_child):
         return False
 
 # Content fetch function with blocked genre and age-appropriate handling
+# Full implementation of get_content_by_genre_and_format with message generation
+
 def get_content_by_genre_and_format(question, uaid_child):
     try:
         # Set up logging for this request
@@ -379,11 +381,38 @@ def get_content_by_genre_and_format(question, uaid_child):
         logging.info(f"[{request_id}] Returning book CIDs: {book_cids}")
         logging.info(f"[{request_id}] Returning video CIDs: {video_cids}")
 
+        # Add a friendly message
+        book_count = len(filtered_books)
+        video_count = len(filtered_videos)
+        
+        # Create content description
+        content_desc = []
+        if book_count > 0:
+            content_desc.append(f"{book_count} book{'s' if book_count != 1 else ''}")
+        if video_count > 0:
+            content_desc.append(f"{video_count} video{'s' if video_count != 1 else ''}")
+        
+        content_desc_text = " and ".join(content_desc)
+        
+        # Generate friendly messages
+        messages = [
+            f"I found some great {detected_genre} content for you! Here's {content_desc_text} that I think you'll enjoy.",
+            f"Looking for {detected_genre}? You've come to the right place! I found {content_desc_text} for you.",
+            f"Here are {content_desc_text} in the {detected_genre} category just for you!",
+            f"I love {detected_genre} too! Here are {content_desc_text} that I think you'll really enjoy."
+        ]
+        
+        # Select a random message for variety
+        message = random.choice(messages)
+        
+        logging.info(f"[{request_id}] Generated message: {message}")
+
         return {
             "genre": detected_genre,
             "books": filtered_books,
             "videos": filtered_videos,
-            "child_age": child_age
+            "child_age": child_age,
+            "message": message  # Add this message field to the response
         }
 
     except Exception as e:
@@ -501,6 +530,7 @@ def chat():
             return jsonify(title_content)
     
     # STEP 3: Process genre detection
+    content_response = None  # Initialize content_response variable
     genres_query = supabase.from_("temp_genre").select("genrename").execute()
     if genres_query.data:
         genres = [genre["genrename"].lower() for genre in genres_query.data]
@@ -530,40 +560,48 @@ def chat():
                 # Store genre in context without forcing content type
                 conversation_manager.update_context(uaid_child, 'genre', detected_genre)
                 
-                # Add a friendly message
-                has_books = content_response.get("books") and len(content_response.get("books", [])) > 0
-                has_videos = content_response.get("videos") and len(content_response.get("videos", [])) > 0
+                # Check if the content_response has a message
+                if "message" in content_response:
+                    # Save just the message to chat history
+                    save_chat_to_database(
+                        context=content_response["message"], 
+                        is_chatbot=True, 
+                        uaid_child=uaid_child
+                    )
+                else:
+                    # Add a friendly message if missing
+                    # Count content items
+                    book_count = len(content_response.get("books", []))
+                    video_count = len(content_response.get("videos", []))
+                    
+                    # Create content description
+                    content_desc = []
+                    if book_count > 0:
+                        content_desc.append(f"{book_count} book{'s' if book_count != 1 else ''}")
+                    if video_count > 0:
+                        content_desc.append(f"{video_count} video{'s' if video_count != 1 else ''}")
+                    
+                    content_desc_text = " and ".join(content_desc)
+                    
+                    # Generate friendly messages
+                    messages = [
+                        f"I found some great {detected_genre} content for you! Here's {content_desc_text} that I think you'll enjoy.",
+                        f"Looking for {detected_genre}? You've come to the right place! I found {content_desc_text} for you.",
+                        f"Here are {content_desc_text} in the {detected_genre} category just for you!",
+                        f"I love {detected_genre} too! Here are {content_desc_text} that I think you'll really enjoy."
+                    ]
+                    
+                    # Select a random message for variety
+                    message = random.choice(messages)
+                    content_response["message"] = message
+                    
+                    # Save to chat history
+                    save_chat_to_database(
+                        context=message, 
+                        is_chatbot=True, 
+                        uaid_child=uaid_child
+                    )
                 
-                # Count content items
-                book_count = len(content_response.get("books", []))
-                video_count = len(content_response.get("videos", []))
-                
-                # Create content description
-                content_desc = []
-                if book_count > 0:
-                    content_desc.append(f"{book_count} book{'s' if book_count != 1 else ''}")
-                if video_count > 0:
-                    content_desc.append(f"{video_count} video{'s' if video_count != 1 else ''}")
-                
-                content_desc_text = " and ".join(content_desc)
-                
-                # Generate friendly messages
-                messages = [
-                    f"I found some great {detected_genre} content for you! Here's {content_desc_text} that I think you'll enjoy.",
-                    f"Looking for {detected_genre}? You've come to the right place! I found {content_desc_text} for you.",
-                    f"Here are {content_desc_text} in the {detected_genre} category just for you!",
-                    f"I love {detected_genre} too! Here are {content_desc_text} that I think you'll really enjoy."
-                ]
-                
-                # Select a random message for variety
-                content_response["message"] = random.choice(messages)
-                
-                # Save and return the response with the message
-                save_chat_to_database(
-                    context=content_response["message"], 
-                    is_chatbot=True, 
-                    uaid_child=uaid_child
-                )
                 return jsonify(content_response)
     
     # STEP 4: Process character and context detection
@@ -1011,9 +1049,44 @@ def chat():
             logging.error(f"AI response failed: {e}")
             return jsonify({"error": "AI response failed"}), 500
         # If we have content, return it
-    save_chat_to_database(context=str(content_response), is_chatbot=True, uaid_child=uaid_child)
-    return jsonify(content_response)
+    if content_response and "genre" in content_response and "error" not in content_response:
+            if "message" in content_response:
+            # Save just the friendly message to chat history
+                save_chat_to_database(
+                context=content_response["message"], 
+                is_chatbot=True, 
+                uaid_child=uaid_child
+            )   
+            else:
+            # Create a default message if one is not present
+                genre = content_response.get("genre", "")
+                book_count = len(content_response.get("books", []))
+                video_count = len(content_response.get("videos", []))
+                
+                # Create a friendly message based on content found
+                if book_count > 0 and video_count > 0:
+                    message = f"I found some great {genre} content for you! Here are {book_count} books and {video_count} videos."
+                elif book_count > 0:
+                    message = f"I found some great {genre} books for you! Here are {book_count} books to enjoy."
+                elif video_count > 0:
+                    message = f"I found some great {genre} videos for you! Here are {video_count} videos to enjoy."
+                else:
+                    message = f"Here's some content for: {genre}"
+                
+                # Add the message to the response
+                content_response["message"] = message
+                
+                # Save the message
+                save_chat_to_database(
+                    context=message, 
+                    is_chatbot=True, 
+                    uaid_child=uaid_child
+                )
 
+            return jsonify(content_response)
+    else:
+        # If we reach here and have no valid content response, return an error
+        return jsonify({"error": "Sorry, I couldn't find any content matching your request."})
 
 def handle_genre_recommendation(question, child_age, existing_context, uaid_child):
     """

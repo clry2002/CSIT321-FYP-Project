@@ -59,8 +59,12 @@ const ChatBot: React.FC = () => {
   // State for input field
   const [input, setInput] = React.useState('');
 
+  // State for surprise feature
   const [isLoadingSurprise, setIsLoadingSurprise] = useState(false);
   const [showSurpriseAnimation, setShowSurpriseAnimation] = useState(false);
+  
+  // State for two-step content display
+  const [expandedMessageIndices, setExpandedMessageIndices] = useState<number[]>([]);
   
   // State for mascot hover effect
   const [isMascotHovered, setIsMascotHovered] = useState(false);
@@ -98,6 +102,22 @@ const ChatBot: React.FC = () => {
       localStorage.setItem('chatbotDimensions', JSON.stringify(dimensions));
     }
   }, [dimensions]);
+
+  // Helper function to toggle content expansion
+  const toggleMessageExpansion = (index: number) => {
+    setExpandedMessageIndices(prev => 
+      prev.includes(index) 
+        ? prev.filter(i => i !== index) 
+        : [...prev, index]
+    );
+    
+    // Scroll to make sure the expanded content is visible
+    setTimeout(() => {
+      if (chatContainerRef.current && expandedMessageIndices.includes(index)) {
+        chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+      }
+    }, 100);
+  };
 
   // Custom smooth scroll function with longer duration
   const smoothScrollToBottom = (element: HTMLDivElement) => {
@@ -251,12 +271,16 @@ const ChatBot: React.FC = () => {
     setShowSurpriseAnimation(true);
     
     try {
-      // Start surprise animation
-      setTimeout(() => {
-        setShowSurpriseAnimation(false);
-      }, 2500); // Animation duration
+      // Show animation for 2.5 seconds
+      await new Promise(resolve => setTimeout(resolve, 2500));
       
-      // Call sendSurpriseRequest function from your useChatbot hook
+      // Hide animation overlay first
+      setShowSurpriseAnimation(false);
+      
+      // Wait a small amount of time for the animation to finish hiding
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      // Now call the API to get the surprise
       await sendSurpriseRequest();
     } catch (error) {
       console.error('Error getting surprise content:', error);
@@ -464,7 +488,7 @@ const ChatBot: React.FC = () => {
             <div className="surprise-animation-overlay">
               <div className="surprise-animation">
                 <Sparkles size={48} color="#FFD700" />
-                <h2>Finding a magical surprise for you!</h2>
+                <h2>Unwrapping your surprise ... no peeking!</h2>
               </div>
             </div>
           )}
@@ -473,42 +497,103 @@ const ChatBot: React.FC = () => {
             <div key={msgIndex} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} mb-4`}>
               <div className={message.role === 'user' ? 'user-message' : 'bot-message'}>
                 {message.role === 'assistant' && Array.isArray(message.content) ? (
-                  <ul>
-                    {message.content.map((item, idx) => {
-                      // Create a unique ID for this item
-                      const itemId = `item-${msgIndex}-${idx}`;
-                      const index = msgIndex * 100 + idx;
-                      
-                      // Check if this is from a surprise request
-                      const isSurpriseItem = (
-                      // Either check previous message for surprise phrases
-                      (message.content.length === 1 && 
-                        messages[msgIndex - 1]?.content && (
-                        messages[msgIndex - 1]?.content?.toString().includes("Surprise!") || 
-                         messages[msgIndex - 1]?.content?.toString().includes("Ta-da!") || 
-                         messages[msgIndex - 1]?.content?.toString().includes("Magic time!") )
-                        ) || 
-                        // OR check for explicit theme property 
-                        item.theme === 'surprise'
-                      );
-                      
-                      return (
-                        <ContentItem
-                          key={idx}
-                          item={item}
-                          itemId={itemId}
-                          speakingItemId={speakingItemId || ''}
-                          isPaused={isPaused}
-                          toggleSpeech={toggleSpeech}
-                          handleImageClick={showEnlargedImage}
-                          index={index}
-                          addIframeRef={addIframeRef}
-                          onAddToSchedule={item.cid && item.title ? () => handleAddToSchedule({ cid: item.cid, title: item.title }) : undefined}
-                          isSurprise={isSurpriseItem} // Pass the surprise flag
-                        />
-                      );
-                    })}
-                  </ul>
+                  <div className="content-results-container">
+                    {/* Check if it's a surprise item or has more than 10 content items */}
+                    {(message.content.length > 10 || message.content.length === 1 && 
+                      messages[msgIndex - 1]?.content?.toString().includes("Surprise")) ? (
+                      <>
+                        {/* Show a summary message first */}
+                        <div className="content-summary">
+                          <p>
+                            {messages[msgIndex - 1]?.content?.toString().includes("Surprise") 
+                              ? "Here's your magical surprise!" 
+                              : `I found ${message.content.length} great suggestions for you!`}
+                          </p>
+                          
+                          {/* Only show the toggle button if we have more than 10 content items (not for surprise) */}
+                          {message.content.length > 10 && (
+                            <button 
+                              onClick={() => toggleMessageExpansion(msgIndex)}
+                              className="see-results-button"
+                            >
+                              {expandedMessageIndices.includes(msgIndex) ? "Hide Results" : "See Suggestions"}
+                            </button>
+                          )}
+                        </div>
+                        
+                        {/* Show content conditionally:
+                            - For surprise content (length === 1), always show
+                            - For other content, show if expanded or if <= 10 items */}
+                        {(message.content.length === 1 || 
+                          expandedMessageIndices.includes(msgIndex)) && (
+                          <ul>
+                            {message.content.map((item, idx) => {
+                              // Create a unique ID for this item
+                              const itemId = `item-${msgIndex}-${idx}`;
+                              const index = msgIndex * 100 + idx;
+                              
+                              // Check if this is from a surprise request
+                              const isSurpriseItem = (
+                              // Either check previous message for surprise phrases
+                              (message.content.length === 1 && 
+                                messages[msgIndex - 1]?.content && (
+                                messages[msgIndex - 1]?.content?.toString().includes("Surprise!") || 
+                                 messages[msgIndex - 1]?.content?.toString().includes("Ta-da!") || 
+                                 messages[msgIndex - 1]?.content?.toString().includes("Magic time!") )
+                                ) || 
+                                // OR check for explicit theme property 
+                                item.theme === 'surprise'
+                              );
+                              
+                              return (
+                                <ContentItem
+                                  key={idx}
+                                  item={item}
+                                  itemId={itemId}
+                                  speakingItemId={speakingItemId || ''}
+                                  isPaused={isPaused}
+                                  toggleSpeech={toggleSpeech}
+                                  handleImageClick={showEnlargedImage}
+                                  index={index}
+                                  addIframeRef={addIframeRef}
+                                  onAddToSchedule={item.cid && item.title ? () => handleAddToSchedule({ cid: item.cid, title: item.title }) : undefined}
+                                  isSurprise={isSurpriseItem} // Pass the surprise flag
+                                />
+                              );
+                            })}
+                          </ul>
+                        )}
+                      </>
+                    ) : (
+                      /* For less than or equal to 10 content items, show directly without toggle */
+                      <ul>
+                        {message.content.map((item, idx) => {
+                          // Create a unique ID for this item
+                          const itemId = `item-${msgIndex}-${idx}`;
+                          const index = msgIndex * 100 + idx;
+                          
+                          // Check if this is a surprise (though we shouldn't get here for surprises)
+                          const isSurpriseItem = item.theme === 'surprise';
+                          
+                          return (
+                            <ContentItem
+                              key={idx}
+                              item={item}
+                              itemId={itemId}
+                              speakingItemId={speakingItemId || ''}
+                              isPaused={isPaused}
+                              toggleSpeech={toggleSpeech}
+                              handleImageClick={showEnlargedImage}
+                              index={index}
+                              addIframeRef={addIframeRef}
+                              onAddToSchedule={item.cid && item.title ? () => handleAddToSchedule({ cid: item.cid, title: item.title }) : undefined}
+                              isSurprise={isSurpriseItem} // Pass the surprise flag
+                            />
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </div>
                 ) : (
                   <div>
                     {/* Render text message with clickable genres */}
