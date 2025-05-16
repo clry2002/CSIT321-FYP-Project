@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import Navbar from '@/app/components/Navbar';
 import { ArrowLeft } from 'lucide-react';
+import ChatBot from '@/app/components/ChatBot';
 
 type DiscussionEntry = {
   id: number;
@@ -422,6 +423,10 @@ export default function DiscussionBoardPage() {
             {submitting ? 'Sending...' : 'Submit Response'}
           </button>
         </form>
+        {/* ChatBot Section */}
+          <div className="mb-8">
+            <ChatBot />
+          </div>
       </div>
     </main>
   );
