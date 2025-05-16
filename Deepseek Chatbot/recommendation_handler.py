@@ -896,11 +896,36 @@ def handle_recommendation_request(question, uaid_child, conversation_manager=Non
             conversation_manager.clear_context(uaid_child, 'genre')
             logging.info(f"Cleared genre context for general recommendation request")
         
+        # LIST OF GENERIC QUERIES THAT SHOULD ALWAYS SHOW BOTH CONTENT TYPES
+        generic_queries = [
+            "show me popular content",
+            "what's trending now",
+            "i'm not sure what to look for",
+            "what's popular",
+            "what is popular",
+            "what is trending",
+            "what's trending"
+        ]
+        
+        # Normalize the question for comparison
+        normalized_question = question.lower().strip()
+        is_generic_query = any(generic_query in normalized_question for generic_query in generic_queries)
+        
+        # For generic queries like "Show me popular content", always set content_type to 'both'
+        # regardless of context or explicit specification
+        if is_generic_query:
+            content_type = 'both'
+            logging.info(f"Generic query detected: \"{question}\". Forcing content_type to 'both'")
+            
+            # Also clear the content_type context to reset for future queries
+            if existing_context and 'content_type' in existing_context:
+                conversation_manager.clear_context(uaid_child, 'content_type')
+                logging.info("Cleared content_type context for generic query")
         # For "whats popular" and similar very generic queries, use BOTH content types regardless of context
-        if very_generic_query:
+        elif very_generic_query:
             content_type = 'both'
             logging.info(f"Very generic query detected. Forcing content_type to 'both'")
-        # Only use content_type from context if not explicitly specified in the query and not a very generic query
+        # Only use content_type from context if not explicitly specified in the query and not a generic query
         elif content_type == 'both' and not explicit_content_type and existing_context and 'content_type' in existing_context:
             content_type = existing_context['content_type']
             logging.info(f"Using content_type from context: {content_type}")
@@ -978,7 +1003,7 @@ def handle_recommendation_request(question, uaid_child, conversation_manager=Non
             
             # For very generic queries like "whats popular" - don't update content_type
             # to keep user's previous content preference for subsequent queries
-            if not very_generic_query:
+            if not very_generic_query and not is_generic_query:
                 # Only update content_type context if explicitly specified in query
                 if explicit_content_type:
                     conversation_manager.update_context(uaid_child, 'content_type', content_type)
