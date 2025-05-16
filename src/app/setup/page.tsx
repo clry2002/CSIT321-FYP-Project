@@ -6,50 +6,104 @@ import Image from 'next/image';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/contexts/SessionContext';
 
-// Define types for better type safety
-type UserType = 'Parent' | 'Publisher' | 'Educator' | '';
-
-interface UserData {
-  user_id: string;
-  username: string;
-  fullname: string;
-  age: number;
-  upid: number;
-  updated_at: string;
-  created_at?: string;
+interface StyleObject {
+  backgroundImage?: string;
+  backgroundSize?: string;
+  backgroundRepeat?: string;
 }
 
-const USER_TYPES: UserType[] = ['Parent', 'Publisher', 'Educator'];
+interface Star {
+  top: number;
+  left: number;
+  size: number;
+  delay: number;
+}
+
+const USER_TYPES = ['Parent', 'Publisher', 'Educator'];
 
 export default function SetupPage() {
   const router = useRouter();
   const { refreshProfile } = useSession();
-  const [name, setName] = useState<string>('');
-  const [username, setUsername] = useState<string>('');
-  const [age, setAge] = useState<string>('');
-  const [userType, setUserType] = useState<UserType>('');
+  const [name, setName] = useState('');
+  const [username, setUsername] = useState('');
+  const [age, setAge] = useState('');
+  const [userType, setUserType] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState<boolean>(false);
+  const [loading, setLoading] = useState(false);
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
-  const [isSessionReady, setIsSessionReady] = useState<boolean>(false);
+  const [authVerified, setAuthVerified] = useState(false);
+  const [verificationChecking, setVerificationChecking] = useState(true);
+  const [, setUserEmail] = useState('');
+  const [stars, setStars] = useState<Star[]>([]);
+  const [formVisible, setFormVisible] = useState(false);
 
-  // Check if session is available
+  const backgroundStyle: StyleObject = {
+    backgroundImage: 'url("/spacemovement.gif")',
+    backgroundSize: 'cover',
+    backgroundRepeat: 'no-repeat',
+  };
+
   useEffect(() => {
-    const checkSession = async () => {
-      const { data, error } = await supabase.auth.getSession();
-      if (error) {
-        console.error('Session error:', error);
-        setError('Authentication session missing. Please verify your email and try again.');
-        return;
-      }
-      if (data.session) {
-        setIsSessionReady(true);
-      } else {
-        setError('Authentication session missing. Please verify your email and try again.');
+    // Create stars for background
+    const newStars = Array.from({ length: 70 }).map(() => ({
+      top: Math.random() * 100,
+      left: Math.random() * 100,
+      size: Math.random() * 6 + 3,
+      delay: Math.random() * 5,
+    }));
+    setStars(newStars);
+
+    // Trigger the fly-in animation after a short delay
+    setTimeout(() => {
+      setFormVisible(true);
+    }, 100);
+
+    // Check authentication status
+    const checkAuth = async () => {
+      try {
+        setVerificationChecking(true);
+        
+        // First try to get user from auth state
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        
+        if (userError) {
+          console.error('Auth error checking user:', userError);
+          throw userError;
+        }
+        
+        if (user) {
+          console.log('User authenticated:', user.id);
+          setAuthVerified(true);
+          setUserEmail(user.email || '');
+        } else {
+          console.log('No user found in auth state, trying to refresh session...');
+          
+          // Try to refresh the session
+          const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+          
+          if (sessionError) {
+            console.error('Session error:', sessionError);
+            throw sessionError;
+          }
+          
+          if (session) {
+            console.log('Session found after refresh:', session.user.id);
+            setAuthVerified(true);
+            setUserEmail(session.user.email || '');
+          } else {
+            console.log('No session found after refresh');
+            setAuthVerified(false);
+          }
+        }
+      } catch (err) {
+        console.error('Auth verification error:', err);
+        setAuthVerified(false);
+      } finally {
+        setVerificationChecking(false);
       }
     };
     
-    checkSession();
+    checkAuth();
   }, []);
 
   const checkUsername = async (username: string) => {
@@ -83,7 +137,7 @@ export default function SetupPage() {
   };
 
   const handleUserTypeChange = (value: string) => {
-    setUserType(value as UserType);
+    setUserType(value);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -104,13 +158,17 @@ export default function SetupPage() {
     setLoading(true);
 
     try {
+      // Try to get the current user again to ensure we have the latest session
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       
       if (userError) {
-        console.error('Auth error:', userError);
+        console.error('Auth error before profile creation:', userError);
         throw userError;
       }
-      if (!user) throw new Error('No user found');
+      
+      if (!user) {
+        throw new Error('Authentication required. Please verify your email and try again.');
+      }
 
       // Determine upid based on selected role
       const upid = userType === 'Parent' ? 2 :
@@ -121,7 +179,7 @@ export default function SetupPage() {
         throw new Error('Invalid user type');
       }
 
-      const userData: UserData = {
+      const userData = {
         user_id: user.id,
         username,
         fullname: name,
@@ -168,6 +226,8 @@ export default function SetupPage() {
         throw error;
       }
 
+      await refreshProfile();
+      
       // Handle profile creation based on user type
       if (upid === 1) { // Publisher
         router.push('/publisherpage');
@@ -176,15 +236,13 @@ export default function SetupPage() {
       } else if (upid === 5) { // Educator
         router.push('/educatorpage');
       }
-
-      await refreshProfile();
       
     } catch (err) {
       console.error('Submission error:', err);
       if (err instanceof Error) {
         setError(err.message);
       } else if (typeof err === 'object' && err !== null && 'message' in err) {
-        setError((err as { message: string }).message);
+        setError(err.message as string);
       } else {
         setError('An error occurred while saving your preferences');
       }
@@ -193,15 +251,93 @@ export default function SetupPage() {
     }
   };
 
+  // Handle manual session refresh
+  const handleRefreshSession = async () => {
+    try {
+      setVerificationChecking(true);
+      setError(null);
+      
+      // Force a fresh session lookup
+      const { data, error } = await supabase.auth.refreshSession();
+      
+      if (error) {
+        console.error('Session refresh error:', error);
+        setError('Could not refresh session: ' + error.message);
+        return;
+      }
+      
+      if (data.session) {
+        console.log('Session refreshed successfully');
+        setAuthVerified(true);
+        setUserEmail(data.session.user.email || '');
+      } else {
+        console.log('No session found after manual refresh');
+        setError('No valid session found. Please verify your email first.');
+      }
+    } catch (err) {
+      console.error('Manual refresh error:', err);
+      setError('An error occurred during session refresh');
+    } finally {
+      setVerificationChecking(false);
+    }
+  };
+
   // Handle back button click
   const handleBack = () => {
     router.back();
   };
 
+  // Handle resending verification email
+  const handleResendVerification = async () => {
+    try {
+      const email = prompt('Please enter your email address to resend verification:');
+      if (!email) return;
+      
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/login`
+        }
+      });
+      
+      if (error) {
+        alert(`Error: ${error.message}`);
+      } else {
+        alert(`Verification email resent to ${email}. Please check your inbox.`);
+      }
+    } catch (err) {
+      console.error('Failed to resend verification:', err);
+      alert('Failed to resend verification email');
+    }
+  };
+
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
+    <div
+      className="min-h-screen flex flex-col relative overflow-hidden"
+      style={{ ...backgroundStyle }}
+    >
+      {/* Background stars */}
+      <div className="absolute inset-0 pointer-events-none z-0">
+        {stars.map((star, index) => (
+          <div
+            key={index}
+            className="absolute rounded-full bg-yellow-300 animate-twinkle"
+            style={{
+              top: `${star.top}%`,
+              left: `${star.left}%`,
+              width: `${star.size * 1}px`,
+              height: `${star.size * 1}px`,
+              animationDelay: `${star.delay}s`,
+              opacity: 0.9,
+              filter: 'blur(1px)',
+            }}
+          />
+        ))}
+      </div>
+
       {/* Header with back button */}
-      <header className="p-4 border-b bg-white shadow-md">
+      <header className="p-4 border-b bg-white shadow-md relative z-10">
         <div className="flex justify-between items-center">
           <div className="flex items-center">
             <Image
@@ -234,8 +370,8 @@ export default function SetupPage() {
       </header>
 
       {/* Main content */}
-      <div className="flex-1 flex items-center justify-center p-4">
-        <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-xl shadow-lg">
+      <div className="flex-1 flex items-center justify-center p-4 relative z-10">
+        <div className={`max-w-md w-full space-y-8 p-8 bg-white rounded-xl shadow-lg ${formVisible ? 'animate-fly-in' : 'translate-y-full opacity-0'}`}>
           <div className="text-center">
             <h2 className="text-3xl font-bold text-gray-900">Complete your profile</h2>
             <p className="mt-2 text-sm text-gray-600">
@@ -243,9 +379,43 @@ export default function SetupPage() {
             </p>
           </div>
 
-          {!isSessionReady ? (
-            <div className="bg-yellow-50 text-yellow-700 p-4 rounded-lg text-center">
-              <p>Verifying your session. If this message persists, please make sure you&apos;ve verified your email.</p>
+          {verificationChecking ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-700 mx-auto mb-4"></div>
+              <p className="text-gray-600">Checking authentication status...</p>
+            </div>
+          ) : !authVerified ? (
+            <div className="bg-yellow-50 p-6 rounded-lg text-center">
+              <h3 className="text-lg font-semibold text-yellow-800 mb-2">Email Verification Required</h3>
+              <p className="text-yellow-700 mb-6">
+                Please verify your email before completing your profile. Check your inbox for a verification link.
+              </p>
+              
+              <div className="space-y-4">
+                <button
+                  onClick={handleRefreshSession}
+                  className="w-full py-2 px-4 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg text-sm font-medium transition-colors"
+                  type="button"
+                >
+                  I&apos;ve Verified My Email (Click to Refresh)
+                </button>
+                
+                <button
+                  onClick={handleResendVerification}
+                  className="w-full py-2 px-4 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium transition-colors"
+                  type="button"
+                >
+                  Resend Verification Email
+                </button>
+                
+                <button
+                  onClick={() => router.push('/auth/login')}
+                  className="w-full py-2 px-4 bg-gray-600 hover:bg-gray-700 text-white rounded-lg text-sm font-medium transition-colors"
+                  type="button"
+                >
+                  Return to Login
+                </button>
+              </div>
             </div>
           ) : (
             <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
@@ -337,7 +507,7 @@ export default function SetupPage() {
               <button
                 type="submit"
                 disabled={loading || !usernameAvailable}
-                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-purple-700 hover:bg-purple-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-purple-700 hover:bg-purple-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 transition-transform duration-200"
               >
                 {loading ? 'Saving...' : 'Finish setup'}
               </button>
@@ -345,6 +515,37 @@ export default function SetupPage() {
           )}
         </div>
       </div>
+
+      {/* Star and Fly-in animation */}
+      <style jsx global>{`
+        @keyframes twinkle {
+          0%, 100% {
+            opacity: 0.4;
+            transform: scale(1);
+          }
+          50% {
+            opacity: 1;
+            transform: scale(1.4);
+          }
+        }
+        .animate-twinkle {
+          animation: twinkle 3s infinite ease-in-out;
+        }
+
+        @keyframes fly-in {
+          from {
+            transform: translateY(100px);
+            opacity: 0;
+          }
+          to {
+            transform: translateY(0);
+            opacity: 1;
+          }
+        }
+        .animate-fly-in {
+          animation: fly-in 0.5s ease-out forwards;
+        }
+      `}</style>
     </div>
   );
 }
