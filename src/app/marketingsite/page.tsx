@@ -80,6 +80,14 @@ export default function LandingPage() {
           >
             Why CoReadability?
           </Link>
+          <Link 
+          href="https://sites.google.com/view/group-csit321-fyp25-s1-34/home" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="text-gray-800 font-medium hover:text-blue-600 transition"
+        >
+          Project Site
+        </Link>
           <Link href="/about" className="text-gray-800 font-medium hover:text-blue-600 transition">About Us</Link>
           <Link href="/faq" className="text-gray-800 font-medium hover:text-blue-600 transition">FAQ</Link>
         </div>
@@ -139,10 +147,6 @@ export default function LandingPage() {
             </Link>
           </div>
         </section>
-
-
-
-
       </main>
 
 
@@ -167,7 +171,7 @@ export default function LandingPage() {
           text: 'Share your stories with the right audience. Reach families and schools who value quality content.',
           img: '/publisherimage.jpg',
         },
-      ].map(({ id, title, text, img, reverse }) => (
+      ].map(({ id, title, text, img, reverse }, index) => (
         <section key={id} id={id} className={`relative flex ${reverse ? 'flex-row-reverse' : 'flex-row'} items-center justify-center py-10 px-8 bg-[#fff4e6]`}>
           <div className="absolute inset-0 bg-cover bg-center animate-pan-zoom opacity-50" style={{ backgroundImage: "url('/spaceblue.jpg')", backgroundBlendMode: 'overlay', backgroundColor: 'rgba(0, 0, 0, 0.4)' }} />
           <div className="relative z-10 w-1/2 h-[500px] bg-cover bg-center" style={{ backgroundImage: `url('${img}')` }} />
@@ -175,8 +179,42 @@ export default function LandingPage() {
             <h3 className="text-4xl font-bold text-white mb-6 drop-shadow-lg">{title}</h3>
             <p className="text-lg text-white">{text}</p>
           </div>
+          
+          {/* YouTube Video Section - Add after the Parents section */}
+          {index === 0 && (
+            <div className="w-full">
+              {/* This empty div closes the parents section */}
+            </div>
+          )}
         </section>
       ))}
+      
+      {/* YouTube Video Section - Placed after Parents section */}
+      <section className="relative py-16 px-6 md:px-20 bg-gradient-to-b from-[#fff4e6] to-white">
+        <div className="max-w-5xl mx-auto">
+          <h3 className="text-3xl font-bold text-center text-gray-800 mb-8">See CoReadability in Action</h3>
+          <div className="aspect-video w-full rounded-xl overflow-hidden shadow-xl">
+            <iframe 
+              className="w-full h-full"
+              src="https://www.youtube.com/embed/o4PRzjENnIY" 
+              title="CoReadability Demo Video"
+              frameBorder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+              allowFullScreen
+            ></iframe>
+          </div>
+          <div className="mt-8 text-center">
+            <p className="text-lg text-gray-700 mb-6">
+              Watch how CoReadability helps children discover and engage with age-appropriate content that sparks their imagination and encourages learning.
+            </p>
+            <Link href="/auth/signup">
+              <button className="px-6 py-3 bg-orange-500 text-white font-semibold rounded-lg shadow-md hover:bg-orange-600 transition">
+                Try CoReadability Today
+              </button>
+            </Link>
+          </div>
+        </div>
+      </section>
       
       {/* Testimonials Carousel */}
       <section id = 'testimonial' className="relative py-24 px-6 md:px-20 bg-[#fef9f5]">
@@ -207,7 +245,7 @@ export default function LandingPage() {
           <div id="carousel" className="flex space-x-6 overflow-x-auto scroll-smooth no-scrollbar px-4">
             {[
               {
-                text: "Finally, a safe space where my kids can explore stories they love without me worrying about the content. CoReadability has made reading a joy in our household, and I’ve even noticed their vocabulary improving!",
+                text: "Finally, a safe space where my kids can explore stories they love without me worrying about the content. CoReadability has made reading a joy in our household, and I've even noticed their vocabulary improving!",
                 name: "— Priya N., Parent of 2, Singapore",
                 img: "female1.jpg",
                 bg: "bg-orange-100",
@@ -219,7 +257,7 @@ export default function LandingPage() {
                 bg: "bg-teal-100",
               },
               {
-                text: "We’ve reached families and schools in ways we never imagined. As a publisher, I’ve seen how CoReadability bridges the gap between digital and meaningful learning. It's a powerful platform for storytelling.",
+                text: "We've reached families and schools in ways we never imagined. As a publisher, I've seen how CoReadability bridges the gap between digital and meaningful learning. It's a powerful platform for storytelling.",
                 name: "— Liam D., Publisher, UK",
                 img: "male2.jpg",
                 bg: "bg-purple-100",
@@ -231,19 +269,19 @@ export default function LandingPage() {
                 bg: "bg-blue-100",
               },
               {
-                text: "My child developed a love for reading, something we struggled with before. The personalized book recommendations and fun interface make all the difference. It’s now a part of our bedtime routine!",
+                text: "My child developed a love for reading, something we struggled with before. The personalized book recommendations and fun interface make all the difference. It's now a part of our bedtime routine!",
                 name: "— John S., Parent, Singapore",
                 img: "male3.jpg",
                 bg: "bg-green-100",
               },
               {
-                text: "It’s helping us introduce new books and concepts in a way that feels natural and fun. Teachers and parents are giving positive feedback, and engagement rates are going up week by week.",
+                text: "It's helping us introduce new books and concepts in a way that feels natural and fun. Teachers and parents are giving positive feedback, and engagement rates are going up week by week.",
                 name: "— Jack W., Publisher, Singapore",
                 img: "male5.jpg",
                 bg: "bg-pink-100",
               },
               {
-                text: "This platform has made reading fun for my kids again. They’re not only reading more, but also asking thoughtful questions afterward. It’s interactive, smart, and beautifully designed.",
+                text: "This platform has made reading fun for my kids again. They're not only reading more, but also asking thoughtful questions afterward. It's interactive, smart, and beautifully designed.",
                 name: "— Sophie L., Parent of 3, Singapore",
                 img: "female1.jpg",
                 bg: "bg-yellow-100",
@@ -254,7 +292,7 @@ export default function LandingPage() {
                 className={`min-w-[300px] w-[300px] min-h-[300px] ${t.bg} rounded-xl p-4 shadow-md flex-shrink-0 flex flex-col justify-between`}
               >
                 <p className="text-gray-800 italic text-sm leading-snug break-words mb-4">
-                  {`“${t.text}”`}
+                  {`"${t.text}"`}
                 </p>
                 <div className="text-center">
                   <p className="text-xs font-semibold text-gray-700">{t.name}</p>
@@ -279,7 +317,7 @@ export default function LandingPage() {
           </p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {[
-              { title: "Personalized Content", text: "Books and videos matched to your child’s interests and reading level.", color: "text-green-600" },
+              { title: "Personalized Content", text: "Books and videos matched to your child's interests and reading level.", color: "text-green-600" },
               { title: "Safe & Secure", text: "Built-in safety features and parental guidance at every step.", color: "text-orange-500" },
               { title: "Fun & Engaging", text: "Interactive chatbot makes learning enjoyable and screen-time meaningful.", color: "text-blue-600" },
             ].map((feature, i) => (
