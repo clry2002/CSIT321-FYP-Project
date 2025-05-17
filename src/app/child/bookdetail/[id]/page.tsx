@@ -276,7 +276,11 @@ export default function BookDetailPage() {
       <Navbar />
       <div className="flex-1 overflow-y-auto pt-16 px-6">
         {notification.show && (
-          <div className="fixed top-4 right-4 z-50 bg-rose-600 text-white px-6 py-3 rounded-lg shadow-md">
+          <div className={`fixed top-4 right-4 z-50 ${
+            notification.message.includes('Failed') || notification.message.includes('Please fill in all fields')
+              ? 'bg-rose-600'
+              : 'bg-green-600'
+          } text-white px-6 py-3 rounded-lg shadow-md`}>
             {notification.message}
           </div>
         )}
