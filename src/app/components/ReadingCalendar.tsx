@@ -213,7 +213,7 @@ export default function ReadingCalendar({ selectedBook, onClose, onScheduleUpdat
   };
 
   const navigateToBookDetail = (contentId: number) => {
-    router.push(`/readingschedule/${contentId}`);
+    router.push(`/child/bookdetail/${contentId}`);
   };
 
   const handleScheduleSubmit = async () => {
