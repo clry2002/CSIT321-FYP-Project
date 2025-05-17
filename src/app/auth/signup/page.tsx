@@ -329,7 +329,7 @@ export default function SignUpPage() {
               disabled={loading}
               className="w-full flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-purple-700 hover:bg-purple-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-700 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 transition-transform duration-200" // Added hover effect
             >
-              {loading ? 'Creating account...' : 'Create Account'}
+              {loading ? 'Creating Account...' : 'Create Account'}
             </button>
           </form>
         </div>

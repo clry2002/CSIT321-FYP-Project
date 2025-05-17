@@ -20,7 +20,20 @@ export default function DeleteClassroom({ classroomId, classroomName }: DeleteCl
       setIsDeleting(true);
       setDeleteError(null);
 
-      // First, delete all students associated with this classroom
+      // First, delete all announcements associated with this classroom
+      const { error: deleteAnnouncementsError } = await supabase
+        .from('announcement_board')
+        .delete()
+        .eq('crid', classroomId);
+
+      if (deleteAnnouncementsError) {
+        setDeleteError('Failed to remove announcements from the classroom.');
+        console.error('Delete classroom announcements error:', deleteAnnouncementsError);
+        setIsDeleting(false);
+        return;
+      }
+
+      // Next, delete all students associated with this classroom
       const { error: deleteStudentsError } = await supabase
         .from('temp_classroomstudents')
         .delete()
@@ -70,7 +83,7 @@ export default function DeleteClassroom({ classroomId, classroomName }: DeleteCl
               Are you sure you want to delete &quot;{classroomName}&quot;?
             </h2>
             <p className="text-gray-600 mb-4">
-              This will permanently delete the classroom and remove all associated students.
+              This will permanently delete the classroom and remove all associated students and announcements.
             </p>
             {deleteError && (
               <p className="text-red-500 mb-4">{deleteError}</p>

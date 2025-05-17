@@ -11,7 +11,7 @@ export default function SearchVideosPage() {
 
   const handleBackToSearch = () => {
     // Navigate directly to the main search page
-    router.push('/search');
+    router.push('/child/search');
   };
 
   return (

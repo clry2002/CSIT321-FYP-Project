@@ -7,6 +7,7 @@ import Image from 'next/image';
 import type { Book as BaseBook, Video as BaseVideo } from '@/types/database.types';
 import { format } from 'date-fns';
 import { handleBookmarkAction, syncExistingBookmarks } from '@/services/userInteractionsService';
+import ChatBot from "@/app/components/ChatBot";
 
 type SupabaseUser = {
   id: string;
@@ -100,7 +101,7 @@ export default function BookmarksPage() {
       }
 
       console.log('Matched child profile:', data);
-      setChildUaid(data.id); // This is the actual `uaid` used in temp_bookmark
+      setChildUaid(data.id);
     };
 
     fetchChildProfile();
@@ -650,6 +651,10 @@ export default function BookmarksPage() {
           <div className="text-gray-400 py-6 text-center">No bookmarked content found in this galaxy.</div>
         )}
       </div>
+       {/* ChatBot Section */}
+          <div className="mb-8">
+            <ChatBot />
+          </div>
     </div>
   );
 }

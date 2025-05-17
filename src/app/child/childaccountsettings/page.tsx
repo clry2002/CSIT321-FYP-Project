@@ -5,6 +5,7 @@ import Navbar from '@/app/components/Navbar';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
+import ChatBot from '@/app/components/ChatBot';
 
 function ErrorBoundary({ children }: { children: React.ReactNode }) {
   const [hasError, setHasError] = useState(false);
@@ -255,6 +256,10 @@ export default function AccountSettings() {
                   )}
                 </div>
               </div>
+              {/* ChatBot Section */}
+          <div className="mb-8">
+            <ChatBot />
+          </div>
             </div>
           </div>
         </div>

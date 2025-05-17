@@ -1,4 +1,3 @@
-// child / viewprofile.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -7,6 +6,7 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import { syncFavoriteGenres } from '@/services/userInteractionsService';
+import ChatBot from '@/app/components/ChatBot';
 
 function ErrorBoundary({ children }: { children: React.ReactNode }) {
   const [hasError, setHasError] = useState(false);
@@ -700,6 +700,10 @@ export default function ChildViewProfile() {
                 </div>
               )}
             </div>
+          </div>
+          {/* ChatBot Section */}
+          <div className="mb-8">
+            <ChatBot />
           </div>
         </div>
       </div>

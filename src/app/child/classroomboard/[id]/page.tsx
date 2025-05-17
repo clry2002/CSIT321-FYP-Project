@@ -6,6 +6,7 @@ import Navbar from '@/app/components/Navbar';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Clock, Video as VideoIcon, Book, ArrowLeft } from 'lucide-react';
+import ChatBot from '@/app/components/ChatBot';
 
 type Classroom = {
   crid: number;
@@ -524,6 +525,10 @@ export default function ClassroomBoardPage() {
           )}
         </div>
       </div>
+      {/* ChatBot Section */}
+          <div className="mb-8">
+            <ChatBot />
+          </div>
     </div>
   );
 }

@@ -159,7 +159,7 @@ const ContentItem: React.FC<ContentItemProps> = ({
         {/* For Videos */}
         {item.cfid === 1 && item.cid ? (
           <a
-            href={`/videodetail/${item.cid}`}
+            href={`/child/videodetail/${item.cid}`}
             className="inline-block bg-emerald-500 text-white px-3 py-1 rounded"
           >
             View Video Details
