@@ -361,21 +361,6 @@ function ClientViewChild() {
           }
         }
       }
-        // // Delete rows from userInteractions for blocked genres
-        // try {
-        //   const { error: deleteInteractionError } = await supabase
-        //     .from('userInteractions')
-        //     .delete()
-        //     .eq('uaid', accountId)
-        //     .in('gid', genreData.map(genre => genre.gid));
-
-        //   if (deleteInteractionError) {
-        //     console.error('Error deleting from userInteractions:', deleteInteractionError);
-        //     throw deleteInteractionError;
-        //   }
-        // } catch (interactionErr) {
-        //   console.error('Error updating userInteractions:', interactionErr);
-        //   throw interactionErr;
 
       setShowGenreModal(false);
 
@@ -403,7 +388,17 @@ function ClientViewChild() {
     <div className="min-h-screen bg-gray-100 p-6">
       <div className="max-w-4xl mx-auto">
         <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="mb-4 flex justify-between items-center">
+            <button
+              onClick={() => router.push('/parentpage')}
+              className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600"
+            >
+              Back
+            </button>
+
           <h1 className="text-2xl font-bold mb-6 text-black">{childName}&apos;s Profile</h1>
+          <div className="w-20"></div>
+        </div>
 
           <div className="overflow-x-auto">
             <table className="min-w-full bg-white">
@@ -420,7 +415,6 @@ function ClientViewChild() {
                     }
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    {/* Edit button removed */}
                   </td>
                 </tr>
 
@@ -468,7 +462,6 @@ function ClientViewChild() {
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    {/* No edit button for classrooms */}
                   </td>
                 </tr>
               </tbody>
@@ -505,7 +498,7 @@ function ClientViewChild() {
                     </label>
                   ))}
                 </div>
-                <div className="flex justify-end space-x-4 mt-4"> {/* Added mt-4 for spacing */}
+                <div className="flex justify-end space-x-4 mt-4">
                   <button
                     onClick={() => setShowGenreModal(false)}
                     className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
@@ -522,17 +515,6 @@ function ClientViewChild() {
               </div>
             </div>
           )}
-
-          {/* Favorite Genre Selection Modal - REMOVED */}
-
-          <div className="mt-6">
-            <button
-              onClick={() => router.push('/parentpage')}
-              className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600"
-            >
-              Back
-            </button>
-          </div>
         </div>
       </div>
     </div>

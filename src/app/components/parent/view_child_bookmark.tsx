@@ -77,7 +77,7 @@ const ViewChildBookmark: React.FC<BookmarkedContentProps> = ({
                 </div>
                 <div className="flex-grow">
                   <h3 className="text-2xl font-semibold text-gray-900 mb-2">
-                    <Link href={`/bookdetailp/${book.cid}`} className="hover:text-rose-500 transition">
+                    <Link href={`/parent/bookdetail/${book.cid}`} className="hover:text-rose-500 transition">
                       {book.title}
                     </Link>
                   </h3>
@@ -137,7 +137,7 @@ const ViewChildBookmark: React.FC<BookmarkedContentProps> = ({
                 </div>
                 <div className="flex-grow">
                   <h3 className="text-2xl font-semibold text-gray-900 mb-2">
-                    <Link href={`/videodetailp/${video.cid}`} className="hover:text-rose-500 transition">
+                    <Link href={`/parent/videodetail/${video.cid}`} className="hover:text-rose-500 transition">
                       {video.title}
                     </Link>
                   </h3>

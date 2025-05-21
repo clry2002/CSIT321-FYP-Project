@@ -333,7 +333,7 @@ export default function PublisherPage() {
                           : ''
                       }
                     >
-                      <td className="py-3 px-6 cursor-pointer" onClick={() => router.push(`/publisherbookdetail/${book.cid}`)}>
+                      <td className="py-3 px-6 cursor-pointer" onClick={() => router.push(`/publisher/bookdetail/${book.cid}`)}>
                         <span>{book.title}</span>
                       </td>
                       <td className="py-3 px-6">{book.credit}</td>
@@ -452,7 +452,7 @@ export default function PublisherPage() {
                           : ''
                       }
                     >
-                      <td className="py-3 px-6 cursor-pointer" onClick={() => router.push(`/publishervideodetail/${video.cid}`)}>
+                      <td className="py-3 px-6 cursor-pointer" onClick={() => router.push(`/publisher/videodetail/${video.cid}`)}>
                         <span>{video.title}</span>
                       </td>
                       <td className="py-3 px-6">{video.credit}</td>
