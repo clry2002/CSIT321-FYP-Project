@@ -44,17 +44,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       console.log('Fetching authenticated user...');
       setLoading(true); // Start loading
 
-      // Set a safety timeout to prevent loading from getting stuck
-      const safetyTimeoutId = setTimeout(() => {
-        console.log('Safety timeout triggered: forcing loading state to false after 5 seconds');
-        setLoading(false);
-      }, 5000); // 5 second timeout
-
       // Get current session using the updated method
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-
-      // Clear the safety timeout as we've received a response
-      clearTimeout(safetyTimeoutId);
 
       if (sessionError) {
         console.error(`Error fetching session: ${sessionError.message}`);
@@ -135,31 +126,21 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-  // Set a global safety timeout for initial loading
-  // This ensures the app won't get stuck in a loading state forever
-  const globalSafetyTimeout = setTimeout(() => {
-    if (loading) {
-      console.log('Global safety timeout triggered after 8 seconds');
-      setLoading(false);
-    }
-  }, 8000);
+    fetchUserAccount(); // Fetch user data on mount
 
-  fetchUserAccount(); // Fetch user data on mount
+    // Listen for auth state changes (e.g., login/logout)
+    console.log('Subscribing to auth state changes...');
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('Auth state changed:', event, session);
+      fetchUserAccount(); // Refresh user data after auth state change
+    });
 
-  // Listen for auth state changes (e.g., login/logout)
-  console.log('Subscribing to auth state changes...');
-  const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-    console.log('Auth state changed:', event, session);
-    fetchUserAccount(); // Refresh user data after auth state change
-  });
-
-  // Cleanup subscription and safety timeout on unmount
-  return () => {
-    console.log('Unsubscribing from auth state changes...');
-    subscription.unsubscribe();
-    clearTimeout(globalSafetyTimeout);
-  };
-}, [loading]); // Add loading to dependency array
+    // Cleanup subscription on unmount
+    return () => {
+      console.log('Unsubscribing from auth state changes...');
+      subscription.unsubscribe();
+    };
+  }, []);
 
   return (
     <SessionContext.Provider value={{ 
