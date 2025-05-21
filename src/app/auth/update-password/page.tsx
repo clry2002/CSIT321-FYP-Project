@@ -77,10 +77,10 @@ export default function UpdatePasswordPage() {
             <h1 className="text-2xl font-bold text-purple-700">CoReadability</h1>
           </div>
           <button
-            onClick={() => router.push('/auth/resetpassword')}
+            onClick={() => router.push('/landing')}
             className="text-sm text-gray-600 hover:text-gray-800 font-medium"
           >
-            ← Back to Reset Password
+            ← Back to Home
           </button>
         </div>
       </header>

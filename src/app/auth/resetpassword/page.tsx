@@ -53,10 +53,10 @@ export default function ResetPasswordPage() {
             <h1 className="text-2xl font-bold text-purple-700">CoReadability</h1>
           </div>
           <button
-            onClick={() => router.push('/auth/login')}
+            onClick={() => router.back()}
             className="text-sm text-gray-600 hover:text-gray-800 font-medium"
           >
-            ← Back to Login
+            ← Back
           </button>
         </div>
       </header>
