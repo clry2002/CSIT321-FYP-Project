@@ -361,10 +361,10 @@ export default function LoginPage() {
             <h1 className="text-2xl font-bold text-purple-700">CoReadability</h1>
           </div>
           <button
-            onClick={() => router.push('/landing')}
+            onClick={() => router.back()}
             className="text-sm text-gray-600 hover:text-gray-800 font-medium"
           >
-            ← Back to Home
+            ← Back
           </button>
         </div>
       </header>

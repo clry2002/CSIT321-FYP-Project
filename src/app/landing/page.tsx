@@ -28,7 +28,6 @@ export default function LandingPage() {
   const [stars, setStars] = useState<Star[]>([]);
   const [books, setBooks] = useState<Book[]>([]);
   const mainContentRef = useRef<HTMLElement>(null);
-  // const router = useRouter();
   const [isTransitioning, setIsTransitioning] = useState(false);
 
   const backgroundStyle: StyleObject = {
@@ -95,7 +94,7 @@ export default function LandingPage() {
         let coverImageUrl = book.coverimage;
         if (!book.coverimage.startsWith('http')) {
           const { data: imageData } = supabase.storage
-            .from('book-covers') // Ensure this matches your bucket name
+            .from('book-covers')
             .getPublicUrl(book.coverimage);
           coverImageUrl = imageData?.publicUrl || '/placeholder-book.png';
         }
@@ -147,7 +146,7 @@ export default function LandingPage() {
           </Link>
           <Link href="/marketingsite">
             <button className="px-4 py-2 text-blue-500 border border-blue-500 rounded-full hover:bg-blue-100 transition">
-              Why us?
+              Why Us?
             </button>
           </Link>
         </div>
@@ -160,7 +159,7 @@ export default function LandingPage() {
             <h2 className="text-5xl font-extrabold text-teal-200 mb-6">Dive into a World of Stories!</h2>
           </div>
           <p className="text-xl text-grey-600 mb-8">
-            Your friendly guide to finding the perfect books for every adventure! 🐸📚✨
+            Your friendly guide to finding the perfect books and videos for every adventure! 🐸📚✨
           </p>
           <div className="flex flex-wrap justify-center gap-6">
             <Link href="/auth/signup">
@@ -177,7 +176,7 @@ export default function LandingPage() {
             <div className="scroll-container">
               <div className="scroll-content">
                 {books.concat(books).map((book, index) => (
-                  <Link key={`${book.cid}-${index}`} href={`/bookdetail/${book.cid}`}>
+                  <Link key={`${book.cid}-${index}`} href={`/landingbookdetail/${book.cid}`}>
                     <div className="min-w-[160px] mx-2 bg-white rounded-lg shadow hover:shadow-lg transition">
                       <Image
                         src={book.coverimage}
