@@ -60,6 +60,10 @@ function AuthGuardInner({ children }: { children: ReactNode }) {
                         searchParams?.get('action') === 'signup' ||
                         searchParams?.get('authProcess') === 'true';
 
+  // Check if we're in a password recovery flow
+  const isPasswordRecovery = searchParams?.get('type') === 'recovery' || 
+                            pathname?.includes('update-password');
+
   // Define route permissions with upid values
   const ROUTE_PERMISSIONS: Record<string, number[]> = {
     '/adminpage': [4],             // admin only
@@ -113,7 +117,7 @@ function AuthGuardInner({ children }: { children: ReactNode }) {
     3: '/childpage',      // child goes to child dashboard
     4: '/adminpage',      // admin goes to admin dashboard
     5: '/educatorpage',   // educator goes to educator dashboard
-    0: '/landing',      // fallback for unknown roles
+    0: '/landing',        // fallback for unknown roles
   };
 
   // Handle redirect with a useCallback to avoid infinite loops
@@ -128,6 +132,7 @@ function AuthGuardInner({ children }: { children: ReactNode }) {
     console.log('Session loading?', isSessionLoading);
     console.log('Is auth process?', isAuthProcess);
     console.log('Is reauth process?', isReauthProcess);
+    console.log('Is password recovery?', isPasswordRecovery);
     
     // Don't run the effect if we've already checked auth
     if (authChecked) {
@@ -150,11 +155,13 @@ function AuthGuardInner({ children }: { children: ReactNode }) {
     // 2. Auth processes
     // 3. Anything in the /auth directory
     // 4. Reauthentication exempt paths
+    // 5. Password recovery flows
     if (isPublicPath || 
         isAuthProcess || 
         pathname?.startsWith('/auth/') ||
-        (isReauthExemptPath && isReauthProcess)) {
-      console.log('Skipping auth check - public path, auth directory, auth process, or reauth exempt path');
+        (isReauthExemptPath && isReauthProcess) ||
+        isPasswordRecovery) {
+      console.log('Skipping auth check - public path, auth directory, auth process, reauth exempt path, or password recovery');
       setIsLoading(false);
       setAuthChecked(true);
       return;
@@ -185,6 +192,13 @@ function AuthGuardInner({ children }: { children: ReactNode }) {
         if (!session) {
           console.log('No active session found, redirecting to landing page');
           redirectTo('/landing');
+          return;
+        }
+
+        // Check if this is a password recovery session
+        if (session.user?.aud === 'recovery') {
+          console.log('Password recovery session detected, redirecting to update password page');
+          redirectTo('/auth/update-password');
           return;
         }
 
@@ -229,7 +243,8 @@ function AuthGuardInner({ children }: { children: ReactNode }) {
         }
 
         // Special case for root page: redirect to appropriate dashboard
-        if (pathname === '/' || pathname === '') {
+        // Added check to bypass this if in password recovery flow
+        if ((pathname === '/' || pathname === '') && !isPasswordRecovery) {
           const targetDashboard = DEFAULT_REDIRECTS[userData?.upid || 0] || '/landing';
           console.log('Root path detected, redirecting to dashboard:', targetDashboard);
           redirectTo(targetDashboard);
@@ -298,14 +313,16 @@ function AuthGuardInner({ children }: { children: ReactNode }) {
     isSessionLoading, 
     isAuthProcess, 
     isReauthProcess, 
-    authChecked
+    authChecked,
+    isPasswordRecovery
   ]);
 
   // Skip loading screen for public paths and auth processes
   if (isSessionLoading || isLoading) {
     if (pathname?.startsWith('/auth/') || 
         PUBLIC_PATHS.some(path => pathname === path || pathname?.startsWith(path + '/')) ||
-        (REAUTH_EXEMPT_PATHS.some(path => pathname === path || pathname?.startsWith(path + '/')) && isReauthProcess)) {
+        (REAUTH_EXEMPT_PATHS.some(path => pathname === path || pathname?.startsWith(path + '/')) && isReauthProcess) ||
+        isPasswordRecovery) {
       return children as React.ReactElement;
     }
     
@@ -325,7 +342,7 @@ function AuthGuardInner({ children }: { children: ReactNode }) {
   }
 
   // Show welcome screen for root path being redirected
-  if ((pathname === '/' || pathname === '') && !isAuthProcess) {
+  if ((pathname === '/' || pathname === '') && !isAuthProcess && !isPasswordRecovery) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-100">
         <div className="p-8 text-center">
