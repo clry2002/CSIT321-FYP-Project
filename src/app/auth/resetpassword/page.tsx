@@ -40,7 +40,7 @@ export default function ResetPasswordPage() {
         <div className="flex justify-between items-center">
           <div
             className="flex items-center cursor-pointer"
-            onClick={() => router.push('/')}
+            onClick={() => router.push('/landing')}
           >
             <Image
               src="/logo2.png"
@@ -86,7 +86,7 @@ export default function ResetPasswordPage() {
 
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                Email address
+                Email Address
               </label>
               <input
                 id="email"

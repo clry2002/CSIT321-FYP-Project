@@ -42,7 +42,7 @@ export default function FirstTimeLoginSetup() {
         
         // Verify this is a child account
         if (userData.upid !== 3) {
-          router.push('/'); // Redirect non-child users
+          router.push('/landing'); // Redirect non-child users
           return;
         }
         

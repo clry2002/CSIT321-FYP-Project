@@ -69,6 +69,7 @@ export default function ContentReviewPage() {
   const [suspendReason, setSuspendReason] = useState('');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [contentToDelete, setContentToDelete] = useState<TransformedContent | null>(null);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   useEffect(() => {
     if (activeTab === 'pending') {
@@ -255,6 +256,16 @@ export default function ContentReviewPage() {
     }
   };
 
+  const handleLogout = async () => {
+      try {
+        const { error } = await supabase.auth.signOut();
+        if (error) throw error;
+        router.push('/landing');
+      } catch (err) {
+        console.error('Error logging out:', err);
+      }
+    };
+
   const handleDeleteContent = async (content: TransformedContent) => {
     try {
       const { error } = await supabase
@@ -313,8 +324,9 @@ export default function ContentReviewPage() {
               Back to Home
             </button>
             <button
-              onClick={() => router.push('/')}
+              onClick={() => setShowLogoutModal(true)}
               className="text-gray-400 hover:text-white"
+              aria-label="Logout"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -743,6 +755,30 @@ export default function ContentReviewPage() {
                 className="px-6 py-2 bg-red-600 hover:bg-red-700 rounded-full"
               >
                 Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Logout Confirmation Modal */}
+      {showLogoutModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 overflow-hidden">
+          <div className="bg-gray-900 p-6 rounded-lg w-96 animate-fade-in">
+            <h3 className="text-xl font-bold mb-4">Confirm Logout</h3>
+            <p className="mb-4 text-gray-300">Are you sure you want to logout?</p>
+            <div className="mt-6 flex justify-end space-x-3">
+              <button
+                onClick={() => setShowLogoutModal(false)}
+                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-gray-200"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleLogout}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-white"
+              >
+                Logout
               </button>
             </div>
           </div>

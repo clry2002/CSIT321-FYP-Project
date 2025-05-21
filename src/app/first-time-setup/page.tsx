@@ -34,7 +34,7 @@ export default function FirstTimeSetupPage() {
 
         // Make sure it's a child account
         if (userData.upid !== 3) {
-          router.push('/');
+          router.push('/landing');
           return;
         }
 

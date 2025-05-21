@@ -991,7 +991,7 @@ export default function AdminPage() {
       {/* Header */}
       <header className="p-4 border-b border-gray-800 bg-gray-900">
         <div className="flex justify-between items-center">
-          <div className="flex items-center cursor-pointer" onClick={() => router.push('/')}>
+          <div className="flex items-center cursor-pointer" onClick={() => router.push('/landing')}>
             <Image
               src="/logo2.png"
               alt="Logo"
