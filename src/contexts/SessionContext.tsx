@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, ReactNode, useRef } from 'react';
+import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
 
 interface UserAccount {
@@ -37,20 +37,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [userAccount, setUserAccount] = useState<UserAccount | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  
-  const isFetchingRef = useRef(false);
 
   // Fetch User Account and Profile
   const fetchUserAccount = async () => {
-    if (isFetchingRef.current) {
-      console.log('Already fetching, skipping duplicate call');
-      return;
-    }
-
     try {
       console.log('Fetching authenticated user...');
-      isFetchingRef.current = true;
-      setLoading(true);
+      setLoading(true); // Start loading
 
       // Get current session using the updated method
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
@@ -111,32 +103,25 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       console.log('User account set:', accountData);
 
       // Now fetch the user profile using the upid from the account
-      try {
-        const { data: userProfileData, error: userProfileError } = await supabase
-          .from('userprofile')
-          .select('*')
-          .eq('upid', accountData.upid)
-          .single();
+      const { data: userProfileData, error: userProfileError } = await supabase
+        .from('userprofile')
+        .select('*')
+        .eq('upid', accountData.upid)
+        .single();
 
-        if (userProfileError) {
-          console.error(`Error fetching user profile: ${userProfileError.message}`);
-          // Don't fail completely, just set profile to null
-          setUserProfile(null);
-        } else {
-          console.log('User profile fetched:', userProfileData);
-          setUserProfile(userProfileData);
-        }
-      } catch (profileError) {
-        console.error('Profile fetch error:', profileError);
+      if (userProfileError) {
+        console.error(`Error fetching user profile: ${userProfileError.message}`);
         setUserProfile(null);
+      } else {
+        console.log('User profile fetched:', userProfileData);
+        setUserProfile(userProfileData);
       }
     } catch (error) {
       console.error('Unexpected error fetching user data:', error);
       setUserAccount(null);
       setUserProfile(null);
     } finally {
-      setLoading(false);
-      isFetchingRef.current = false; // CLEAR FLAG
+      setLoading(false); // End loading
     }
   };
 
@@ -147,13 +132,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     console.log('Subscribing to auth state changes...');
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       console.log('Auth state changed:', event, session);
-      
-      // ONLY refetch on specific events, with a small delay
-      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
-        setTimeout(() => {
-          fetchUserAccount();
-        }, 100); // Small delay to prevent race condition
-      }
+      fetchUserAccount(); // Refresh user data after auth state change
     });
 
     // Cleanup subscription on unmount
@@ -162,19 +141,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       subscription.unsubscribe();
     };
   }, []);
-
-  // ADD SAFETY TIMEOUT
-  useEffect(() => {
-    if (loading) {
-      const timeout = setTimeout(() => {
-        console.warn('Loading timeout reached, forcing completion');
-        setLoading(false);
-        isFetchingRef.current = false;
-      }, 10000); // 10 second timeout
-
-      return () => clearTimeout(timeout);
-    }
-  }, [loading]);
 
   return (
     <SessionContext.Provider value={{ 
