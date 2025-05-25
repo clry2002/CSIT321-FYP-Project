@@ -32,6 +32,7 @@ interface BookResponse {
   coverimage?: string;
   cfid: number;
   cid: number;
+  minimumage?: number;
 }
 
 interface VideoResponse {
@@ -41,6 +42,7 @@ interface VideoResponse {
   coverimage?: string;
   cfid: number;
   cid: number;
+  minimumage?: number;
 }
 
 export const useChatbot = () => {
@@ -164,7 +166,7 @@ export const useChatbot = () => {
               coverimage: book.coverimage || '',
               cfid: book.cfid || 2,
               cid: book.cid || 0,
-              minimumage: 0, // Add a default value
+              minimumage: book.minimumage || 0,
             }))
           );
         }
@@ -176,7 +178,7 @@ export const useChatbot = () => {
               coverimage: video.coverimage || '',
               cfid: video.cfid || 1,
               cid: video.cid || 0,
-              minimumage: 0, // Add a default value
+              minimumage: video.minimumage || 0,
             }))
           );
         }
@@ -255,7 +257,7 @@ export const useChatbot = () => {
         cfid: response.data.content.cfid || 2,
         cid: response.data.content.cid || 0,
         minimumage: response.data.content.minimumage || 0,
-       theme: 'surprise'
+        theme: 'surprise'
       }];
 
       // Add surprise message

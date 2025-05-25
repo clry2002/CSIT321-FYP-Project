@@ -124,18 +124,33 @@ def search_for_title(title, uaid_child, supabase_client, get_child_age, is_genre
             content_status=content_status
         )
 
-def save_chat_to_database(context, is_chatbot, uaid_child):
+def save_chat_to_database(context, is_chatbot, uaid_child, content_data=None):
     try:
         timestamp = datetime.datetime.now().isoformat()
 
-        # 🔍 Add log here to see the ID being used
         logging.info(f"[DB Insert] uaid_child being used: {uaid_child}")
         logging.info(f"[DB Insert] Context: {context}")
         logging.info(f"[DB Insert] is_chatbot: {is_chatbot}")
+        
+        # Prepare the context to save
+        if content_data and is_chatbot and (content_data.get("books") or content_data.get("videos")):
+            # If we have content data (books/videos), save it as JSON with a special marker
+            full_context = {
+                "type": "content_response",
+                "message": context,
+                "books": content_data.get("books", []),
+                "videos": content_data.get("videos", []),
+                "genre": content_data.get("genre", "")
+            }
+            context_to_save = json.dumps(full_context)
+            logging.info(f"[DB Insert] Saving structured content with {len(full_context.get('books', []))} books and {len(full_context.get('videos', []))} videos")
+        else:
+            # Regular text message
+            context_to_save = context
 
         # Insert into temp_chathistory
         response = supabase.from_("temp_chathistory").insert({
-            "context": context,
+            "context": context_to_save,
             "ischatbot": is_chatbot,
             "createddate": timestamp,
             "uaid_child": uaid_child
@@ -143,19 +158,22 @@ def save_chat_to_database(context, is_chatbot, uaid_child):
 
         logging.info(f"Response from insert: {response}")
 
-        if 'data' not in response or not response['data']:
+        # ✅ Fixed: Check if the response has data properly
+        if not hasattr(response, 'data') or not response.data or len(response.data) == 0:
             logging.error(f"Failed to save chat: {response}")
             return
 
-        chat_history_id = response['data'][0].get("chid") if response['data'] else None
+        chat_history_id = response.data[0].get("chid") if response.data else None
         if not chat_history_id:
             raise Exception("No chat history ID returned.")
 
         logging.info(f"Chat successfully saved with ID {chat_history_id} and linked to user {uaid_child}")
+        return chat_history_id
 
     except Exception as e:
         logging.error(f"Error saving chat: {e}")
-
+        return None
+    
 # Read static context
 def read_data_from_file(file_path):
     try:
@@ -462,7 +480,8 @@ def chat():
         save_chat_to_database(
             context=recommendation_response.get("message", "Here are some recommendations for you!"), 
             is_chatbot=True, 
-            uaid_child=uaid_child
+            uaid_child=uaid_child,
+            content_data=recommendation_response
         )
         logging.info(f"Returning recommendation results with {len(recommendation_response.get('books', []))} books and {len(recommendation_response.get('videos', []))} videos")
         return jsonify(recommendation_response)
@@ -525,7 +544,8 @@ def chat():
             save_chat_to_database(
                 context=chat_message, 
                 is_chatbot=True, 
-                uaid_child=uaid_child
+                uaid_child=uaid_child,
+                content_data=title_content
             )
             return jsonify(title_content)
     
@@ -555,54 +575,86 @@ def chat():
         if detected_genre and not skip_genre_processing:
             content_response = get_content_by_genre_and_format(question, uaid_child)
             
+            # Handle blocked genres
+            if content_response and content_response.get("blocked"):
+                logging.info(f"Handling blocked genre: {content_response.get('requested_genre')}")
+                
+                context_from_file = read_data_from_file("data.txt")
+                if context_from_file is None:
+                    context_from_file = "You are a helpful AI chatbot that recommends books and videos for children."
+                    
+                # Create template with conversation context
+                template_with_context = create_template_with_context(
+                    conversation_history=recent_history,
+                    context_from_file=context_from_file,
+                    question=f"The child asked for {content_response.get('requested_genre', 'certain')} content, but this is not available in our collection right now. Please suggest other exciting and kid-friendly genres they might enjoy instead. Be gentle, positive, and enthusiastic about the alternatives.",
+                    child_age=child_age
+                )
+                
+                # Check if template is None and create fallback
+                if template_with_context is None:
+                    template_with_context = f"""
+                    You are an AI-powered chatbot designed to help children find age-appropriate content.
+                    
+                    The child (age {child_age}) asked for {content_response.get('requested_genre', 'certain')} content, 
+                    but this content is not available in our collection right now. 
+                    
+                    Please suggest other exciting and kid-friendly genres they might enjoy instead. 
+                    Be gentle, positive, and enthusiastic about the alternatives. Use simple language 
+                    appropriate for a {child_age}-year-old.
+                    
+                    Some good alternative genres to suggest include: animals, friendship, fantasy, 
+                    science, space, dinosaurs, magic, and mystery.
+                    """
+                
+                try:
+                    ai_answer = deepseek_chain.invoke(template_with_context)
+                    # Use the kid-friendly function
+                    kid_friendly_answer = make_kid_friendly(ai_answer, child_age, deepseek_chain)
+                    save_chat_to_database(context=kid_friendly_answer, is_chatbot=True, uaid_child=uaid_child)
+                    
+                    # Return the alternate content suggestion
+                    return jsonify({"answer": kid_friendly_answer})
+                except Exception as e:
+                    logging.error(f"AI response for blocked genre failed: {e}")
+                    # Provide a fallback message if AI fails
+                    fallback_message = f"I don't have {content_response.get('requested_genre', 'that type of')} content available right now, but I have lots of other fun books and videos! How about animals, friendship stories, or maybe some exciting space adventures?"
+                    save_chat_to_database(context=fallback_message, is_chatbot=True, uaid_child=uaid_child)
+                    return jsonify({"answer": fallback_message})
+            
             # If we found database content, return it immediately
             if content_response and "genre" in content_response and "error" not in content_response:
-                # Store genre in context without forcing content type
-                conversation_manager.update_context(uaid_child, 'genre', detected_genre)
-                
-                # Check if the content_response has a message
                 if "message" in content_response:
-                    # Save just the message to chat history
+                    # Save the complete response including books and videos
                     save_chat_to_database(
                         context=content_response["message"], 
                         is_chatbot=True, 
-                        uaid_child=uaid_child
-                    )
-                else:
-                    # Add a friendly message if missing
-                    # Count content items
-                    book_count = len(content_response.get("books", []))
-                    video_count = len(content_response.get("videos", []))
-                    
-                    # Create content description
-                    content_desc = []
-                    if book_count > 0:
-                        content_desc.append(f"{book_count} book{'s' if book_count != 1 else ''}")
-                    if video_count > 0:
-                        content_desc.append(f"{video_count} video{'s' if video_count != 1 else ''}")
-                    
-                    content_desc_text = " and ".join(content_desc)
-                    
-                    # Generate friendly messages
-                    messages = [
-                        f"I found some great {detected_genre} content for you! Here's {content_desc_text} that I think you'll enjoy.",
-                        f"Looking for {detected_genre}? You've come to the right place! I found {content_desc_text} for you.",
-                        f"Here are {content_desc_text} in the {detected_genre} category just for you!",
-                        f"I love {detected_genre} too! Here are {content_desc_text} that I think you'll really enjoy."
-                    ]
-                    
-                    # Select a random message for variety
-                    message = random.choice(messages)
-                    content_response["message"] = message
-                    
-                    # Save to chat history
-                    save_chat_to_database(
-                        context=message, 
-                        is_chatbot=True, 
-                        uaid_child=uaid_child
-                    )
+                        uaid_child=uaid_child,
+                        content_data=content_response
+                )
+            else:
+                # Create and save message with content data
+                book_count = len(content_response.get("books", []))
+                video_count = len(content_response.get("videos", []))
                 
-                return jsonify(content_response)
+                content_desc = []
+                if book_count > 0:
+                    content_desc.append(f"{book_count} book{'s' if book_count != 1 else ''}")
+                if video_count > 0:
+                    content_desc.append(f"{video_count} video{'s' if video_count != 1 else ''}")
+                
+                content_desc_text = " and ".join(content_desc)
+                message = f"Here are {content_desc_text} in the {content_response.get('genre', '')} category just for you!"
+                content_response["message"] = message
+                
+                save_chat_to_database(
+                    context=message, 
+                    is_chatbot=True, 
+                    uaid_child=uaid_child,
+                    content_data=content_response
+                )
+
+            return jsonify(content_response)
     
     # STEP 4: Process character and context detection
     # Check if this is a short/affirmative response
@@ -612,21 +664,34 @@ def chat():
     location_references = ["here", "this one", "that one", "these", "those"]
     has_location_reference = any(ref in normalized_question for ref in location_references)
     
-    # Detect character mentions in the current query
+    # Detect character mentions in the current query - ENHANCED VERSION
     character_query = detect_character_in_query(normalized_question)
     
-    # Check if we should reset character context before using it
-    if not character_query and existing_context and 'character' in existing_context:
+    # If we found a new character, it takes priority over existing context
+    if character_query:
+        # Update context with the new character
+        conversation_manager.update_context(uaid_child, 'character', character_query)
+        logging.info(f"NEW CHARACTER DETECTED: Updated conversation context with character: {character_query}")
+    
+    # Only fall back to existing context if NO character was detected in current query
+    elif not character_query and existing_context and 'character' in existing_context:
         if should_reset_character_context(question, recent_history, existing_context):
             # Reset the character context if needed
             conversation_manager.clear_context(uaid_child, 'character')
             logging.info(f"Cleared character context for user {uaid_child}")
+            character_query = None  # Make sure we don't use old context
         else:
-            # Only use the character from context if we shouldn't reset
-            character_query = existing_context['character']
-            logging.info(f"Using character from existing context: {character_query}")
+            # Only use the character from context if we shouldn't reset AND it's a short response or has location reference
+            if short_response or has_location_reference:
+                character_query = existing_context['character']
+                logging.info(f"Using character from existing context for short response: {character_query}")
+            else:
+                # For longer responses without character mention, clear context
+                conversation_manager.clear_context(uaid_child, 'character')
+                logging.info(f"Cleared character context - longer response without character mention")
+                character_query = None
             
-    # Only extract from history for very specific cases
+    # Only extract from history for very specific cases (keep this part mostly the same)
     elif not character_query and recent_history:
         # Only look in history for characters if user is clearly asking about characters
         character_phrases = ["who is", "character", "cartoon", "show me the", "about the"]
@@ -640,7 +705,7 @@ def chat():
             if character_query:
                 logging.info(f"Extracted character '{character_query}' from history for relevant query")
         
-    # If we found a character, store it in context
+    # If we found a character, store it in context (this ensures context is always up-to-date)
     if character_query:
         conversation_manager.update_context(uaid_child, 'character', character_query)
         logging.info(f"Updated conversation context with character: {character_query}")
@@ -728,7 +793,8 @@ def chat():
             save_chat_to_database(
                 context=db_content["message"], 
                 is_chatbot=True, 
-                uaid_child=uaid_child
+                uaid_child=uaid_child,
+                content_data=db_content
             )
             logging.info(f"Returning direct database content for {combined_query if combined_query else character_query}")
             return jsonify(db_content)
@@ -836,7 +902,8 @@ def chat():
             save_chat_to_database(
                 context=f"Found content for: {title}", 
                 is_chatbot=True, 
-                uaid_child=uaid_child
+                uaid_child=uaid_child,
+                content_data=title_content
             )
             return jsonify(title_content)
     
@@ -1379,28 +1446,65 @@ def get_surprise():
             
             # Save surprise interaction to history
             surprise_message = random.choice(messages)
+            
+            # ✅ UPDATED: Create content data structure for the surprise response
+            surprise_content_data = {
+                "genre": genre_name,
+                "message": surprise_message
+            }
+
+            # Add the content based on type
+            if content_type == "book":
+                surprise_content_data["books"] = [selected_content]
+                surprise_content_data["videos"] = []
+            else:  # video
+                surprise_content_data["books"] = []
+                surprise_content_data["videos"] = [selected_content]
+
             save_chat_to_database(
                 context=surprise_message,
                 is_chatbot=True,
+                uaid_child=uaid_child,
+                content_data=surprise_content_data  # ✅ NEW: Pass the complete surprise content
+            )
+            
+            # ✅ UPDATED: Return response in the format expected by frontend
+            return jsonify({
+                "message": surprise_message,
+                "genre": genre_name,
+                "books": [selected_content] if content_type == "book" else [],
+                "videos": [selected_content] if content_type == "video" else [],
+                "content": selected_content  # Keep this for backward compatibility if needed
+            })
+        else:
+            # No suitable content found - save this message too
+            no_content_message = "I tried to find a surprise for you, but couldn't find something perfect right now."
+            save_chat_to_database(
+                context=no_content_message,
+                is_chatbot=True,
                 uaid_child=uaid_child
+                # No content_data needed here since it's just a text message
             )
             
             return jsonify({
-                "message": surprise_message,
-                "content": selected_content,
-                "genre": genre_name
-            })
-        else:
-            # No suitable content found
-            return jsonify({
-                "message": "I tried to find a surprise for you, but couldn't find something perfect right now.",
+                "message": no_content_message,
                 "answer": "I tried to find a surprise for you, but couldn't find something perfect right now. Would you like to try asking for something specific instead?"
             })
             
     except Exception as e:
         logging.error(f"Error in surprise endpoint: {e}", exc_info=True)
+        
+        # ✅ UPDATED: Save error message to chat history too
+        error_message = "Oops! My magic surprise finder is taking a little break."
+        save_chat_to_database(
+            context=error_message,
+            is_chatbot=True,
+            uaid_child=uaid_child
+            # No content_data needed here since it's just a text message
+        )
+        
         return jsonify({
-            "message": "Oops! My magic surprise finder is taking a little break.",
+            "message": error_message,
             "answer": "Oops! My magic surprise finder is taking a little break. Let's try something else fun instead!"
         })
 

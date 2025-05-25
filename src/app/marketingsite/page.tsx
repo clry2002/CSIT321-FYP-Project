@@ -171,7 +171,7 @@ export default function LandingPage() {
           text: 'Share your stories with the right audience. Reach families and schools who value quality content.',
           img: '/publisherimage.jpg',
         },
-      ].map(({ id, title, text, img, reverse }, index) => (
+      ].map(({ id, title, text, img, reverse }) => (
         <section key={id} id={id} className={`relative flex ${reverse ? 'flex-row-reverse' : 'flex-row'} items-center justify-center py-10 px-8 bg-[#fff4e6]`}>
           <div className="absolute inset-0 bg-cover bg-center animate-pan-zoom opacity-50" style={{ backgroundImage: "url('/spaceblue.jpg')", backgroundBlendMode: 'overlay', backgroundColor: 'rgba(0, 0, 0, 0.4)' }} />
           <div className="relative z-10 w-1/2 h-[500px] bg-cover bg-center" style={{ backgroundImage: `url('${img}')` }} />
@@ -179,17 +179,10 @@ export default function LandingPage() {
             <h3 className="text-4xl font-bold text-white mb-6 drop-shadow-lg">{title}</h3>
             <p className="text-lg text-white">{text}</p>
           </div>
-          
-          {/* YouTube Video Section - Add after the Parents section */}
-          {index === 0 && (
-            <div className="w-full">
-              {/* This empty div closes the parents section */}
-            </div>
-          )}
         </section>
       ))}
       
-      {/* YouTube Video Section - Placed after Parents section */}
+      {/* YouTube Video Section - Now properly placed after all three sections */}
       <section className="relative py-16 px-6 md:px-20 bg-gradient-to-b from-[#fff4e6] to-white">
         <div className="max-w-5xl mx-auto">
           <h3 className="text-3xl font-bold text-center text-gray-800 mb-8">See CoReadability in Action</h3>

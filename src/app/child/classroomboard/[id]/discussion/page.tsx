@@ -42,6 +42,13 @@ export default function DiscussionBoardPage() {
   const stickyNoteMargin = 'mr-4 mb-4';
 
   useEffect(() => {
+  console.log('Production env check:');
+  console.log('URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
+  console.log('Key length:', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.length);
+  console.log('Key first 10:', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.slice(0, 10));
+}, []);
+
+  useEffect(() => {
     const fetchDiscussion = async () => {
       setLoading(true);
       try {
