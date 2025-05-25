@@ -499,7 +499,7 @@ const ChatBot: React.FC = () => {
                 {message.role === 'assistant' && Array.isArray(message.content) ? (
                   <div className="content-results-container">
                     {/* Check if it's a surprise item or has more than 10 content items */}
-                    {(message.content.length > 10 || message.content.length === 1 && 
+                    {(message.content.length >= 10 || message.content.length === 1 && 
                       messages[msgIndex - 1]?.content?.toString().includes("Surprise")) ? (
                       <>
                         {/* Show a summary message first */}
@@ -511,7 +511,7 @@ const ChatBot: React.FC = () => {
                           </p>
                           
                           {/* Only show the toggle button if we have more than 10 content items (not for surprise) */}
-                          {message.content.length > 10 && (
+                          {message.content.length >= 10 && (
                             <button 
                               onClick={() => toggleMessageExpansion(msgIndex)}
                               className="see-results-button"

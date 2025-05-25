@@ -663,9 +663,16 @@ def getTrendingBooks(uaid_child):
                 .order("decisiondate", desc=True)
                 .limit(20)
             ).execute()
-            return filter_blocked_genres(recent.data, uaid_child)
             
-        return filter_blocked_genres(trending.data, uaid_child)
+            filtered_books = filter_blocked_genres(recent.data, uaid_child)
+            result = filtered_books[:10]
+            logging.info(f"Returning {len(result)} trending books (fallback) after filtering and limiting")
+            return result
+            
+        filtered_books = filter_blocked_genres(trending.data, uaid_child)
+        result = filtered_books[:10]
+        logging.info(f"Returning {len(result)} trending books after filtering and limiting")
+        return result
         
     except Exception as e:
         logging.error(f"Error getting trending books: {e}")
@@ -692,7 +699,10 @@ def getPopularBooks(uaid_child):
         if not popular.data or len(popular.data) < 5:
             return []
             
-        return filter_blocked_genres(popular.data, uaid_child)
+        filtered_books = filter_blocked_genres(popular.data, uaid_child)
+        result = filtered_books[:10]
+        logging.info(f"Returning {len(result)} popular books after filtering and limiting")
+        return result
         
     except Exception as e:
         logging.error(f"Error getting popular books: {e}")
@@ -797,7 +807,10 @@ def getTrendingVideos(uaid_child):
         if not trending.data or len(trending.data) == 0:
             return []
             
-        return filter_blocked_genres(trending.data, uaid_child)
+        filtered_videos = filter_blocked_genres(trending.data, uaid_child)
+        result = filtered_videos[:10]
+        logging.info(f"Returning {len(result)} trending videos after filtering and limiting")
+        return result
         
     except Exception as e:
         logging.error(f"Error getting trending videos: {e}")
@@ -824,7 +837,10 @@ def getPopularVideos(uaid_child):
         if not popular.data or len(popular.data) == 0:
             return []
             
-        return filter_blocked_genres(popular.data, uaid_child)
+        filtered_videos = filter_blocked_genres(popular.data, uaid_child)
+        result = filtered_videos[:10]
+        logging.info(f"Returning {len(result)} popular videos after filtering and limiting")
+        return result
         
     except Exception as e:
         logging.error(f"Error getting popular videos: {e}")
